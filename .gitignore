@@ -4,3 +4,10 @@ frontend/node_modules
 # Backend
 backend/node_modules
 backend/npm-debug.log
+
+# Root / e2e
+node_modules
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

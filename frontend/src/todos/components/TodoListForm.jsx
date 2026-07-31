@@ -1,73 +1,82 @@
-import React, { useState } from 'react'
-import { TextField, Card, CardContent, CardActions, Button, Typography } from '@mui/material'
-import DeleteIcon from '@mui/icons-material/Delete'
+import React, { useEffect, useRef, useState } from 'react'
+import { Card, CardContent, CardActions, Button, Typography } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import { TodoItem } from './TodoItem'
+import { createTodo, removeTodoAt, updateTodoAt } from '../todoModel'
+import { useDebouncedValue } from '../useDebouncedValue'
 
 export const TodoListForm = ({ todoList, saveTodoList }) => {
   const [todos, setTodos] = useState(todoList.todos)
+  const [saveState, setSaveState] = useState('idle')
+  const [saveError, setSaveError] = useState(null)
+  const debouncedTodos = useDebouncedValue(todos, 400)
+  const skipNextSave = useRef(true)
+  const latestTodos = useRef(todos)
+  latestTodos.current = todos
 
-  const handleSubmit = (event) => {
-    event.preventDefault()
-    saveTodoList(todoList.id, { todos })
-  }
+  useEffect(() => {
+    if (skipNextSave.current) {
+      skipNextSave.current = false
+      return
+    }
+
+    let cancelled = false
+    setSaveState('saving')
+    setSaveError(null)
+
+    saveTodoList(todoList.id, { todos: debouncedTodos })
+      .then(() => {
+        if (cancelled) return
+        // Only show saved if nothing newer is pending locally
+        if (latestTodos.current === debouncedTodos) {
+          setSaveState('saved')
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setSaveState('error')
+        setSaveError(error.message || 'Failed to save')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedTodos, saveTodoList, todoList.id])
 
   return (
     <Card sx={{ margin: '0 1rem' }}>
       <CardContent>
         <Typography component='h2'>{todoList.title}</Typography>
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}
+        <Typography
+          variant='body2'
+          color={saveState === 'error' ? 'error' : 'text.secondary'}
+          sx={{ marginBottom: '0.5rem', minHeight: '1.25rem' }}
+          aria-live='polite'
         >
-          {todos.map((name, index) => (
-            <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-              <Typography sx={{ margin: '8px' }} variant='h6'>
-                {index + 1}
-              </Typography>
-              <TextField
-                sx={{ flexGrow: 1, marginTop: '1rem' }}
-                label='What to do?'
-                value={name}
-                onChange={(event) => {
-                  setTodos([
-                    // immutable update
-                    ...todos.slice(0, index),
-                    event.target.value,
-                    ...todos.slice(index + 1),
-                  ])
-                }}
-              />
-              <Button
-                sx={{ margin: '8px' }}
-                size='small'
-                color='secondary'
-                onClick={() => {
-                  setTodos([
-                    // immutable delete
-                    ...todos.slice(0, index),
-                    ...todos.slice(index + 1),
-                  ])
-                }}
-              >
-                <DeleteIcon />
-              </Button>
-            </div>
+          {saveState === 'saving' && 'Saving…'}
+          {saveState === 'saved' && 'All changes saved'}
+          {saveState === 'error' && `Save failed: ${saveError}`}
+        </Typography>
+        <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+          {todos.map((todo, index) => (
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              index={index}
+              onChange={(patch) => setTodos(updateTodoAt(todos, index, patch))}
+              onRemove={() => setTodos(removeTodoAt(todos, index))}
+            />
           ))}
           <CardActions>
             <Button
               type='button'
               color='primary'
-              onClick={() => {
-                setTodos([...todos, ''])
-              }}
+              onClick={() => setTodos([...todos, createTodo()])}
             >
               Add Todo <AddIcon />
             </Button>
-            <Button type='submit' variant='contained' color='primary'>
-              Save
-            </Button>
           </CardActions>
-        </form>
+        </div>
       </CardContent>
     </Card>
   )

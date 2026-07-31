@@ -1,0 +1,16 @@
+{
+  "name": "web-interview",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sellpy web interview assignment",
+  "scripts": {
+    "test": "npm test --prefix backend && CI=true npm test --prefix frontend -- --watchAll=false",
+    "test:backend": "npm test --prefix backend",
+    "test:frontend": "CI=true npm test --prefix frontend -- --watchAll=false",
+    "test:e2e": "playwright test",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

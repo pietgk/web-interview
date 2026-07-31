@@ -17,6 +17,21 @@ Persist the todo lists on the server. Persisting in a database is not required, 
 - Indicate that a todo list is completed if all todo items within are completed.
 - Add a date for completion to todo items. Indicate how much time is remaining or overdue.
 
+## Submission status (this fork)
+
+Completed **main task + all 4 additional tasks**.
+
+Design rationale: see [`DECISIONS.md`](./DECISIONS.md).
+
+### Running tests
+
+```bash
+# from repo root (after npm ci in backend/, frontend/, and root)
+npm test          # backend unit/integration + frontend unit
+npm run test:e2e  # Playwright (starts both servers)
+npm run lint
+```
+
 ## Submission
 Before submitting, read through all changes one last time - **code quality matters**!
 
