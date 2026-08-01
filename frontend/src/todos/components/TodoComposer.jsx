@@ -1,8 +1,9 @@
 import React, { useRef } from 'react'
 import { TextField, Button } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import { focusLeft } from './focusLeft'
 
-export const TodoComposer = ({ text, onChange, onSubmit }) => {
+export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
   const inputRef = useRef(null)
 
   const submit = () => {
@@ -12,7 +13,14 @@ export const TodoComposer = ({ text, onChange, onSubmit }) => {
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+    <div
+      role='group'
+      aria-label='New todo'
+      onBlur={(event) => {
+        if (focusLeft(event)) onCommit?.()
+      }}
+      style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}
+    >
       <TextField
         sx={{ flexGrow: 1, minWidth: '12rem', marginTop: '1rem' }}
         label='Add a todo'
