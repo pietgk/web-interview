@@ -1,12 +1,10 @@
 import React from 'react'
 import { Card, CardContent, Button, Typography } from '@mui/material'
+import { TodoComposer } from './TodoComposer'
 import { TodoItem } from './TodoItem'
 
 /** True when focus left this element for something outside it (not a child). */
 const focusLeft = (event) => !event.currentTarget.contains(event.relatedTarget)
-
-/** True when the patch includes a `text` key (even if the value is ''). */
-const hasText = (patch) => Object.prototype.hasOwnProperty.call(patch, 'text')
 
 export const TodoListForm = ({
   todoList,
@@ -81,19 +79,9 @@ export const TodoListForm = ({
               }
             }}
           >
-            <TodoItem
-              variant='composer'
-              todo={{
-                id: 'composer',
-                text: composerText,
-                completed: false,
-                dueDate: null,
-              }}
-              onChange={(patch) => {
-                if (hasText(patch)) {
-                  send({ type: 'COMPOSER_CHANGE', text: patch.text })
-                }
-              }}
+            <TodoComposer
+              text={composerText}
+              onChange={(text) => send({ type: 'COMPOSER_CHANGE', text })}
               onSubmit={() => send({ type: 'COMPOSER_SUBMIT' })}
             />
           </div>

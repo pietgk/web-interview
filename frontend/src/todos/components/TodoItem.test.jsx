@@ -50,35 +50,4 @@ describe('TodoItem', () => {
     expect(screen.getByText('Completed')).toBeInTheDocument()
     expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument()
   })
-
-  it('renders a composer row with Add button and Enter submit', async () => {
-    const user = userEvent.setup()
-    const onChange = jest.fn()
-    const onSubmit = jest.fn()
-
-    render(
-      <TodoItem
-        variant='composer'
-        todo={createTodo({ id: 'composer', text: '' })}
-        onChange={onChange}
-        onSubmit={onSubmit}
-      />
-    )
-
-    expect(screen.getByLabelText('Add a todo')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add todo' })).toBeInTheDocument()
-    expect(screen.queryByLabelText(/Mark completed/)).not.toBeInTheDocument()
-    expect(screen.queryByLabelText(/Delete todo/)).not.toBeInTheDocument()
-    expect(screen.queryByText('+')).not.toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('Add a todo'), 'A')
-    expect(onChange).toHaveBeenCalledWith({ text: 'A' })
-
-    await user.keyboard('{Enter}')
-    expect(onSubmit).toHaveBeenCalled()
-
-    await user.click(screen.getByRole('button', { name: 'Add todo' }))
-    expect(onSubmit).toHaveBeenCalledTimes(2)
-    expect(screen.getByLabelText('Add a todo')).toHaveFocus()
-  })
 })
