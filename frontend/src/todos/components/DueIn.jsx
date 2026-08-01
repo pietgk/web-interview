@@ -13,7 +13,7 @@ const dueInLabel = (status) => {
 }
 
 export const DueIn = ({ dueDate, completed, onChange, todoLabel, now }) => {
-  const dueStatus = getDueStatus(dueDate, { completed, now })
+  const dueStatus = completed ? null : getDueStatus(dueDate, { now })
   const label = dueInLabel(dueStatus)
 
   return (

@@ -2,10 +2,9 @@ import React from 'react'
 import {
   TextField,
   IconButton,
-  Checkbox,
-  FormControlLabel,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
+import { CompletionField } from './CompletionField'
 import { DueIn } from './DueIn'
 import { TodoRow } from './TodoRow'
 
@@ -19,21 +18,10 @@ export const TodoItem = ({ todo, onChange, onRemove, now }) => {
 
   return (
     <TodoRow ariaLabel={`Todo: ${label}`}>
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={todo.completed}
-            onChange={(event) => onChange({ completed: event.target.checked })}
-            inputProps={{ 'aria-label': `Mark completed: ${label}` }}
-          />
-        }
-        label='Done'
-      />
-      <TextField
-        sx={{ flexGrow: 1, minWidth: '12rem' }}
-        label='What to do?'
-        value={todo.text}
-        onChange={(event) => onChange({ text: event.target.value })}
+      <CompletionField
+        completed={todo.completed}
+        onChange={(completed) => onChange({ completed })}
+        todoLabel={label}
       />
       <DueIn
         dueDate={todo.dueDate}
@@ -41,6 +29,12 @@ export const TodoItem = ({ todo, onChange, onRemove, now }) => {
         onChange={(dueDate) => onChange({ dueDate })}
         todoLabel={label}
         now={now}
+      />
+      <TextField
+        sx={{ flexGrow: 1, minWidth: '12rem' }}
+        label='What to do?'
+        value={todo.text}
+        onChange={(event) => onChange({ text: event.target.value })}
       />
       <IconButton
         color='secondary'

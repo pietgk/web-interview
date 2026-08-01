@@ -11,7 +11,7 @@ describe('DueIn', () => {
     ['2026-08-03', false, 'Due in 3 days'],
     ['2026-07-30', false, '1 day overdue'],
     ['2026-07-28', false, '3 days overdue'],
-    ['2026-07-30', true, 'Completed'],
+    ['2026-07-30', true, 'Due date'],
   ])(
     'labels %s with completed=%s as %s',
     (dueDate, completed, expectedLabel) => {

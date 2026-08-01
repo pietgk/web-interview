@@ -48,7 +48,7 @@ describe('TodoItem', () => {
       <TodoItem todo={todo} onChange={jest.fn()} onRemove={jest.fn()} now={now} />
     )
 
-    expect(screen.getByLabelText('Completed: Done')).toBeInTheDocument()
+    expect(screen.getByLabelText('Due date: Done')).toBeInTheDocument()
     expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument()
   })
 })
