@@ -70,7 +70,7 @@ test('shows a due-in label for a due date and persists after refresh', async ({ 
   const saved = waitForAutosave(page)
   await page.getByLabel('Due date: First todo of first list!').fill('2099-01-15')
   await expect(
-    page.getByLabel(/Due in \d+ days: First todo of first list!/)
+    page.getByLabel(/Due in \d+ years: First todo of first list!/)
   ).toHaveValue('2099-01-15')
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
@@ -78,7 +78,7 @@ test('shows a due-in label for a due date and persists after refresh', async ({ 
   await page.reload()
   await page.getByText('First List').click()
   await expect(
-    page.getByLabel(/Due in \d+ days: First todo of first list!/)
+    page.getByLabel(/Due in \d+ years: First todo of first list!/)
   ).toHaveValue('2099-01-15')
 })
 

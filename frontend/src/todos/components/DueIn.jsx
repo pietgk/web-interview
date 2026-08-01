@@ -3,13 +3,7 @@ import { TextField } from '@mui/material'
 import { getDueStatus } from '../todoModel'
 
 const dueInLabel = (status) => {
-  if (!status) return 'Due date'
-
-  if (status.kind === 'remaining') {
-    return `Due in ${status.days} ${status.days === 1 ? 'day' : 'days'}`
-  }
-
-  return status.label
+  return status?.label ?? 'Due date'
 }
 
 export const DueIn = ({ dueDate, completed, onChange, todoLabel, now }) => {
