@@ -4,7 +4,7 @@ import { TodoItem } from './TodoItem'
 import { createTodo } from '../todoModel'
 
 describe('TodoItem', () => {
-  it('notifies on text, completed, due date, and delete, and shows due status', async () => {
+  it('notifies on text, completed, due date, and delete, and shows due status in the date label', async () => {
     const user = userEvent.setup()
     const onChange = jest.fn()
     const onRemove = jest.fn()
@@ -15,7 +15,8 @@ describe('TodoItem', () => {
       <TodoItem todo={todo} onChange={onChange} onRemove={onRemove} now={now} />
     )
 
-    expect(screen.getByText('1 day remaining')).toBeInTheDocument()
+    expect(screen.getByLabelText('Due in 1 day: Buy milk')).toBeInTheDocument()
+    expect(screen.queryByText('1 day remaining')).not.toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Todo: Buy milk' })).toBeInTheDocument()
     expect(screen.queryByText('1')).not.toBeInTheDocument()
 
@@ -25,7 +26,7 @@ describe('TodoItem', () => {
     await user.click(screen.getByLabelText('Mark completed: Buy milk'))
     expect(onChange).toHaveBeenCalledWith({ completed: true })
 
-    fireEvent.change(screen.getByLabelText('Due date: Buy milk'), {
+    fireEvent.change(screen.getByLabelText('Due in 1 day: Buy milk'), {
       target: { value: '2026-08-05' },
     })
     expect(onChange).toHaveBeenCalledWith({ dueDate: '2026-08-05' })
@@ -47,7 +48,7 @@ describe('TodoItem', () => {
       <TodoItem todo={todo} onChange={jest.fn()} onRemove={jest.fn()} now={now} />
     )
 
-    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByLabelText('Completed: Done')).toBeInTheDocument()
     expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument()
   })
 })

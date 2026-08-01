@@ -63,20 +63,23 @@ test('marks a todo and its list as completed and persists after refresh', async 
   await expect(page.getByText('All todos completed')).toBeVisible()
 })
 
-test('shows remaining time for a due date and persists after refresh', async ({ page }) => {
+test('shows a due-in label for a due date and persists after refresh', async ({ page }) => {
   await page.goto('/')
   await page.getByText('First List').click()
 
   const saved = waitForAutosave(page)
   await page.getByLabel('Due date: First todo of first list!').fill('2099-01-15')
-  await expect(page.getByText(/days remaining/)).toBeVisible()
+  await expect(
+    page.getByLabel(/Due in \d+ days: First todo of first list!/)
+  ).toHaveValue('2099-01-15')
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
 
   await page.reload()
   await page.getByText('First List').click()
-  await expect(page.getByLabel('Due date: First todo of first list!')).toHaveValue('2099-01-15')
-  await expect(page.getByText(/days remaining/)).toBeVisible()
+  await expect(
+    page.getByLabel(/Due in \d+ days: First todo of first list!/)
+  ).toHaveValue('2099-01-15')
 })
 
 test('keeps edits when switching lists before debounce expires', async ({ page }) => {

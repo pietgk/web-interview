@@ -1,13 +1,13 @@
-import React, { useId } from 'react'
+import React from 'react'
 import {
   TextField,
-  Button,
-  Typography,
+  IconButton,
   Checkbox,
   FormControlLabel,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { getDueStatus } from '../todoModel'
+import { DueIn } from './DueIn'
+import { TodoRow } from './TodoRow'
 
 const todoLabel = (todo) => {
   const text = String(todo?.text ?? '').trim()
@@ -15,19 +15,10 @@ const todoLabel = (todo) => {
 }
 
 export const TodoItem = ({ todo, onChange, onRemove, now }) => {
-  const dueStatusId = useId()
   const label = todoLabel(todo)
-  const dueStatus = getDueStatus(todo.dueDate, {
-    completed: todo.completed,
-    now,
-  })
 
   return (
-    <div
-      role='group'
-      aria-label={`Todo: ${label}`}
-      style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}
-    >
+    <TodoRow ariaLabel={`Todo: ${label}`}>
       <FormControlLabel
         control={
           <Checkbox
@@ -39,40 +30,25 @@ export const TodoItem = ({ todo, onChange, onRemove, now }) => {
         label='Done'
       />
       <TextField
-        sx={{ flexGrow: 1, minWidth: '12rem', marginTop: '1rem' }}
+        sx={{ flexGrow: 1, minWidth: '12rem' }}
         label='What to do?'
         value={todo.text}
         onChange={(event) => onChange({ text: event.target.value })}
-        inputProps={dueStatus ? { 'aria-describedby': dueStatusId } : undefined}
       />
-      <TextField
-        sx={{ marginTop: '1rem', width: '11rem' }}
-        label='Due date'
-        type='date'
-        value={todo.dueDate || ''}
-        onChange={(event) => onChange({ dueDate: event.target.value || null })}
-        InputLabelProps={{ shrink: true }}
-        inputProps={{ 'aria-label': `Due date: ${label}` }}
+      <DueIn
+        dueDate={todo.dueDate}
+        completed={todo.completed}
+        onChange={(dueDate) => onChange({ dueDate })}
+        todoLabel={label}
+        now={now}
       />
-      {dueStatus && (
-        <Typography
-          id={dueStatusId}
-          variant='body2'
-          color={dueStatus.kind === 'overdue' ? 'error' : 'text.secondary'}
-          sx={{ minWidth: '9rem' }}
-        >
-          {dueStatus.label}
-        </Typography>
-      )}
-      <Button
-        sx={{ margin: '8px' }}
-        size='small'
+      <IconButton
         color='secondary'
         onClick={onRemove}
         aria-label={`Delete todo: ${label}`}
       >
         <DeleteIcon aria-hidden />
-      </Button>
-    </div>
+      </IconButton>
+    </TodoRow>
   )
 }

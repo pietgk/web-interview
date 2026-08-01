@@ -1,7 +1,8 @@
 import React, { useRef } from 'react'
-import { TextField, Button } from '@mui/material'
+import { TextField, IconButton } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { focusLeft } from './focusLeft'
+import { TodoRow } from './TodoRow'
 
 export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
   const inputRef = useRef(null)
@@ -13,16 +14,14 @@ export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
   }
 
   return (
-    <div
-      role='group'
-      aria-label='New todo'
+    <TodoRow
+      ariaLabel='New todo'
       onBlur={(event) => {
         if (focusLeft(event)) onCommit?.()
       }}
-      style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}
     >
       <TextField
-        sx={{ flexGrow: 1, minWidth: '12rem', marginTop: '1rem' }}
+        sx={{ flexGrow: 1, minWidth: '12rem' }}
         label='Add a todo'
         value={text}
         onChange={(event) => onChange(event.target.value)}
@@ -35,15 +34,9 @@ export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
         }}
         inputProps={{ 'aria-label': 'Add a todo' }}
       />
-      <Button
-        sx={{ margin: '8px' }}
-        size='small'
-        color='secondary'
-        onClick={submit}
-        aria-label='Add todo'
-      >
+      <IconButton color='secondary' onClick={submit} aria-label='Add todo'>
         <AddIcon aria-hidden />
-      </Button>
-    </div>
+      </IconButton>
+    </TodoRow>
   )
 }
