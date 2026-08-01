@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { createStore } from './store.js'
+import { createStore, STORE_ERROR } from './store.js'
 import { createSeedTodoLists } from './seed.js'
 
 describe('todo list store', () => {
@@ -34,16 +34,41 @@ describe('todo list store', () => {
     assert.deepEqual(store.getById('0000000001').todos, todos)
   })
 
-  it('returns 404 for unknown list', () => {
+  it('returns TODO_LIST_NOT_FOUND for unknown list', () => {
     const result = store.updateTodos('missing', [])
     assert.equal(result.ok, false)
-    assert.equal(result.status, 404)
+    assert.equal(result.code, STORE_ERROR.TODO_LIST_NOT_FOUND)
   })
 
-  it('returns 400 for invalid todos payload', () => {
+  it('returns INVALID_TODOS for invalid todos payload', () => {
     const result = store.updateTodos('0000000001', [{ text: 'nope' }])
     assert.equal(result.ok, false)
-    assert.equal(result.status, 400)
+    assert.equal(result.code, STORE_ERROR.INVALID_TODOS)
+    assert.equal(result.body.code, 'VALIDATION_ERROR')
+  })
+
+  it('rejects an impossible calendar date', () => {
+    const result = store.updateTodos('0000000001', [
+      {
+        id: 't1',
+        text: 'Bad date',
+        completed: false,
+        dueDate: '2026-02-31',
+      },
+    ])
+
+    assert.equal(result.ok, false)
+    assert.equal(result.code, STORE_ERROR.INVALID_TODOS)
+  })
+
+  it('rejects duplicate todo ids', () => {
+    const result = store.updateTodos('0000000001', [
+      { id: 't1', text: 'A', completed: false, dueDate: null },
+      { id: 't1', text: 'B', completed: true, dueDate: null },
+    ])
+
+    assert.equal(result.ok, false)
+    assert.equal(result.code, STORE_ERROR.INVALID_TODOS)
   })
 
   it('does not mutate seed when cloning', () => {

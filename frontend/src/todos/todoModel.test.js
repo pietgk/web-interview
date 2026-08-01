@@ -1,6 +1,7 @@
 import {
   createTodo,
   formatDueStatus,
+  getDueStatus,
   isListCompleted,
   removeTodoAt,
   updateTodoAt,
@@ -66,19 +67,31 @@ describe('todoModel', () => {
     })
   })
 
-  describe('formatDueStatus', () => {
+  describe('getDueStatus', () => {
     const now = new Date(2026, 6, 31) // 31 Jul 2026 local
 
-    it('returns null without a due date', () => {
-      expect(formatDueStatus(null, now)).toBeNull()
+    it.each([
+      [null, false, null],
+      ['2026-07-31', false, { kind: 'today', label: 'Due today', days: 0 }],
+      ['2026-08-01', false, { kind: 'remaining', label: '1 day remaining', days: 1 }],
+      ['2026-08-03', false, { kind: 'remaining', label: '3 days remaining', days: 3 }],
+      ['2026-07-30', false, { kind: 'overdue', label: '1 day overdue', days: -1 }],
+      ['2026-07-28', false, { kind: 'overdue', label: '3 days overdue', days: -3 }],
+      ['2026-07-30', true, { kind: 'completed', label: 'Completed', days: null }],
+    ])('dueDate %s completed=%s', (dueDate, completed, expected) => {
+      expect(getDueStatus(dueDate, { completed, now })).toEqual(expected)
     })
 
-    it('labels today, remaining, and overdue', () => {
+    it('does not describe a completed todo as overdue', () => {
+      const status = getDueStatus('2026-07-30', { completed: true, now })
+      expect(status.kind).toBe('completed')
+      expect(status.label).not.toMatch(/overdue/i)
+    })
+
+    it('formatDueStatus still returns labels', () => {
+      expect(formatDueStatus(null, now)).toBeNull()
       expect(formatDueStatus('2026-07-31', now)).toBe('Due today')
-      expect(formatDueStatus('2026-08-01', now)).toBe('1 day remaining')
-      expect(formatDueStatus('2026-08-03', now)).toBe('3 days remaining')
-      expect(formatDueStatus('2026-07-30', now)).toBe('1 day overdue')
-      expect(formatDueStatus('2026-07-28', now)).toBe('3 days overdue')
+      expect(formatDueStatus('2026-07-30', now, true)).toBe('Completed')
     })
   })
 })

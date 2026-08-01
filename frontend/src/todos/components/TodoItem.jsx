@@ -7,10 +7,13 @@ import {
   FormControlLabel,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { formatDueStatus } from '../todoModel'
+import { getDueStatus } from '../todoModel'
 
 export const TodoItem = ({ todo, index, onChange, onRemove, now }) => {
-  const dueStatus = formatDueStatus(todo.dueDate, now)
+  const dueStatus = getDueStatus(todo.dueDate, {
+    completed: todo.completed,
+    now,
+  })
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -45,10 +48,10 @@ export const TodoItem = ({ todo, index, onChange, onRemove, now }) => {
       {dueStatus && (
         <Typography
           variant='body2'
-          color={dueStatus.includes('overdue') ? 'error' : 'text.secondary'}
+          color={dueStatus.kind === 'overdue' ? 'error' : 'text.secondary'}
           sx={{ minWidth: '9rem' }}
         >
-          {dueStatus}
+          {dueStatus.label}
         </Typography>
       )}
       <Button

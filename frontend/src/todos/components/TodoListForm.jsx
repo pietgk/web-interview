@@ -1,77 +1,84 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React from 'react'
 import { Card, CardContent, CardActions, Button, Typography } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { TodoItem } from './TodoItem'
 import { createTodo, removeTodoAt, updateTodoAt } from '../todoModel'
-import { useDebouncedValue } from '../useDebouncedValue'
+import { SAVE_STATUS } from '../todoListsState'
 
-export const TodoListForm = ({ todoList, saveTodoList }) => {
-  const [todos, setTodos] = useState(todoList.todos)
-  const [saveState, setSaveState] = useState('idle')
-  const [saveError, setSaveError] = useState(null)
-  const debouncedTodos = useDebouncedValue(todos, 400)
-  const skipNextSave = useRef(true)
-  const latestTodos = useRef(todos)
-  latestTodos.current = todos
+export const TodoListForm = ({
+  todoList,
+  saveStatus = SAVE_STATUS.CLEAN,
+  saveError = null,
+  onTodosChange,
+  onRetry,
+  onBlurSave,
+}) => {
+  const todos = todoList.todos
 
-  useEffect(() => {
-    if (skipNextSave.current) {
-      skipNextSave.current = false
-      return
-    }
-
-    let cancelled = false
-    setSaveState('saving')
-    setSaveError(null)
-
-    saveTodoList(todoList.id, { todos: debouncedTodos })
-      .then(() => {
-        if (cancelled) return
-        // Only show saved if nothing newer is pending locally
-        if (latestTodos.current === debouncedTodos) {
-          setSaveState('saved')
-        }
-      })
-      .catch((error) => {
-        if (cancelled) return
-        setSaveState('error')
-        setSaveError(error.message || 'Failed to save')
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [debouncedTodos, saveTodoList, todoList.id])
+  const statusMessage = (() => {
+    if (saveStatus === SAVE_STATUS.SAVING) return 'Saving…'
+    if (saveStatus === SAVE_STATUS.CLEAN) return 'All changes saved'
+    if (saveStatus === SAVE_STATUS.DIRTY) return 'Unsaved changes'
+    if (saveStatus === SAVE_STATUS.ERROR) return `Save failed: ${saveError}`
+    return null
+  })()
 
   return (
     <Card sx={{ margin: '0 1rem' }}>
       <CardContent>
         <Typography component='h2'>{todoList.title}</Typography>
-        <Typography
-          variant='body2'
-          color={saveState === 'error' ? 'error' : 'text.secondary'}
-          sx={{ marginBottom: '0.5rem', minHeight: '1.25rem' }}
-          aria-live='polite'
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '0.5rem',
+            minHeight: '1.25rem',
+          }}
         >
-          {saveState === 'saving' && 'Saving…'}
-          {saveState === 'saved' && 'All changes saved'}
-          {saveState === 'error' && `Save failed: ${saveError}`}
-        </Typography>
-        <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+          <Typography
+            variant='body2'
+            color={saveStatus === SAVE_STATUS.ERROR ? 'error' : 'text.secondary'}
+            aria-live='polite'
+          >
+            {statusMessage}
+          </Typography>
+          {saveStatus === SAVE_STATUS.ERROR && (
+            <Button
+              type='button'
+              size='small'
+              color='primary'
+              onClick={onRetry}
+              aria-label='Retry saving todo list'
+            >
+              Retry
+            </Button>
+          )}
+        </div>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              onBlurSave?.()
+            }
+          }}
+        >
           {todos.map((todo, index) => (
             <TodoItem
               key={todo.id}
               todo={todo}
               index={index}
-              onChange={(patch) => setTodos(updateTodoAt(todos, index, patch))}
-              onRemove={() => setTodos(removeTodoAt(todos, index))}
+              onChange={(patch) =>
+                onTodosChange(updateTodoAt(todos, index, patch))
+              }
+              onRemove={() => onTodosChange(removeTodoAt(todos, index))}
             />
           ))}
           <CardActions>
             <Button
               type='button'
               color='primary'
-              onClick={() => setTodos([...todos, createTodo()])}
+              onClick={() => onTodosChange([...todos, createTodo()])}
             >
               Add Todo <AddIcon />
             </Button>

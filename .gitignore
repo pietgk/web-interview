@@ -6,6 +6,9 @@ frontend/build
 backend/node_modules
 backend/npm-debug.log
 
+# Shared contract
+shared/node_modules
+
 # Root / e2e
 node_modules
 /test-results/

@@ -19,18 +19,26 @@ Persist the todo lists on the server. Persisting in a database is not required, 
 
 ## Submission status (this fork)
 
-Completed **main task + all 4 additional tasks**.
+Completed **main task + all 4 additional tasks**, plus the follow-up correctness work from [`01-REVIEW.md`](./01-REVIEW.md):
+
+- Per-list draft ownership (no silent loss on list switch)
+- Serialized coalescing autosave with retry
+- Shared Zod runtime contract
+- Completion-aware due-date status
 
 Design rationale: see [`DECISIONS.md`](./DECISIONS.md).
 
 ### Running tests
 
 ```bash
-# from repo root (after npm ci in backend/, frontend/, and root)
-npm test          # backend unit/integration + frontend unit
+# from repo root (after npm ci in shared/, backend/, frontend/, and root)
+npm test          # shared contract + backend + frontend unit
 npm run test:e2e  # Playwright (starts both servers)
 npm run lint
+npm run build --prefix frontend
 ```
+
+Playwright (clean checkout): `npx playwright install chromium`
 
 ## Submission
 Before submitting, read through all changes one last time - **code quality matters**!
@@ -47,6 +55,9 @@ NodeJS - if you don't already have it installed, check out [nvm](https://github.
 
 ## Getting started
 Fork the repository (see top-right button on GitHub) and clone the fork to your computer.
+
+Shared Zod contract (`shared/`) is pulled in via `file:` dependencies from backend and frontend — install those packages after a clean clone:
+
 ### To start the backend:
 
  - Navigate to the backend folder
@@ -60,6 +71,14 @@ Fork the repository (see top-right button on GitHub) and clone the fork to your 
  - Run `npm start`
 
  A browsertab will automatically open and load the app.
+
+### End-to-end tests
+
+From the repo root:
+
+ - Run `npm ci`
+ - Run `npx playwright install chromium` (first time / clean machine)
+ - Run `npm run test:e2e`
 
 ### Development set-up
 If you don't have a favorite editor we highly recommend [VSCode](https://code.visualstudio.com). We've also had some ESLint rules set up which will help you catch bugs etc. If you're using VSCode, install the regular [ESLint plugin](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) and you should be good to go!

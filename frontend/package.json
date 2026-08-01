@@ -4,9 +4,11 @@
     "@emotion/styled": "^11.11.5",
     "@mui/icons-material": "^5.15.15",
     "@mui/material": "^5.15.15",
+    "@web-interview/todo-contract": "file:../shared",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "^5.0.1"
+    "react-scripts": "^5.0.1",
+    "zod": "^3.25.76"
   },
   "scripts": {
     "lint": "eslint --ext .jsx,.js src",
@@ -17,6 +19,11 @@
   },
   "eslintConfig": {
     "extends": "react-app"
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@web-interview/todo-contract|zod)/)"
+    ]
   },
   "browserslist": [
     ">0.2%",

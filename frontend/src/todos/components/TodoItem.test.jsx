@@ -1,10 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodoItem } from './TodoItem'
 import { createTodo } from '../todoModel'
 
 describe('TodoItem', () => {
-  it('notifies on text, completed, and delete, and shows due status', async () => {
+  it('notifies on text, completed, due date, and delete, and shows due status', async () => {
     const user = userEvent.setup()
     const onChange = jest.fn()
     const onRemove = jest.fn()
@@ -18,12 +18,34 @@ describe('TodoItem', () => {
     expect(screen.getByText('1 day remaining')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('What to do?'), '!')
-    expect(onChange).toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith({ text: 'Buy milk!' })
 
     await user.click(screen.getByLabelText('Mark todo 1 completed'))
     expect(onChange).toHaveBeenCalledWith({ completed: true })
 
+    fireEvent.change(screen.getByLabelText('Due date for todo 1'), {
+      target: { value: '2026-08-05' },
+    })
+    expect(onChange).toHaveBeenCalledWith({ dueDate: '2026-08-05' })
+
     await user.click(screen.getByLabelText('Delete todo 1'))
     expect(onRemove).toHaveBeenCalled()
+  })
+
+  it('does not describe a completed todo as overdue', () => {
+    const todo = createTodo({
+      id: '1',
+      text: 'Done',
+      completed: true,
+      dueDate: '2026-07-30',
+    })
+    const now = new Date(2026, 6, 31)
+
+    render(
+      <TodoItem todo={todo} index={0} onChange={jest.fn()} onRemove={jest.fn()} now={now} />
+    )
+
+    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument()
   })
 })

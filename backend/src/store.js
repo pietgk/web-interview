@@ -1,12 +1,10 @@
+import { todosSchema, validationErrorBody } from '@web-interview/todo-contract'
 import { createSeedTodoLists } from './seed.js'
 
-const isValidTodo = (todo) =>
-  todo !== null &&
-  typeof todo === 'object' &&
-  typeof todo.id === 'string' &&
-  typeof todo.text === 'string' &&
-  typeof todo.completed === 'boolean' &&
-  (todo.dueDate === null || typeof todo.dueDate === 'string')
+export const STORE_ERROR = Object.freeze({
+  TODO_LIST_NOT_FOUND: 'TODO_LIST_NOT_FOUND',
+  INVALID_TODOS: 'INVALID_TODOS',
+})
 
 export const createStore = (initialLists = createSeedTodoLists()) => {
   let todoLists = structuredClone(initialLists)
@@ -20,16 +18,18 @@ export const createStore = (initialLists = createSeedTodoLists()) => {
 
   const updateTodos = (id, todos) => {
     if (!todoLists[id]) {
-      return { ok: false, error: 'Todo list not found', status: 404 }
-    }
-    if (!Array.isArray(todos)) {
-      return { ok: false, error: 'todos must be an array', status: 400 }
-    }
-    if (!todos.every(isValidTodo)) {
       return {
         ok: false,
-        error: 'each todo must have id, text, completed, and dueDate',
-        status: 400,
+        code: STORE_ERROR.TODO_LIST_NOT_FOUND,
+      }
+    }
+
+    const parsed = todosSchema.safeParse(todos)
+    if (!parsed.success) {
+      return {
+        ok: false,
+        code: STORE_ERROR.INVALID_TODOS,
+        body: validationErrorBody(parsed.error, 'Invalid todos'),
       }
     }
 
@@ -37,16 +37,12 @@ export const createStore = (initialLists = createSeedTodoLists()) => {
       ...todoLists,
       [id]: {
         ...todoLists[id],
-        todos: structuredClone(todos),
+        todos: structuredClone(parsed.data),
       },
     }
 
     return { ok: true, list: getById(id) }
   }
 
-  const reset = (lists = createSeedTodoLists()) => {
-    todoLists = structuredClone(lists)
-  }
-
-  return { getAll, getById, updateTodos, reset }
+  return { getAll, getById, updateTodos }
 }

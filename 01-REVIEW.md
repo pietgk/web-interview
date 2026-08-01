@@ -3,7 +3,8 @@
 ## Purpose and status
 
 This document reviews commit `399e6738101494acc797209820bccff834546736`, the initial
-Grok 4.5 implementation of the Sellpy web interview assignment.
+Grok 4.5 implementation of the Sellpy web interview assignment, and records the
+approved follow-up implementation.
 
 The implementation completes the main task and all four optional tasks:
 
@@ -13,8 +14,8 @@ The implementation completes the main task and all four optional tasks:
 - Derive whether a list is completed
 - Add due dates and show remaining or overdue time
 
-This is a review and implementation plan. No production code or permanent regression tests
-have been changed yet. The fixes described here require approval before implementation.
+**Status:** The findings below were approved and implemented. See
+[Final green proof](#final-green-proof) for verification evidence.
 
 ## Executive assessment
 
@@ -73,8 +74,8 @@ The autosave problem was reproduced through the running application:
 
 1. Open `First List`.
 2. Change its todo text to `Unsaved switch test`.
-3. Before the 400 ms debounce expires, open `Second List`.
-4. Wait longer than 400 ms.
+3. Before the AUTOSAVE_DEBOUNCE_MS ms debounce expires, open `Second List`.
+4. Wait longer than AUTOSAVE_DEBOUNCE_MS ms.
 5. Return to `First List`.
 
 Expected:
@@ -142,7 +143,7 @@ Relevant code:
 - `frontend/src/todos/components/TodoLists.jsx`
 
 `TodoListForm` owns the only copy of the current draft. `useDebouncedValue` schedules persistence
-after 400 ms and correctly clears its timer on unmount. `TodoLists` gives the form a key based on
+after AUTOSAVE_DEBOUNCE_MS ms and correctly clears its timer on unmount. `TodoLists` gives the form a key based on
 the active list, so selecting another list unmounts the old form. If the user switches during the
 debounce window, clearing the timer also removes the only scheduled save, and unmounting removes
 the only copy of the draft.
@@ -159,7 +160,7 @@ Planned test coverage:
 
 - A Playwright test that edits the first list and immediately selects the second list, then returns
   and verifies the draft and persisted value.
-- A component test using fake timers that changes a todo, unmounts before 400 ms, and proves the
+- A component test using fake timers that changes a todo, unmounts before AUTOSAVE_DEBOUNCE_MS ms, and proves the
   change is not discarded.
 - A refresh test that defines the expected behavior while a dirty draft exists.
 
@@ -616,3 +617,53 @@ The follow-up implementation is complete only when:
 - Invalid dates and duplicate IDs are rejected at runtime.
 - The final code and documentation explain the ownership, ordering, validation, and failure model in
   terms a developer can verify from the tests.
+
+## Final green proof
+
+Implemented after approval of this review. Architecture summary:
+
+- Shared `@web-interview/todo-contract` (Zod) used by backend and frontend
+- `useTodoLists` + reducer owns per-list drafts; `TodoListForm` is controlled
+- `createSaveQueue` serializes and coalesces saves; Retry on failure
+- `getDueStatus` returns `{ kind, label, days }`; completed todos are not overdue
+
+### Focused regressions (green)
+
+```text
+# Shared contract
+npm test --prefix shared
+  5 passed (impossible date, duplicate ids, empty ids, unknown props, valid request)
+
+# Backend store + API
+npm test --prefix backend
+  14 passed (includes impossible date, duplicate ids, malformed JSON)
+
+# Frontend
+CI=true npm test --prefix frontend -- --watchAll=false
+  34 passed (save queue, draft reducer, list-switch flush, retry, completion-from-draft,
+             completed-not-overdue, API response contract)
+
+# E2E
+npm run test:e2e
+  4 passed (persist, complete+refresh, due+refresh, list-switch before debounce)
+```
+
+### Complete verification
+
+```text
+npm test                 # shared + backend + frontend — all green
+npm run test:e2e         # 4 passed
+npm run lint             # passed
+npm run build --prefix frontend  # compiled successfully
+```
+
+Node used during verification: `v24.5.0` (repo `.nvmrc` specifies 20; Node 20 was not
+available via nvm in the verification environment). CRA build and all suites above are green
+on the verified Node. Shared package consumed by Create React App without ejecting.
+
+### Intentionally deferred (unchanged from review decisions)
+
+- React 19 / Suspense
+- Broad snapshot testing
+- Immutable.js
+- Multi-client ETags / server versions

@@ -6,26 +6,29 @@ Tests encode the expected behaviour; this file explains the trade-offs behind th
 ## How to verify
 
 ```bash
-# Unit + API integration
+# Unit + API integration (shared contract, backend, frontend)
 npm test
 
 # End-to-end (starts backend + frontend itself)
 npm run test:e2e
 
-# Lint
+# Lint + production build
 npm run lint
+npm run build --prefix frontend
 ```
 
-Or per package: `npm test` / `npm run lint` inside `backend/` and `frontend/`.
+Or per package: `npm test` / `npm run lint` inside `shared/`, `backend/`, and `frontend/`.
+
+Playwright browsers (clean checkout): `npx playwright install chromium`
 
 ## Scope completed
 
 - **Main:** Persist todo lists on the server (in-memory store)
-- **Autosave:** No Save button; debounced persist on change
+- **Autosave:** No Save button; debounced persist on change, flush on list switch / blur / page hide
 - **Completed items:** Toggle per todo
 - **Completed lists:** Derived indicator when all items in a list are completed
-- **Due dates:** Per-item date with remaining / overdue labelling
-- **Tests:** Unit, API integration, and a small Playwright e2e suite
+- **Due dates:** Per-item date with remaining / overdue labelling (completed items show `Completed`)
+- **Tests:** Shared contract, unit, API integration, and Playwright e2e including failure-path regressions
 
 ## Persistence: in-memory store, not a database
 
@@ -37,11 +40,19 @@ Or per package: `npm test` / `npm run lint` inside `backend/` and `frontend/`.
 
 **Why:** The existing UI already saved an entire list’s todos in one shot (`saveTodoList(id, { todos })`). One write path keeps autosave simple, avoids N endpoints for N actions, and matches a single source of truth for a list on the server.
 
-**Trade-off:** Concurrent editors could overwrite each other. Fine for a single-user demo; `PATCH` per item (or ETags) would be a natural evolution.
+**Trade-off:** Concurrent editors could overwrite each other. Fine for a single-user demo; `PATCH` per item (or ETags) would be a natural evolution. Same-tab overlapping saves are handled by a per-list serialized client queue.
+
+## Runtime contract: shared Zod package
+
+**Why:** Handwritten type checks accepted impossible dates and duplicate IDs. Zod makes the HTTP boundary executable and testable. `@web-interview/todo-contract` is consumed by both backend and frontend (CRA build verified without ejecting).
+
+**Shape enforced:** non-empty unique todo ids, boolean `completed`, `dueDate` null or real `YYYY-MM-DD`, strict objects, structured `{ error, code, issues }` validation errors.
 
 ## List “completed” is derived, never stored
 
 **Why:** Single source of truth. If both items and the list stored a completed flag, they could disagree. Deriving `every(todo => todo.completed)` (and requiring a non-empty list) makes the rule obvious and keeps the model small.
+
+**UI source of truth:** Visible list state (including the completed indicator) is derived from the current **draft**, not the last server acknowledgement. Acknowledgements are metadata for persistence, not a second render model.
 
 ## Todos are objects with stable ids
 
@@ -55,36 +66,41 @@ Shape:
 
 `dueDate` is `YYYY-MM-DD` or `null`.
 
-## Autosave via debounce (not every keystroke, not websockets)
+## Autosave: drafts owned above the form, queue per list
 
-**Why:** Saving on every keypress creates request storms and race conditions. Debouncing (~400ms) batches typing into one PUT while still feeling instant thanks to optimistic local state. Websockets/CRDT would be overkill for this scope.
+**Why:** Debounce must control network frequency, not the lifetime of user data. The original form-owned draft + keyed unmount discarded edits when switching lists mid-debounce.
 
-**UX:** Immediate local update; background persist; Saving / Saved / Error feedback so failures are not silent.
+**Design:**
 
-**E2E note:** On localhost the PUT can finish before React paints “Saving…”. E2e therefore waits on the PUT network response (the real contract), not on that transient label.
+- `useTodoLists` owns per-list drafts, revisions, and save status (`clean` / `dirty` / `saving` / `error`)
+- `TodoListForm` is controlled
+- `createSaveQueue` serializes and coalesces PUTs per list (at most one in flight)
+- Flush on list switch, blur, and `pagehide`; warn on `beforeunload` while unacked
+- Failed saves stay dirty and expose an accessible **Retry** action
 
-## Due-date formatting uses an injectable “now”
+## Due-date formatting uses structured status + injectable “now”
 
-**Why:** Remaining/overdue labels must be deterministic in unit tests. Passing `now` into a pure helper keeps calendar logic testable without freezing the system clock globally.
+**Why:** Remaining/overdue labels must be deterministic in unit tests. `getDueStatus` returns `{ kind, label, days }` so colour is based on `kind`, not string matching. Completed todos are labelled `Completed`, never overdue.
 
 ## Test pyramid
 
 | Layer | Role |
 |-------|------|
-| Unit (`todoModel`, store, components) | Fast spec for pure rules while iterating |
-| Integration (supertest + Express app) | Spec for HTTP contract and persistence |
-| E2E (Playwright) | Spec for a few user journeys across refresh |
-
-**Why this shape:** Unit/integration fail fast and guide design. A handful of e2e tests prove the story that matters in the interview (persist, complete, due) without a brittle wall of UI tests.
+| Shared contract (`shared/`) | Zod schema rules once |
+| Unit (model, reducer, save queue, components) | Fast spec for pure rules and failure paths |
+| Integration (supertest + Express app) | HTTP contract and persistence |
+| E2E (Playwright) | A few complete user journeys across refresh and list switching |
 
 **Backend runner:** Node’s built-in `node:test` — no extra test-runner dependency on the server.
 
-**Story for the interview:** Tests are the living spec. Red → green → refactor. Easy to prove behaviour while developing, and easy to extend live on-site by adding a failing test first.
+**Story for the interview:** Tests are the living spec. Red → green → refactor. Failure-path regressions (list switch, ordering, retry, validation, completed-due) are first-class.
 
-## Knowingly out of scope
+## Knowingly out of scope / deferred
 
-- Authentication / multi-user
+- Authentication / multi-user / server ETags
 - Creating or deleting whole lists
 - Real database
 - Multi-tab sync / conflict resolution
-- Global state libraries (Redux, etc.) — React state + server is enough here
+- Global state libraries (Redux, etc.)
+- React 19 / Suspense modernization (separate change; does not fix mutation ordering)
+- Immutable.js (plain objects + functional updates are enough here)

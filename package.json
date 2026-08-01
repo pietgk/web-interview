@@ -4,7 +4,8 @@
   "private": true,
   "description": "Sellpy web interview assignment",
   "scripts": {
-    "test": "npm test --prefix backend && CI=true npm test --prefix frontend -- --watchAll=false",
+    "test": "npm test --prefix shared && npm test --prefix backend && CI=true npm test --prefix frontend -- --watchAll=false",
+    "test:shared": "npm test --prefix shared",
     "test:backend": "npm test --prefix backend",
     "test:frontend": "CI=true npm test --prefix frontend -- --watchAll=false",
     "test:e2e": "playwright test",

@@ -8,11 +8,12 @@ const firstListTodo = {
 }
 
 async function resetFirstList(request) {
-  await request.put('http://localhost:3001/api/todo-lists/0000000001', {
+  const response = await request.put('http://localhost:3001/api/todo-lists/0000000001', {
     data: {
       todos: [firstListTodo],
     },
   })
+  expect(response.ok()).toBeTruthy()
 }
 
 const waitForAutosave = (page) =>
@@ -43,7 +44,7 @@ test('autosaves todos and persists them across refresh', async ({ page }) => {
   await expect(page.getByLabel('What to do?')).toHaveValue('Persisted from e2e')
 })
 
-test('marks a todo and its list as completed', async ({ page }) => {
+test('marks a todo and its list as completed and persists after refresh', async ({ page }) => {
   await page.goto('/')
   await page.getByText('First List').click()
 
@@ -52,16 +53,40 @@ test('marks a todo and its list as completed', async ({ page }) => {
   await saved
   await expect(page.getByLabel('First List completed')).toBeVisible()
   await expect(page.getByText('All todos completed')).toBeVisible()
+
+  await page.reload()
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('Mark todo 1 completed')).toBeChecked()
+  await expect(page.getByLabel('First List completed')).toBeVisible()
 })
 
-test('shows remaining time for a due date', async ({ page }) => {
+test('shows remaining time for a due date and persists after refresh', async ({ page }) => {
   await page.goto('/')
   await page.getByText('First List').click()
 
   const saved = waitForAutosave(page)
-  // Far-future date so the label is stable regardless of "today"
   await page.getByLabel('Due date for todo 1').fill('2099-01-15')
   await expect(page.getByText(/days remaining/)).toBeVisible()
   await saved
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  await page.reload()
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('Due date for todo 1')).toHaveValue('2099-01-15')
+  await expect(page.getByText(/days remaining/)).toBeVisible()
+})
+
+test('keeps edits when switching lists before debounce expires', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('First List').click()
+
+  const textField = page.getByLabel('What to do?')
+  const saved = waitForAutosave(page)
+  await textField.fill('Unsaved switch test')
+  await page.getByText('Second List').click()
+  await saved
+
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('What to do?')).toHaveValue('Unsaved switch test')
   await expect(page.getByText('All changes saved')).toBeVisible()
 })
