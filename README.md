@@ -22,11 +22,15 @@ Persist the todo lists on the server. Persisting in a database is not required, 
 Completed **main task + all 4 additional tasks**, plus the follow-up correctness work from [`01-REVIEW.md`](./01-REVIEW.md):
 
 - Per-list draft ownership (no silent loss on list switch)
-- Serialized coalescing autosave with retry
+- XState actors for autosave + type-to-create ghost composer
 - Shared Zod runtime contract
 - Completion-aware due-date status
 
-Design rationale: see [`DECISIONS.md`](./DECISIONS.md).
+Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md).
+
+**Live statecharts (dev):** `npm start` in `frontend/` opens the Stately Inspector so you
+can walk `clean/dirty/saving/error` and composer transitions while using the app.
+Set `REACT_APP_XSTATE_INSPECT=0` to disable.
 
 ### Running tests
 
@@ -70,7 +74,8 @@ Shared Zod contract (`shared/`) is pulled in via `file:` dependencies from backe
  - Run `npm ci`
  - Run `npm start`
 
- A browsertab will automatically open and load the app.
+ A browser tab will automatically open and load the app. In development the Stately
+ Inspector also opens for the todo actors (see ADR 002).
 
 ### End-to-end tests
 

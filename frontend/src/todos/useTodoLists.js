@@ -1,87 +1,57 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useMachine } from '@xstate/react'
 import {
   fetchTodoLists,
   saveTodoList as persistTodoList,
 } from '../api/todoLists'
-import { AUTOSAVE_DEBOUNCE_MS, createSaveQueue } from './createSaveQueue'
+import { getInspect } from './inspect'
+import { selectVisibleTodos } from './todoListMachine'
 import {
-  createInitialState,
+  createTodoListsMachine,
   hasUnackedChanges,
-  selectActiveEntry,
+  selectActiveListSnapshot,
+  selectSaveChrome,
   selectVisibleLists,
-  todoListsReducer,
-} from './todoListsState'
+} from './todoListsMachine'
+
+const machine = createTodoListsMachine({
+  fetchTodoLists,
+  saveTodoList: persistTodoList,
+})
 
 export const useTodoLists = () => {
-  const [state, dispatch] = useReducer(todoListsReducer, undefined, createInitialState)
-  const stateRef = useRef(state)
-  stateRef.current = state
+  const [snapshot, send, actorRef] = useMachine(machine, {
+    inspect: getInspect(),
+  })
+  const [, setChildVersion] = useState(0)
 
-  const queueRef = useRef(null)
-
-  if (queueRef.current == null) {
-    queueRef.current = createSaveQueue({
-      debounceMs: AUTOSAVE_DEBOUNCE_MS,
-      save: (id, todos) => persistTodoList(id, { todos }),
-      onSaving: (id) => {
-        dispatch({ type: 'SAVE_START', id })
-      },
-      onSuccess: (id, { revision, result }) => {
-        dispatch({
-          type: 'SAVE_SUCCESS',
-          id,
-          revision,
-          todos: result.todos,
-        })
-      },
-      onError: (id, { error }) => {
-        dispatch({
-          type: 'SAVE_ERROR',
-          id,
-          error: error.message || 'Failed to save',
-        })
-      },
-    })
-  }
-
+  // Parent snapshots do not change when child drafts/status update — subscribe.
   useEffect(() => {
-    const queue = queueRef.current
-    return () => {
-      queue.dispose()
-    }
-  }, [])
+    const refs = Object.values(snapshot.context.listRefs)
+    if (!refs.length) return undefined
 
-  useEffect(() => {
-    const controller = new AbortController()
-    dispatch({ type: 'LOAD_START' })
-
-    fetchTodoLists({ signal: controller.signal })
-      .then((lists) => {
-        if (controller.signal.aborted) return
-        dispatch({ type: 'LOAD_SUCCESS', lists })
+    const subscriptions = refs.map((ref) =>
+      ref.subscribe(() => {
+        setChildVersion((version) => version + 1)
       })
-      .catch((error) => {
-        if (controller.signal.aborted) return
-        dispatch({
-          type: 'LOAD_ERROR',
-          error: error.message || 'Failed to load todo lists',
-        })
-      })
+    )
 
     return () => {
-      controller.abort()
+      for (const subscription of subscriptions) {
+        subscription.unsubscribe()
+      }
     }
-  }, [])
+  }, [snapshot.context.listRefs])
 
   useEffect(() => {
     const onBeforeUnload = (event) => {
-      if (!hasUnackedChanges(stateRef.current)) return
+      if (!hasUnackedChanges(actorRef.getSnapshot())) return
       event.preventDefault()
       event.returnValue = ''
     }
 
     const onPageHide = () => {
-      queueRef.current.flushAll()
+      actorRef.send({ type: 'FLUSH_ALL' })
     }
 
     window.addEventListener('beforeunload', onBeforeUnload)
@@ -90,57 +60,93 @@ export const useTodoLists = () => {
       window.removeEventListener('beforeunload', onBeforeUnload)
       window.removeEventListener('pagehide', onPageHide)
     }
-  }, [])
+  }, [actorRef])
 
-  const updateTodos = useCallback((id, todos) => {
-    const entry = stateRef.current.lists[id]
-    if (!entry) return
-    const revision = entry.draftRevision + 1
-    dispatch({ type: 'EDIT_DRAFT', id, todos })
-    queueRef.current.enqueue(id, todos, revision)
-  }, [])
+  const loadState =
+    snapshot.value === 'loading'
+      ? 'loading'
+      : snapshot.value === 'error'
+        ? 'error'
+        : 'ready'
 
-  const flushList = useCallback((id) => {
-    if (!id) return
-    queueRef.current.flush(id)
-  }, [])
+  const lists = selectVisibleLists(snapshot)
+  const activeSnapshot = selectActiveListSnapshot(snapshot)
+  const saveChrome = selectSaveChrome(activeSnapshot)
 
-  const selectList = useCallback((id) => {
-    const previousId = stateRef.current.activeListId
-    if (previousId && previousId !== id) {
-      queueRef.current.flush(previousId)
-    }
-    dispatch({ type: 'SET_ACTIVE_LIST', id })
-  }, [])
+  const activeEntry = activeSnapshot
+    ? {
+        id: activeSnapshot.context.id,
+        title: activeSnapshot.context.title,
+        draft: selectVisibleTodos(activeSnapshot.context),
+        composerText: activeSnapshot.context.composer.text,
+        status: activeSnapshot.value,
+        error: activeSnapshot.context.error,
+        saveChrome,
+      }
+    : null
 
-  const retrySave = useCallback((id) => {
-    const entry = stateRef.current.lists[id]
-    if (!entry) return
-    queueRef.current.retry(id, entry.draft, entry.draftRevision)
-  }, [])
+  const selectList = useCallback(
+    (id) => {
+      send({ type: 'SELECT_LIST', id })
+    },
+    [send]
+  )
+
+  const forward = useCallback(
+    (event) => {
+      send({ type: 'FORWARD', event })
+    },
+    [send]
+  )
+
+  const patchTodo = useCallback(
+    (id, patch) => {
+      forward({ type: 'TODO_PATCH', id, patch })
+    },
+    [forward]
+  )
+
+  const removeTodo = useCallback(
+    (id) => {
+      forward({ type: 'TODO_REMOVE', id })
+    },
+    [forward]
+  )
+
+  const changeComposer = useCallback(
+    (text) => {
+      forward({ type: 'COMPOSER_CHANGE', text })
+    },
+    [forward]
+  )
+
+  const commitComposer = useCallback(() => {
+    forward({ type: 'COMPOSER_COMMIT' })
+  }, [forward])
+
+  const flushList = useCallback(() => {
+    send({ type: 'FLUSH_ACTIVE' })
+  }, [send])
+
+  const retrySave = useCallback(() => {
+    send({ type: 'RETRY_SAVE' })
+  }, [send])
 
   const reload = useCallback(() => {
-    dispatch({ type: 'LOAD_START' })
-    fetchTodoLists()
-      .then((lists) => {
-        dispatch({ type: 'LOAD_SUCCESS', lists })
-      })
-      .catch((error) => {
-        dispatch({
-          type: 'LOAD_ERROR',
-          error: error.message || 'Failed to load todo lists',
-        })
-      })
-  }, [])
+    send({ type: 'RELOAD' })
+  }, [send])
 
   return {
-    loadState: state.loadState,
-    loadError: state.loadError,
-    lists: selectVisibleLists(state),
-    activeEntry: selectActiveEntry(state),
-    activeListId: state.activeListId,
+    loadState,
+    loadError: snapshot.context.loadError,
+    lists,
+    activeEntry,
+    activeListId: snapshot.context.activeListId,
     selectList,
-    updateTodos,
+    patchTodo,
+    removeTodo,
+    changeComposer,
+    commitComposer,
     flushList,
     retrySave,
     reload,

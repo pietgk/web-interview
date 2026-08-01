@@ -2,6 +2,7 @@ import {
   createTodo,
   formatDueStatus,
   getDueStatus,
+  isDematerializableTodo,
   isListCompleted,
   removeTodoAt,
   updateTodoAt,
@@ -17,6 +18,21 @@ describe('todoModel', () => {
         completed: false,
         dueDate: null,
       })
+    })
+  })
+
+  describe('isDematerializableTodo', () => {
+    it('is true for blank text without completed or dueDate', () => {
+      expect(isDematerializableTodo(createTodo({ id: '1', text: '   ' }))).toBe(true)
+    })
+
+    it('is false when completed or dueDate is set', () => {
+      expect(
+        isDematerializableTodo(createTodo({ id: '1', text: '', completed: true }))
+      ).toBe(false)
+      expect(
+        isDematerializableTodo(createTodo({ id: '1', text: '', dueDate: '2099-01-01' }))
+      ).toBe(false)
     })
   })
 

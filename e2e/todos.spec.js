@@ -90,3 +90,30 @@ test('keeps edits when switching lists before debounce expires', async ({ page }
   await expect(page.getByLabel('What to do?')).toHaveValue('Unsaved switch test')
   await expect(page.getByText('All changes saved')).toBeVisible()
 })
+
+test('creates a todo by typing in the top composer and removes it when cleared', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.getByText('First List').click()
+
+  const composer = page.getByLabel('Add a todo')
+  const saved = waitForAutosave(page)
+  await composer.fill('Typed into ghost')
+  await saved
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  await page.reload()
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Typed into ghost')
+
+  // Dematerialize via a fresh composer session: type then clear before commit.
+  // Existing numbered rows keep empty text so clear-then-type edits still work.
+  const removed = waitForAutosave(page)
+  await page.getByLabel('Delete todo 1').click()
+  await removed
+
+  await page.reload()
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('What to do?')).toHaveValue('First todo of first list!')
+})

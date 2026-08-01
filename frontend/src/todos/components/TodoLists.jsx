@@ -22,7 +22,10 @@ export const TodoLists = ({ style }) => {
     lists,
     activeEntry,
     selectList,
-    updateTodos,
+    patchTodo,
+    removeTodo,
+    changeComposer,
+    commitComposer,
     flushList,
     retrySave,
     reload,
@@ -89,11 +92,14 @@ export const TodoLists = ({ style }) => {
             title: activeEntry.title,
             todos: activeEntry.draft,
           }}
-          saveStatus={activeEntry.status}
-          saveError={activeEntry.error}
-          onTodosChange={(todos) => updateTodos(activeEntry.id, todos)}
-          onRetry={() => retrySave(activeEntry.id)}
-          onBlurSave={() => flushList(activeEntry.id)}
+          composerText={activeEntry.composerText}
+          saveChrome={activeEntry.saveChrome}
+          onComposerChange={changeComposer}
+          onComposerCommit={commitComposer}
+          onTodoPatch={patchTodo}
+          onTodoRemove={removeTodo}
+          onRetry={retrySave}
+          onBlurSave={flushList}
         />
       )}
     </Fragment>

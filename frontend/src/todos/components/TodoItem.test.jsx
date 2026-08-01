@@ -48,4 +48,26 @@ describe('TodoItem', () => {
     expect(screen.getByText('Completed')).toBeInTheDocument()
     expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument()
   })
+
+  it('renders a composer row without checkbox or delete', async () => {
+    const user = userEvent.setup()
+    const onChange = jest.fn()
+
+    render(
+      <TodoItem
+        variant='composer'
+        todo={createTodo({ id: 'composer', text: '' })}
+        index={-1}
+        onChange={onChange}
+      />
+    )
+
+    expect(screen.getByLabelText('Add a todo')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Mark todo/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Delete todo/)).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Add a todo'), 'A')
+    expect(onChange).toHaveBeenCalledWith({ text: 'A' })
+  })
 })
+

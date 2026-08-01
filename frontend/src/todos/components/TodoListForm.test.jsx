@@ -3,25 +3,40 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { TodoListForm } from './TodoListForm'
 import { createTodo } from '../todoModel'
-import { SAVE_STATUS } from '../todoListsState'
 
 const StatefulForm = ({
   initialTodos,
-  saveStatus = SAVE_STATUS.CLEAN,
-  saveError = null,
-  onTodosChange,
+  saveChrome = {
+    message: 'All changes saved',
+    tone: 'secondary',
+    showRetry: false,
+  },
+  onTodoPatch,
+  onTodoRemove,
+  onComposerChange,
   onRetry,
   onBlurSave,
 }) => {
   const [todos, setTodos] = useState(initialTodos)
+  const [composerText, setComposerText] = useState('')
   return (
     <TodoListForm
       todoList={{ id: '0000000001', title: 'First List', todos }}
-      saveStatus={saveStatus}
-      saveError={saveError}
-      onTodosChange={(next) => {
-        setTodos(next)
-        onTodosChange?.(next)
+      composerText={composerText}
+      saveChrome={saveChrome}
+      onComposerChange={(text) => {
+        setComposerText(text)
+        onComposerChange?.(text)
+      }}
+      onTodoPatch={(id, patch) => {
+        setTodos((current) =>
+          current.map((todo) => (todo.id === id ? { ...todo, ...patch } : todo))
+        )
+        onTodoPatch?.(id, patch)
+      }}
+      onTodoRemove={(id) => {
+        setTodos((current) => current.filter((todo) => todo.id !== id))
+        onTodoRemove?.(id)
       }}
       onRetry={onRetry}
       onBlurSave={onBlurSave}
@@ -30,25 +45,44 @@ const StatefulForm = ({
 }
 
 describe('TodoListForm', () => {
-  it('persists through onTodosChange without a Save button', async () => {
+  it('emits intent patches without a Save or Add button', async () => {
     const user = userEvent.setup()
-    const onTodosChange = jest.fn()
+    const onTodoPatch = jest.fn()
 
     render(
       <StatefulForm
         initialTodos={[createTodo({ id: 't1', text: 'Original' })]}
-        onTodosChange={onTodosChange}
+        onTodoPatch={onTodoPatch}
       />
     )
 
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /add todo/i })).not.toBeInTheDocument()
 
     await user.clear(screen.getByLabelText('What to do?'))
     await user.type(screen.getByLabelText('What to do?'), 'Updated')
 
-    expect(onTodosChange).toHaveBeenCalled()
-    const lastCall = onTodosChange.mock.calls.at(-1)[0]
-    expect(lastCall[0]).toEqual(expect.objectContaining({ id: 't1', text: 'Updated' }))
+    expect(onTodoPatch).toHaveBeenCalled()
+    expect(onTodoPatch).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ text: expect.stringContaining('U') })
+    )
+  })
+
+  it('emits composer changes from the top ghost row', async () => {
+    const user = userEvent.setup()
+    const onComposerChange = jest.fn()
+
+    render(
+      <StatefulForm
+        initialTodos={[createTodo({ id: 't1', text: 'Original' })]}
+        onComposerChange={onComposerChange}
+      />
+    )
+
+    await user.type(screen.getByLabelText('Add a todo'), 'New')
+    expect(onComposerChange).toHaveBeenCalled()
+    expect(onComposerChange.mock.calls.at(-1)[0]).toContain('N')
   })
 
   it('shows Retry when save failed and keeps the draft visible', async () => {
@@ -58,8 +92,11 @@ describe('TodoListForm', () => {
     render(
       <StatefulForm
         initialTodos={[createTodo({ id: 't1', text: 'Unsaved edit' })]}
-        saveStatus={SAVE_STATUS.ERROR}
-        saveError='network down'
+        saveChrome={{
+          message: 'Save failed: network down',
+          tone: 'error',
+          showRetry: true,
+        }}
         onRetry={onRetry}
       />
     )
@@ -89,10 +126,17 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
       return (
         <TodoListForm
           todoList={{ id: '0000000001', title: 'First List', todos }}
-          saveStatus={SAVE_STATUS.DIRTY}
-          onTodosChange={(next) => {
-            latestTodos = next
-            setTodos(next)
+          composerText=''
+          saveChrome={{
+            message: 'Unsaved changes',
+            tone: 'secondary',
+            showRetry: false,
+          }}
+          onTodoPatch={(id, patch) => {
+            latestTodos = latestTodos.map((todo) =>
+              todo.id === id ? { ...todo, ...patch } : todo
+            )
+            setTodos(latestTodos)
           }}
           onBlurSave={flush}
         />

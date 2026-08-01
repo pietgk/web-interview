@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodoLists } from './TodoLists'
 import * as api from '../../api/todoLists'
-import { AUTOSAVE_DEBOUNCE_MS } from '../createSaveQueue'
+import { AUTOSAVE_DEBOUNCE_MS } from '../todoListMachine'
 import { createTodo } from '../todoModel'
 
 jest.mock('../../api/todoLists')
@@ -18,6 +18,15 @@ const seedLists = {
     title: 'Second List',
     todos: [createTodo({ id: 't2', text: 'First todo of second list!' })],
   },
+}
+
+const flushLoad = async () => {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+  await screen.findByText('My Todo Lists')
 }
 
 describe('TodoLists persistence regressions', () => {
@@ -39,8 +48,7 @@ describe('TodoLists persistence regressions', () => {
   it('flushes an edited todo when switching lists before the debounce expires', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(<TodoLists style={{}} />)
-
-    await screen.findByText('My Todo Lists')
+    await flushLoad()
     await user.click(screen.getByText('First List'))
 
     const field = screen.getByLabelText('What to do?')
@@ -82,7 +90,7 @@ describe('TodoLists persistence regressions', () => {
     })
 
     render(<TodoLists style={{}} />)
-    await screen.findByText('My Todo Lists')
+    await flushLoad()
     await user.click(screen.getByText('First List'))
 
     const field = screen.getByLabelText('What to do?')
@@ -137,7 +145,7 @@ describe('TodoLists persistence regressions', () => {
       })
 
     render(<TodoLists style={{}} />)
-    await screen.findByText('My Todo Lists')
+    await flushLoad()
     await user.click(screen.getByText('First List'))
 
     const field = screen.getByLabelText('What to do?')
@@ -163,7 +171,7 @@ describe('TodoLists persistence regressions', () => {
     api.saveTodoList.mockReturnValue(pending.promise)
 
     render(<TodoLists style={{}} />)
-    await screen.findByText('My Todo Lists')
+    await flushLoad()
     await user.click(screen.getByText('First List'))
 
     await user.click(screen.getByLabelText('Mark todo 1 completed'))
@@ -177,4 +185,47 @@ describe('TodoLists persistence regressions', () => {
       todos: [createTodo({ id: 't1', text: 'First todo of first list!', completed: true })],
     })
   })
+
+  it('materializes a todo from the top composer and dematerializes when cleared', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    render(<TodoLists style={{}} />)
+    await flushLoad()
+    await user.click(screen.getByText('First List'))
+
+    const composer = screen.getByLabelText('Add a todo')
+    await user.type(composer, 'Ghost born')
+    expect(composer).toHaveValue('Ghost born')
+
+    // Linked composer todo is hidden from the numbered list until commit.
+    expect(screen.getAllByLabelText('What to do?')).toHaveLength(1)
+
+    await act(async () => {
+      jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+    })
+
+    await waitFor(() => {
+      expect(api.saveTodoList).toHaveBeenCalledWith(
+        '0000000001',
+        expect.objectContaining({
+          todos: expect.arrayContaining([
+            expect.objectContaining({ text: 'Ghost born' }),
+          ]),
+        })
+      )
+    })
+
+    await user.clear(composer)
+
+    await act(async () => {
+      jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+    })
+
+    await waitFor(() => {
+      const lastCall = api.saveTodoList.mock.calls.at(-1)
+      const todos = lastCall[1].todos
+      expect(todos.every((todo) => todo.text !== 'Ghost born')).toBe(true)
+    })
+  })
 })
+
+

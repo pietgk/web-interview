@@ -1,5 +1,13 @@
+const newTodoId = () => {
+  const cryptoApi = typeof crypto !== 'undefined' ? crypto : undefined
+  return (
+    cryptoApi?.randomUUID?.() ??
+    `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  )
+}
+
 export const createTodo = ({
-  id = crypto.randomUUID(),
+  id = newTodoId(),
   text = '',
   completed = false,
   dueDate = null,
@@ -12,6 +20,10 @@ export const createTodo = ({
 
 export const isListCompleted = (todos = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
+
+/** Empty draft rows with no attributes are dematerialized (not persisted). */
+export const isDematerializableTodo = (todo) =>
+  !String(todo?.text ?? '').trim() && !todo?.completed && todo?.dueDate == null
 
 export const updateTodoAt = (todos, index, patch) =>
   todos.map((todo, i) => (i === index ? { ...todo, ...patch } : todo))

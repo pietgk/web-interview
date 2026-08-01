@@ -66,17 +66,30 @@ Shape:
 
 `dueDate` is `YYYY-MM-DD` or `null`.
 
-## Autosave: drafts owned above the form, queue per list
+## Autosave: XState actors per list
 
-**Why:** Debounce must control network frequency, not the lifetime of user data. The original form-owned draft + keyed unmount discarded edits when switching lists mid-debounce.
+**Why:** Debounce must control network frequency, not the lifetime of user data. The
+protocols around flush-on-switch, in-flight coalesce, retry, and type-to-create are
+easier to prove and present as explicit statecharts than as an ad-hoc queue.
 
 **Design:**
 
-- `useTodoLists` owns per-list drafts, revisions, and save status (`clean` / `dirty` / `saving` / `error`)
-- `TodoListForm` is controlled
-- `createSaveQueue` serializes and coalesces PUTs per list (at most one in flight)
+- `todoListsMachine` loads the catalog and spawns one `todoListMachine` per list
+- Persistence states: `clean` → `dirty` → `saving` → `clean` | `error` (debounce via `after`)
+- `TodoListForm` is controlled and emits intent events only
 - Flush on list switch, blur, and `pagehide`; warn on `beforeunload` while unacked
 - Failed saves stay dirty and expose an accessible **Retry** action
+- Details + diagrams: [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md)
+
+## Ghost composer (type to create)
+
+**Why:** An Add button is clumsy for a todo list. Users expect to start typing on an
+empty top row.
+
+**Design:** Local composer until the first non-whitespace character, then a linked draft
+todo for the rest of the typing session. Clearing the linked composer dematerializes
+unless `completed` or `dueDate` is set. Numbered rows keep empty text on clear so
+clear-then-type still works. See ADR 002.
 
 ## Due-date formatting uses structured status + injectable “now”
 
@@ -87,7 +100,7 @@ Shape:
 | Layer | Role |
 |-------|------|
 | Shared contract (`shared/`) | Zod schema rules once |
-| Unit (model, reducer, save queue, components) | Fast spec for pure rules and failure paths |
+| Unit (model, XState actors, components) | Fast spec for pure rules and failure paths |
 | Integration (supertest + Express app) | HTTP contract and persistence |
 | E2E (Playwright) | A few complete user journeys across refresh and list switching |
 
@@ -101,6 +114,6 @@ Shape:
 - Creating or deleting whole lists
 - Real database
 - Multi-tab sync / conflict resolution
-- Global state libraries (Redux, etc.)
+- Global Redux-style stores (XState actors cover this surface)
 - React 19 / Suspense modernization (separate change; does not fix mutation ordering)
 - Immutable.js (plain objects + functional updates are enough here)
