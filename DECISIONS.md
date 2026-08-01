@@ -40,7 +40,7 @@ Playwright browsers (clean checkout): `npx playwright install chromium`
 
 **Why:** The existing UI already saved an entire list’s todos in one shot (`saveTodoList(id, { todos })`). One write path keeps autosave simple, avoids N endpoints for N actions, and matches a single source of truth for a list on the server.
 
-**Trade-off:** Concurrent editors could overwrite each other. Fine for a single-user demo; `PATCH` per item (or ETags) would be a natural evolution. Same-tab overlapping saves are handled by a per-list serialized client queue.
+**Trade-off:** Concurrent editors could overwrite each other. Fine for a single-user demo; `PATCH` per item (or ETags) would be a natural evolution. Same-tab overlapping saves for one list are serialized by that list actor’s `saving` invocation (see Autosave below).
 
 ## Runtime contract: shared Zod package
 

@@ -620,14 +620,12 @@ The follow-up implementation is complete only when:
 
 ## Final green proof
 
-Implemented after approval of this review. Architecture summary:
+Implemented after approval of this review. This section is a historical verification
+snapshot of that milestone (reducer + `createSaveQueue`). Current persistence and
+autosave ownership live in [`DECISIONS.md`](./DECISIONS.md) and
+[`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md).
 
-- Shared `@web-interview/todo-contract` (Zod) used by backend and frontend
-- `useTodoLists` + reducer owns per-list drafts; `TodoListForm` is controlled
-- `createSaveQueue` serializes and coalesces saves; Retry on failure
-- `getDueStatus` returns `{ kind, label, days }`; completed todos are not overdue
-
-### Focused regressions (green)
+### Focused regressions (green at that milestone)
 
 ```text
 # Shared contract
