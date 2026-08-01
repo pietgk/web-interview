@@ -6,7 +6,7 @@ const MainAppBar = () => {
   return (
     <AppBar position='static' color='primary'>
       <Toolbar>
-        <Typography variant='h6' color='inherit'>
+        <Typography variant='h6' component='h1' color='inherit'>
           Things to do
         </Typography>
       </Toolbar>
@@ -27,7 +27,9 @@ const MainWrapper = ({ children }) => {
     <div style={mainWrapperStyle}>
       <MainAppBar />
       <div style={centerContentWrapper}>
-        <div style={contentWrapperStyle}>{children}</div>
+        <div style={contentWrapperStyle}>
+          <main>{children}</main>
+        </div>
       </div>
     </div>
   )

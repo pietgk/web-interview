@@ -49,15 +49,18 @@ test('marks a todo and its list as completed and persists after refresh', async 
   await page.getByText('First List').click()
 
   const saved = waitForAutosave(page)
-  await page.getByLabel('Mark todo 1 completed').check()
+  await page.getByLabel('Mark completed: First todo of first list!').check()
   await saved
-  await expect(page.getByLabel('First List completed')).toBeVisible()
   await expect(page.getByText('All todos completed')).toBeVisible()
+  await expect(page.getByRole('button', { name: /First List/ })).toHaveAttribute(
+    'aria-current',
+    'true'
+  )
 
   await page.reload()
   await page.getByText('First List').click()
-  await expect(page.getByLabel('Mark todo 1 completed')).toBeChecked()
-  await expect(page.getByLabel('First List completed')).toBeVisible()
+  await expect(page.getByLabel('Mark completed: First todo of first list!')).toBeChecked()
+  await expect(page.getByText('All todos completed')).toBeVisible()
 })
 
 test('shows remaining time for a due date and persists after refresh', async ({ page }) => {
@@ -65,14 +68,14 @@ test('shows remaining time for a due date and persists after refresh', async ({ 
   await page.getByText('First List').click()
 
   const saved = waitForAutosave(page)
-  await page.getByLabel('Due date for todo 1').fill('2099-01-15')
+  await page.getByLabel('Due date: First todo of first list!').fill('2099-01-15')
   await expect(page.getByText(/days remaining/)).toBeVisible()
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
 
   await page.reload()
   await page.getByText('First List').click()
-  await expect(page.getByLabel('Due date for todo 1')).toHaveValue('2099-01-15')
+  await expect(page.getByLabel('Due date: First todo of first list!')).toHaveValue('2099-01-15')
   await expect(page.getByText(/days remaining/)).toBeVisible()
 })
 
@@ -100,20 +103,35 @@ test('creates a todo by typing in the top composer and removes it when cleared',
   const composer = page.getByLabel('Add a todo')
   const saved = waitForAutosave(page)
   await composer.fill('Typed into ghost')
+  await page.getByRole('button', { name: 'Add todo' }).click()
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Typed into ghost')
 
   await page.reload()
   await page.getByText('First List').click()
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Typed into ghost')
 
-  // Dematerialize via a fresh composer session: type then clear before commit.
-  // Existing numbered rows keep empty text so clear-then-type edits still work.
   const removed = waitForAutosave(page)
-  await page.getByLabel('Delete todo 1').click()
+  await page.getByLabel('Delete todo: Typed into ghost').click()
   await removed
 
   await page.reload()
   await page.getByText('First List').click()
   await expect(page.getByLabel('What to do?')).toHaveValue('First todo of first list!')
+})
+
+test('commits composer text with Enter', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('First List').click()
+
+  const composer = page.getByLabel('Add a todo')
+  const saved = waitForAutosave(page)
+  await composer.fill('Enter to commit')
+  await composer.press('Enter')
+  await saved
+
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Enter to commit')
+  await expect(composer).toHaveValue('')
+  await expect(page.getByText('All changes saved')).toBeVisible()
 })

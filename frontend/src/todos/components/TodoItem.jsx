@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId, useRef } from 'react'
 import {
   TextField,
   Button,
@@ -6,18 +6,27 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { getDueStatus } from '../todoModel'
 
+const todoLabel = (todo) => {
+  const text = String(todo?.text ?? '').trim()
+  return text || 'untitled'
+}
+
 export const TodoItem = ({
   todo,
-  index,
   onChange,
   onRemove,
+  onSubmit,
   now,
   variant = 'todo',
 }) => {
   const isComposer = variant === 'composer'
+  const composerInputRef = useRef(null)
+  const dueStatusId = useId()
+  const label = todoLabel(todo)
   const dueStatus = isComposer
     ? null
     : getDueStatus(todo.dueDate, {
@@ -25,18 +34,26 @@ export const TodoItem = ({
         now,
       })
 
+  const submitComposer = () => {
+    onSubmit?.()
+    // Plus button steals focus; return to the ghost input for the next add.
+    composerInputRef.current?.focus()
+  }
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-      <Typography sx={{ margin: '8px' }} variant='h6'>
-        {isComposer ? '+' : index + 1}
-      </Typography>
+    <div
+      {...(isComposer
+        ? {}
+        : { role: 'group', 'aria-label': `Todo: ${label}` })}
+      style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}
+    >
       {!isComposer && (
         <FormControlLabel
           control={
             <Checkbox
               checked={todo.completed}
               onChange={(event) => onChange({ completed: event.target.checked })}
-              inputProps={{ 'aria-label': `Mark todo ${index + 1} completed` }}
+              inputProps={{ 'aria-label': `Mark completed: ${label}` }}
             />
           }
           label='Done'
@@ -47,13 +64,36 @@ export const TodoItem = ({
         label={isComposer ? 'Add a todo' : 'What to do?'}
         value={todo.text}
         onChange={(event) => onChange({ text: event.target.value })}
+        inputRef={isComposer ? composerInputRef : undefined}
+        onKeyDown={
+          isComposer
+            ? (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  submitComposer()
+                }
+              }
+            : undefined
+        }
         inputProps={
           isComposer
             ? { 'aria-label': 'Add a todo' }
-            : undefined
+            : dueStatus
+              ? { 'aria-describedby': dueStatusId }
+              : undefined
         }
       />
-      {!isComposer && (
+      {isComposer ? (
+        <Button
+          sx={{ margin: '8px' }}
+          size='small'
+          color='secondary'
+          onClick={submitComposer}
+          aria-label='Add todo'
+        >
+          <AddIcon aria-hidden />
+        </Button>
+      ) : (
         <>
           <TextField
             sx={{ marginTop: '1rem', width: '11rem' }}
@@ -62,10 +102,11 @@ export const TodoItem = ({
             value={todo.dueDate || ''}
             onChange={(event) => onChange({ dueDate: event.target.value || null })}
             InputLabelProps={{ shrink: true }}
-            inputProps={{ 'aria-label': `Due date for todo ${index + 1}` }}
+            inputProps={{ 'aria-label': `Due date: ${label}` }}
           />
           {dueStatus && (
             <Typography
+              id={dueStatusId}
               variant='body2'
               color={dueStatus.kind === 'overdue' ? 'error' : 'text.secondary'}
               sx={{ minWidth: '9rem' }}
@@ -78,9 +119,9 @@ export const TodoItem = ({
             size='small'
             color='secondary'
             onClick={onRemove}
-            aria-label={`Delete todo ${index + 1}`}
+            aria-label={`Delete todo: ${label}`}
           >
-            <DeleteIcon />
+            <DeleteIcon aria-hidden />
           </Button>
         </>
       )}

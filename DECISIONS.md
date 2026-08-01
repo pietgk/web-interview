@@ -66,20 +66,20 @@ Shape:
 
 `dueDate` is `YYYY-MM-DD` or `null`.
 
-## Autosave: XState actors per list
+## Autosave: one XState actor
 
 **Why:** Debounce must control network frequency, not the lifetime of user data. The
 protocols around flush-on-switch, in-flight coalesce, retry, and type-to-create are
-easier to prove and present as explicit statecharts than as an ad-hoc queue.
+easier to prove and present as explicit states/events than as an ad-hoc queue.
 
 **Design:**
 
-- `todoListsMachine` loads the catalog and spawns one `todoListMachine` per list
-- Persistence states: `clean` → `dirty` → `saving` → `clean` | `error` (debounce via `after`)
-- `TodoListForm` is controlled and emits intent events only
+- One `todoListsMachine` holds the catalog, drafts, composer, and per-list save `status`
+- Persistence status in context: `clean` → `dirty` → `saving` → `clean` | `error` (debounce via delayed `SAVE_DUE`)
+- UI talks via `send(event)` + `selectViewModel(snapshot)` only
 - Flush on list switch, blur, and `pagehide`; warn on `beforeunload` while unacked
-- Failed saves stay dirty and expose an accessible **Retry** action
-- Details + diagrams: [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md)
+- Failed saves stay dirty/error and expose an accessible **Retry** action
+- Details + state/event table: [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md)
 
 ## Ghost composer (type to create)
 
@@ -87,9 +87,9 @@ easier to prove and present as explicit statecharts than as an ad-hoc queue.
 empty top row.
 
 **Design:** Local composer until the first non-whitespace character, then a linked draft
-todo for the rest of the typing session. Clearing the linked composer dematerializes
-unless `completed` or `dueDate` is set. Numbered rows keep empty text on clear so
-clear-then-type still works. See ADR 002.
+todo for the rest of the typing session. Enter / trailing Add commits the row into the
+list. Clearing the linked composer dematerializes unless `completed` or `dueDate` is set.
+Existing rows keep empty text on clear so clear-then-type still works. See ADR 002.
 
 ## Due-date formatting uses structured status + injectable “now”
 
@@ -114,6 +114,7 @@ clear-then-type still works. See ADR 002.
 - Creating or deleting whole lists
 - Real database
 - Multi-tab sync / conflict resolution
-- Global Redux-style stores (XState actors cover this surface)
+- Selected active list is not persisted across refresh (session UX gap)
+- Global Redux-style stores (one XState actor covers this surface)
 - React 19 / Suspense modernization (separate change; does not fix mutation ordering)
 - Immutable.js (plain objects + functional updates are enough here)

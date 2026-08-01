@@ -12,23 +12,25 @@ describe('TodoItem', () => {
     const now = new Date(2026, 6, 31)
 
     render(
-      <TodoItem todo={todo} index={0} onChange={onChange} onRemove={onRemove} now={now} />
+      <TodoItem todo={todo} onChange={onChange} onRemove={onRemove} now={now} />
     )
 
     expect(screen.getByText('1 day remaining')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Todo: Buy milk' })).toBeInTheDocument()
+    expect(screen.queryByText('1')).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText('What to do?'), '!')
     expect(onChange).toHaveBeenCalledWith({ text: 'Buy milk!' })
 
-    await user.click(screen.getByLabelText('Mark todo 1 completed'))
+    await user.click(screen.getByLabelText('Mark completed: Buy milk'))
     expect(onChange).toHaveBeenCalledWith({ completed: true })
 
-    fireEvent.change(screen.getByLabelText('Due date for todo 1'), {
+    fireEvent.change(screen.getByLabelText('Due date: Buy milk'), {
       target: { value: '2026-08-05' },
     })
     expect(onChange).toHaveBeenCalledWith({ dueDate: '2026-08-05' })
 
-    await user.click(screen.getByLabelText('Delete todo 1'))
+    await user.click(screen.getByLabelText('Delete todo: Buy milk'))
     expect(onRemove).toHaveBeenCalled()
   })
 
@@ -42,32 +44,41 @@ describe('TodoItem', () => {
     const now = new Date(2026, 6, 31)
 
     render(
-      <TodoItem todo={todo} index={0} onChange={jest.fn()} onRemove={jest.fn()} now={now} />
+      <TodoItem todo={todo} onChange={jest.fn()} onRemove={jest.fn()} now={now} />
     )
 
     expect(screen.getByText('Completed')).toBeInTheDocument()
     expect(screen.queryByText(/overdue/i)).not.toBeInTheDocument()
   })
 
-  it('renders a composer row without checkbox or delete', async () => {
+  it('renders a composer row with Add button and Enter submit', async () => {
     const user = userEvent.setup()
     const onChange = jest.fn()
+    const onSubmit = jest.fn()
 
     render(
       <TodoItem
         variant='composer'
         todo={createTodo({ id: 'composer', text: '' })}
-        index={-1}
         onChange={onChange}
+        onSubmit={onSubmit}
       />
     )
 
     expect(screen.getByLabelText('Add a todo')).toBeInTheDocument()
-    expect(screen.queryByLabelText(/Mark todo/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add todo' })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Mark completed/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Delete todo/)).not.toBeInTheDocument()
+    expect(screen.queryByText('+')).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Add a todo'), 'A')
     expect(onChange).toHaveBeenCalledWith({ text: 'A' })
+
+    await user.keyboard('{Enter}')
+    expect(onSubmit).toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Add todo' }))
+    expect(onSubmit).toHaveBeenCalledTimes(2)
+    expect(screen.getByLabelText('Add a todo')).toHaveFocus()
   })
 })
-

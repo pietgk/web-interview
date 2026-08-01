@@ -2,6 +2,12 @@ import React from 'react'
 import { Card, CardContent, Button, Typography } from '@mui/material'
 import { TodoItem } from './TodoItem'
 
+/** True when focus left this element for something outside it (not a child). */
+const focusLeft = (event) => !event.currentTarget.contains(event.relatedTarget)
+
+/** True when the patch includes a `text` key (even if the value is ''). */
+const hasText = (patch) => Object.prototype.hasOwnProperty.call(patch, 'text')
+
 export const TodoListForm = ({
   todoList,
   composerText = '',
@@ -10,20 +16,25 @@ export const TodoListForm = ({
     tone: 'secondary',
     showRetry: false,
   },
-  onComposerChange,
-  onComposerCommit,
-  onTodoPatch,
-  onTodoRemove,
-  onRetry,
-  onBlurSave,
+  send,
 }) => {
   const todos = todoList.todos
+  const titleId = `todo-list-title-${todoList.id}`
+  const saveFailed = saveChrome.tone === 'error'
 
   return (
-    <Card sx={{ margin: '0 1rem' }}>
+    <Card
+      sx={{ margin: '0 1rem' }}
+      component='section'
+      aria-labelledby={titleId}
+    >
       <CardContent>
-        <Typography component='h2'>{todoList.title}</Typography>
+        <Typography id={titleId} component='h2'>
+          {todoList.title}
+        </Typography>
         <div
+          role={saveFailed ? 'alert' : 'status'}
+          aria-label='Save status'
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -34,8 +45,7 @@ export const TodoListForm = ({
         >
           <Typography
             variant='body2'
-            color={saveChrome.tone === 'error' ? 'error' : 'text.secondary'}
-            aria-live='polite'
+            color={saveFailed ? 'error' : 'text.secondary'}
           >
             {saveChrome.message}
           </Typography>
@@ -44,7 +54,7 @@ export const TodoListForm = ({
               type='button'
               size='small'
               color='primary'
-              onClick={onRetry}
+              onClick={() => send({ type: 'RETRY_SAVE' })}
               aria-label='Retry saving todo list'
             >
               Retry
@@ -52,18 +62,22 @@ export const TodoListForm = ({
           )}
         </div>
         <div
+          role='region'
+          aria-label='Todo editor'
           style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}
           onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-              onComposerCommit?.()
-              onBlurSave?.()
+            if (focusLeft(event)) {
+              send({ type: 'COMPOSER_COMMIT' })
+              send({ type: 'FLUSH_ACTIVE' })
             }
           }}
         >
           <div
+            role='group'
+            aria-label='New todo'
             onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) {
-                onComposerCommit?.()
+              if (focusLeft(event)) {
+                send({ type: 'COMPOSER_COMMIT' })
               }
             }}
           >
@@ -75,21 +89,20 @@ export const TodoListForm = ({
                 completed: false,
                 dueDate: null,
               }}
-              index={-1}
               onChange={(patch) => {
-                if (Object.prototype.hasOwnProperty.call(patch, 'text')) {
-                  onComposerChange?.(patch.text)
+                if (hasText(patch)) {
+                  send({ type: 'COMPOSER_CHANGE', text: patch.text })
                 }
               }}
+              onSubmit={() => send({ type: 'COMPOSER_SUBMIT' })}
             />
           </div>
-          {todos.map((todo, index) => (
+          {todos.map((todo) => (
             <TodoItem
               key={todo.id}
               todo={todo}
-              index={index}
-              onChange={(patch) => onTodoPatch?.(todo.id, patch)}
-              onRemove={() => onTodoRemove?.(todo.id)}
+              onChange={(patch) => send({ type: 'TODO_PATCH', id: todo.id, patch })}
+              onRemove={() => send({ type: 'TODO_REMOVE', id: todo.id })}
             />
           ))}
         </div>

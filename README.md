@@ -22,14 +22,16 @@ Persist the todo lists on the server. Persisting in a database is not required, 
 Completed **main task + all 4 additional tasks**, plus the follow-up correctness work from [`01-REVIEW.md`](./01-REVIEW.md):
 
 - Per-list draft ownership (no silent loss on list switch)
-- XState actors for autosave + type-to-create ghost composer
+- XState actor for autosave + type-to-create ghost composer
 - Shared Zod runtime contract
 - Completion-aware due-date status
 
 Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md).
 
-**Live statecharts (dev):** `npm start` in `frontend/` opens the Stately Inspector so you
-can walk `clean/dirty/saving/error` and composer transitions while using the app.
+**Live statecharts (dev):** `npm start` in `frontend/` opens the Stately Inspector in a
+**new browser tab/window** (allow pop-ups for localhost if it does not appear). Check the
+console for the Inspector bootstrap message. Diagrams live in the Inspector — the ADR keeps
+a machine-derived state/event table instead of hand-drawn mermaid.
 Set `REACT_APP_XSTATE_INSPECT=0` to disable.
 
 ### Running tests
@@ -75,7 +77,8 @@ Shared Zod contract (`shared/`) is pulled in via `file:` dependencies from backe
  - Run `npm start`
 
  A browser tab will automatically open and load the app. In development the Stately
- Inspector also opens for the todo actors (see ADR 002).
+ Inspector also opens in a **new tab/window** for the todo actor — allow pop-ups if you
+ do not see it (see ADR 002). Set `REACT_APP_XSTATE_INSPECT=0` to disable.
 
 ### End-to-end tests
 

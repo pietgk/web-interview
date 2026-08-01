@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodoLists } from './TodoLists'
 import * as api from '../../api/todoLists'
-import { AUTOSAVE_DEBOUNCE_MS } from '../todoListMachine'
+import { AUTOSAVE_DEBOUNCE_MS } from '../todoListsMachine'
 import { createTodo } from '../todoModel'
 
 jest.mock('../../api/todoLists')
@@ -174,10 +174,15 @@ describe('TodoLists persistence regressions', () => {
     await flushLoad()
     await user.click(screen.getByText('First List'))
 
-    await user.click(screen.getByLabelText('Mark todo 1 completed'))
+    await user.click(
+      screen.getByLabelText('Mark completed: First todo of first list!')
+    )
 
-    expect(screen.getByLabelText('First List completed')).toBeInTheDocument()
     expect(screen.getByText('All todos completed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /First List/ })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
 
     pending.resolve({
       id: '0000000001',
@@ -196,7 +201,7 @@ describe('TodoLists persistence regressions', () => {
     await user.type(composer, 'Ghost born')
     expect(composer).toHaveValue('Ghost born')
 
-    // Linked composer todo is hidden from the numbered list until commit.
+    // Linked composer todo is hidden from the list until commit/submit.
     expect(screen.getAllByLabelText('What to do?')).toHaveLength(1)
 
     await act(async () => {
@@ -226,6 +231,40 @@ describe('TodoLists persistence regressions', () => {
       expect(todos.every((todo) => todo.text !== 'Ghost born')).toBe(true)
     })
   })
+
+  it('commits the composer with Enter and the Add button', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    render(<TodoLists style={{}} />)
+    await flushLoad()
+    await user.click(screen.getByText('First List'))
+
+    const composer = screen.getByLabelText('Add a todo')
+    await user.type(composer, 'Enter commit')
+    expect(screen.getAllByLabelText('What to do?')).toHaveLength(1)
+
+    await user.keyboard('{Enter}')
+    // Linked row becomes visible; seed todo remains below.
+    expect(screen.getAllByLabelText('What to do?')).toHaveLength(2)
+    expect(screen.getAllByLabelText('What to do?')[0]).toHaveValue('Enter commit')
+    expect(composer).toHaveValue('')
+
+    await user.type(composer, 'Plus commit')
+    await user.click(screen.getByRole('button', { name: 'Add todo' }))
+    expect(screen.getAllByLabelText('What to do?')).toHaveLength(3)
+    expect(composer).toHaveValue('')
+  })
+
+  it('exposes named regions for save status, editor, and composer', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    render(<TodoLists style={{}} />)
+    await flushLoad()
+    await user.click(screen.getByText('First List'))
+
+    expect(screen.getByRole('status', { name: 'Save status' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Todo editor' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'New todo' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('group', { name: 'Todo: First todo of first list!' })
+    ).toBeInTheDocument()
+  })
 })
-
-

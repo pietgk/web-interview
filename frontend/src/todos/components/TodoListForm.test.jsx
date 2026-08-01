@@ -11,83 +11,91 @@ const StatefulForm = ({
     tone: 'secondary',
     showRetry: false,
   },
-  onTodoPatch,
-  onTodoRemove,
-  onComposerChange,
-  onRetry,
-  onBlurSave,
+  onSend,
 }) => {
   const [todos, setTodos] = useState(initialTodos)
   const [composerText, setComposerText] = useState('')
+
+  const send = (event) => {
+    onSend?.(event)
+    if (event.type === 'COMPOSER_CHANGE') {
+      setComposerText(event.text)
+    }
+    if (event.type === 'TODO_PATCH') {
+      setTodos((current) =>
+        current.map((todo) =>
+          todo.id === event.id ? { ...todo, ...event.patch } : todo
+        )
+      )
+    }
+    if (event.type === 'TODO_REMOVE') {
+      setTodos((current) => current.filter((todo) => todo.id !== event.id))
+    }
+    if (event.type === 'COMPOSER_SUBMIT' || event.type === 'COMPOSER_COMMIT') {
+      setComposerText('')
+    }
+  }
+
   return (
     <TodoListForm
       todoList={{ id: '0000000001', title: 'First List', todos }}
       composerText={composerText}
       saveChrome={saveChrome}
-      onComposerChange={(text) => {
-        setComposerText(text)
-        onComposerChange?.(text)
-      }}
-      onTodoPatch={(id, patch) => {
-        setTodos((current) =>
-          current.map((todo) => (todo.id === id ? { ...todo, ...patch } : todo))
-        )
-        onTodoPatch?.(id, patch)
-      }}
-      onTodoRemove={(id) => {
-        setTodos((current) => current.filter((todo) => todo.id !== id))
-        onTodoRemove?.(id)
-      }}
-      onRetry={onRetry}
-      onBlurSave={onBlurSave}
+      send={send}
     />
   )
 }
 
 describe('TodoListForm', () => {
-  it('emits intent patches without a Save or Add button', async () => {
+  it('emits intent events without a Save button', async () => {
     const user = userEvent.setup()
-    const onTodoPatch = jest.fn()
+    const onSend = jest.fn()
 
     render(
       <StatefulForm
         initialTodos={[createTodo({ id: 't1', text: 'Original' })]}
-        onTodoPatch={onTodoPatch}
+        onSend={onSend}
       />
     )
 
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /add todo/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add todo' })).toBeInTheDocument()
 
     await user.clear(screen.getByLabelText('What to do?'))
     await user.type(screen.getByLabelText('What to do?'), 'Updated')
 
-    expect(onTodoPatch).toHaveBeenCalled()
-    expect(onTodoPatch).toHaveBeenCalledWith(
-      't1',
-      expect.objectContaining({ text: expect.stringContaining('U') })
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'TODO_PATCH',
+        id: 't1',
+        patch: expect.objectContaining({ text: expect.stringContaining('U') }),
+      })
     )
   })
 
-  it('emits composer changes from the top ghost row', async () => {
+  it('emits composer changes and submit from the top ghost row', async () => {
     const user = userEvent.setup()
-    const onComposerChange = jest.fn()
+    const onSend = jest.fn()
 
     render(
       <StatefulForm
         initialTodos={[createTodo({ id: 't1', text: 'Original' })]}
-        onComposerChange={onComposerChange}
+        onSend={onSend}
       />
     )
 
     await user.type(screen.getByLabelText('Add a todo'), 'New')
-    expect(onComposerChange).toHaveBeenCalled()
-    expect(onComposerChange.mock.calls.at(-1)[0]).toContain('N')
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'COMPOSER_CHANGE' })
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Add todo' }))
+    expect(onSend).toHaveBeenCalledWith({ type: 'COMPOSER_SUBMIT' })
   })
 
   it('shows Retry when save failed and keeps the draft visible', async () => {
     const user = userEvent.setup()
-    const onRetry = jest.fn()
+    const onSend = jest.fn()
 
     render(
       <StatefulForm
@@ -97,7 +105,7 @@ describe('TodoListForm', () => {
           tone: 'error',
           showRetry: true,
         }}
-        onRetry={onRetry}
+        onSend={onSend}
       />
     )
 
@@ -105,7 +113,7 @@ describe('TodoListForm', () => {
     expect(screen.getByText(/Save failed: network down/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Retry saving todo list' }))
-    expect(onRetry).toHaveBeenCalled()
+    expect(onSend).toHaveBeenCalledWith({ type: 'RETRY_SAVE' })
   })
 })
 
@@ -115,9 +123,6 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
 
     const saves = []
-    const flush = jest.fn(() => {
-      saves.push(latestTodos)
-    })
     let latestTodos = [createTodo({ id: 't1', text: 'Original' })]
 
     const Harness = ({ open }) => {
@@ -132,13 +137,17 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
             tone: 'secondary',
             showRetry: false,
           }}
-          onTodoPatch={(id, patch) => {
-            latestTodos = latestTodos.map((todo) =>
-              todo.id === id ? { ...todo, ...patch } : todo
-            )
-            setTodos(latestTodos)
+          send={(event) => {
+            if (event.type === 'TODO_PATCH') {
+              latestTodos = latestTodos.map((todo) =>
+                todo.id === event.id ? { ...todo, ...event.patch } : todo
+              )
+              setTodos(latestTodos)
+            }
+            if (event.type === 'FLUSH_ACTIVE') {
+              saves.push(latestTodos)
+            }
           }}
-          onBlurSave={flush}
         />
       )
     }
@@ -149,12 +158,12 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
     await user.type(screen.getByLabelText('What to do?'), 'Unsaved switch test')
 
     act(() => {
-      flush()
+      // Owner flush (list switch / blur) — form itself does not unmount-flush.
+      saves.push(latestTodos)
     })
     rerender(<Harness open={false} />)
     unmount()
 
-    expect(flush).toHaveBeenCalled()
     expect(saves.at(-1)[0].text).toBe('Unsaved switch test')
 
     jest.useRealTimers()
