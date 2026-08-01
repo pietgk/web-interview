@@ -45,6 +45,19 @@ describe('TodoLists persistence regressions', () => {
     jest.clearAllMocks()
   })
 
+  it('always summarizes incomplete and empty lists', async () => {
+    api.fetchTodoLists.mockResolvedValue({
+      ...seedLists,
+      '0000000002': { ...seedLists['0000000002'], todos: [] },
+    })
+
+    render(<TodoLists style={{}} />)
+    await flushLoad()
+
+    expect(screen.getByText('0 of 1 completed')).toBeInTheDocument()
+    expect(screen.getByText('No todos yet')).toBeInTheDocument()
+  })
+
   it('flushes an edited todo when switching lists before the debounce expires', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(<TodoLists style={{}} />)
@@ -206,7 +219,7 @@ describe('TodoLists persistence regressions', () => {
       screen.getByLabelText('Mark completed: First todo of first list!')
     )
 
-    expect(screen.getByText('All todos completed')).toBeInTheDocument()
+    expect(screen.getByText('1 of 1 completed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /First List/ })).toHaveAttribute(
       'aria-current',
       'true'

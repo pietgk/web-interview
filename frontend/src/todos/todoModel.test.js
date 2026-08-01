@@ -1,6 +1,5 @@
 import {
   createTodo,
-  formatDueStatus,
   getDueStatus,
   isDematerializableTodo,
   isListCompleted,
@@ -144,12 +143,6 @@ describe('todoModel', () => {
       ['2025-01-29', '2 years overdue', 2, 'year'],
     ])('humanizes %s as %s', (dueDate, label, value, unit) => {
       expect(getDueStatus(dueDate, { now })).toMatchObject({ label, value, unit })
-    })
-
-    it('formatDueStatus still returns labels', () => {
-      expect(formatDueStatus(null, now)).toBeNull()
-      expect(formatDueStatus('2026-07-31', now)).toBe('Due today')
-      expect(formatDueStatus('2026-07-30', now, true)).toBe('Completed')
     })
   })
 })

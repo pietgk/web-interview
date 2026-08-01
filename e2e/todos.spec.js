@@ -47,11 +47,15 @@ test('autosaves todos and persists them across refresh', async ({ page }) => {
 test('marks a todo and its list as completed and persists after refresh', async ({ page }) => {
   await page.goto('/')
   await page.getByText('First List').click()
+  const listButton = page.getByRole('button', { name: /First List/ })
+  const initialHeight = (await listButton.boundingBox()).height
 
   const saved = waitForAutosave(page)
   await page.getByLabel('Mark completed: First todo of first list!').check()
   await saved
-  await expect(page.getByText('All todos completed')).toBeVisible()
+  await expect(page.getByText('1 of 1 completed')).toBeVisible()
+  const completedHeight = (await listButton.boundingBox()).height
+  expect(completedHeight).toBe(initialHeight)
   await expect(page.getByRole('button', { name: /First List/ })).toHaveAttribute(
     'aria-current',
     'true'
@@ -60,7 +64,7 @@ test('marks a todo and its list as completed and persists after refresh', async 
   await page.reload()
   await page.getByText('First List').click()
   await expect(page.getByLabel('Mark completed: First todo of first list!')).toBeChecked()
-  await expect(page.getByText('All todos completed')).toBeVisible()
+  await expect(page.getByText('1 of 1 completed')).toBeVisible()
 })
 
 test('shows a due-in label for a due date and persists after refresh', async ({ page }) => {

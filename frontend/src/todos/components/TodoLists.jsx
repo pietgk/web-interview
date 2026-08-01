@@ -20,6 +20,11 @@ import {
   selectTodoListView,
 } from '../todoListMachine'
 
+const listRecap = ({ completedCount, totalCount }) =>
+  totalCount === 0
+    ? 'No todos yet'
+    : `${completedCount} of ${totalCount} completed`
+
 const TodoListButton = ({ actorRef, selected, onSelect }) => {
   const list = useSelector(actorRef, selectListSummary, shallowEqual)
 
@@ -38,7 +43,8 @@ const TodoListButton = ({ actorRef, selected, onSelect }) => {
       </ListItemIcon>
       <ListItemText
         primary={list.title}
-        secondary={list.completed ? 'All todos completed' : null}
+        secondary={listRecap(list)}
+        secondaryTypographyProps={{ noWrap: true }}
       />
     </ListItemButton>
   )

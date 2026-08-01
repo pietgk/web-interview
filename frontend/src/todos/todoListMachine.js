@@ -268,13 +268,19 @@ export const selectSaveChrome = (snapshot) => {
   return { message: null, tone: 'secondary', showRetry: false, saveError: null }
 }
 
-export const selectListSummary = (snapshot) => ({
-  id: snapshot.context.id,
-  title: snapshot.context.title,
-  completed: isListCompleted(snapshot.context.draft),
-  status: snapshot.value,
-  error: snapshot.context.error,
-})
+export const selectListSummary = (snapshot) => {
+  const todos = snapshot.context.draft
+
+  return {
+    id: snapshot.context.id,
+    title: snapshot.context.title,
+    completed: isListCompleted(todos),
+    completedCount: todos.filter((todo) => todo.completed).length,
+    totalCount: todos.length,
+    status: snapshot.value,
+    error: snapshot.context.error,
+  }
+}
 
 export const selectTodoListView = (snapshot) => ({
   id: snapshot.context.id,
