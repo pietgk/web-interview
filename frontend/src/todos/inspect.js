@@ -1,4 +1,4 @@
-/** Stately Inspector — development only, never in tests or production builds. */
+/** Stately Inspector - development only, never in tests or production builds. */
 let cachedInspect
 let didLog = false
 

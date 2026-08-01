@@ -1,10 +1,9 @@
-import { createActor } from 'xstate'
+import { createActor, SimulatedClock, waitFor } from 'xstate'
+import { selectListSummary } from './todoListMachine'
 import {
-  AUTOSAVE_DEBOUNCE_MS,
   createTodoListsMachine,
   hasUnackedChanges,
-  selectViewModel,
-  selectVisibleTodos,
+  selectCatalogView,
 } from './todoListsMachine'
 import { createTodo } from './todoModel'
 
@@ -16,12 +15,6 @@ const deferred = () => {
     reject = rej
   })
   return { promise, resolve, reject }
-}
-
-const flushMicrotasks = async () => {
-  await Promise.resolve()
-  await Promise.resolve()
-  await Promise.resolve()
 }
 
 const seedLists = {
@@ -39,294 +32,149 @@ const seedLists = {
 
 const startCatalog = async ({
   fetchTodoLists = jest.fn().mockResolvedValue(seedLists),
-  saveTodoList = jest.fn().mockResolvedValue(seedLists.a),
+  saveTodoList = jest.fn(async (id, { todos }) => ({ id, todos })),
 } = {}) => {
-  const actor = createActor(createTodoListsMachine({ fetchTodoLists, saveTodoList }))
+  const clock = new SimulatedClock()
+  const actor = createActor(createTodoListsMachine({ fetchTodoLists, saveTodoList }), {
+    clock,
+  })
   actor.start()
-  await flushMicrotasks()
-  return { actor, fetchTodoLists, saveTodoList }
+  await waitFor(actor, (snapshot) => snapshot.matches('ready'))
+  return { actor, clock, fetchTodoLists, saveTodoList }
 }
 
-const activeEntry = (actor) => actor.getSnapshot().context.lists[actor.getSnapshot().context.activeListId]
+const listRef = (actor, id) => actor.getSnapshot().context.listRefs[id]
 
 describe('todoListsMachine', () => {
-  beforeEach(() => {
-    jest.useFakeTimers()
-  })
-
-  afterEach(() => {
-    jest.useRealTimers()
-  })
-
-  it('loads lists and derives completion from the active draft', async () => {
+  it('loads the catalog and spawns one independently inspectable actor per list', async () => {
     const { actor } = await startCatalog()
-    expect(actor.getSnapshot().matches('ready')).toBe(true)
+    const view = selectCatalogView(actor.getSnapshot())
 
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { completed: true } })
-
-    const { lists } = selectViewModel(actor.getSnapshot())
-    expect(lists.find((list) => list.id === 'a').completed).toBe(true)
-
-    actor.stop()
-  })
-
-  it('debounces saves and coalesces rapid edits', async () => {
-    const saveTodoList = jest.fn().mockResolvedValue({
-      id: 'a',
-      title: 'A',
-      todos: [],
-    })
-    const { actor } = await startCatalog({ saveTodoList })
-
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'a' } })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'ab' } })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'abc' } })
-
-    expect(saveTodoList).not.toHaveBeenCalled()
-    expect(activeEntry(actor).status).toBe('dirty')
-
-    jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
-    await flushMicrotasks()
-
-    expect(saveTodoList).toHaveBeenCalledTimes(1)
-    expect(saveTodoList).toHaveBeenCalledWith('a', {
-      todos: [expect.objectContaining({ text: 'abc' })],
-    })
-    expect(activeEntry(actor).status).toBe('clean')
-
-    actor.stop()
-  })
-
-  it('flushes the previous list when switching before debounce', async () => {
-    const saveTodoList = jest.fn().mockImplementation(async (id, { todos }) => ({
-      id,
-      title: seedLists[id].title,
-      todos,
-    }))
-    const { actor } = await startCatalog({ saveTodoList })
-
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'Edited A' } })
-    expect(saveTodoList).not.toHaveBeenCalled()
-
-    actor.send({ type: 'SELECT_LIST', id: 'b' })
-    await flushMicrotasks()
-
-    expect(saveTodoList).toHaveBeenCalledWith(
-      'a',
-      expect.objectContaining({
-        todos: [expect.objectContaining({ text: 'Edited A' })],
-      })
+    expect(view.loadState).toBe('ready')
+    expect(view.lists.map((list) => list.id)).toEqual(['a', 'b'])
+    expect(selectListSummary(view.lists[0].actorRef.getSnapshot())).toEqual(
+      expect.objectContaining({ id: 'a', title: 'A', status: 'clean' })
     )
-    expect(actor.getSnapshot().context.lists.a.draft[0].text).toBe('Edited A')
+
+    actor.stop()
+  })
+
+  it('flushes the owning list actor when selection changes', async () => {
+    const { actor, saveTodoList } = await startCatalog()
+
+    actor.send({ type: 'SELECT_LIST', id: 'a' })
+    listRef(actor, 'a').send({
+      type: 'TODO_PATCH',
+      id: '1',
+      patch: { text: 'Edited A' },
+    })
+    actor.send({ type: 'SELECT_LIST', id: 'b' })
+
+    await waitFor(listRef(actor, 'a'), (snapshot) => snapshot.matches('clean'))
+    expect(saveTodoList).toHaveBeenCalledWith('a', {
+      todos: [expect.objectContaining({ text: 'Edited A' })],
+    })
     expect(actor.getSnapshot().context.activeListId).toBe('b')
 
     actor.stop()
   })
 
-  it('serializes overlapping saves and keeps the newest draft', async () => {
-    const first = deferred()
-    const second = deferred()
-    const saveTodoList = jest
-      .fn()
-      .mockImplementationOnce(() => first.promise)
-      .mockImplementationOnce(() => second.promise)
-
+  it('allows unrelated lists to save concurrently', async () => {
+    const saves = { a: deferred(), b: deferred() }
+    const saveTodoList = jest.fn((id) => saves[id].promise)
     const { actor } = await startCatalog({ saveTodoList })
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
 
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'old' } })
-    actor.send({ type: 'FLUSH_ACTIVE' })
-    await flushMicrotasks()
-    expect(saveTodoList).toHaveBeenCalledTimes(1)
-
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'new' } })
-    expect(saveTodoList).toHaveBeenCalledTimes(1)
-
-    first.resolve({
-      id: 'a',
-      title: 'A',
-      todos: [createTodo({ id: '1', text: 'old' })],
+    listRef(actor, 'a').send({
+      type: 'TODO_PATCH',
+      id: '1',
+      patch: { text: 'A changed' },
     })
-    await flushMicrotasks()
+    listRef(actor, 'b').send({
+      type: 'TODO_PATCH',
+      id: '2',
+      patch: { text: 'B changed' },
+    })
+    actor.send({ type: 'FLUSH_ALL' })
 
+    expect(listRef(actor, 'a').getSnapshot().matches('saving')).toBe(true)
+    expect(listRef(actor, 'b').getSnapshot().matches('saving')).toBe(true)
     expect(saveTodoList).toHaveBeenCalledTimes(2)
-    expect(saveTodoList).toHaveBeenLastCalledWith('a', {
-      todos: [expect.objectContaining({ text: 'new' })],
-    })
 
-    second.resolve({
-      id: 'a',
-      title: 'A',
-      todos: [createTodo({ id: '1', text: 'new' })],
-    })
-    await flushMicrotasks()
-
-    expect(activeEntry(actor).draft[0].text).toBe('new')
-    expect(activeEntry(actor).status).toBe('clean')
+    saves.a.resolve({ id: 'a', todos: [] })
+    saves.b.resolve({ id: 'b', todos: [] })
+    await Promise.all([
+      waitFor(listRef(actor, 'a'), (snapshot) => snapshot.matches('clean')),
+      waitFor(listRef(actor, 'b'), (snapshot) => snapshot.matches('clean')),
+    ])
 
     actor.stop()
   })
 
-  it('retries immediately after a failure', async () => {
-    const saveTodoList = jest
-      .fn()
-      .mockRejectedValueOnce(new Error('network'))
-      .mockResolvedValueOnce({
-        id: 'a',
-        title: 'A',
-        todos: [createTodo({ id: '1', text: 'ok' })],
-      })
-
-    const { actor } = await startCatalog({ saveTodoList })
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'ok' } })
-    actor.send({ type: 'FLUSH_ACTIVE' })
-    await flushMicrotasks()
-
-    expect(activeEntry(actor).status).toBe('error')
-    expect(activeEntry(actor).draft[0].text).toBe('ok')
-
-    actor.send({ type: 'RETRY_SAVE' })
-    await flushMicrotasks()
-
-    expect(saveTodoList).toHaveBeenCalledTimes(2)
-    expect(activeEntry(actor).status).toBe('clean')
-
-    actor.stop()
-  })
-
-  it('reports unacked changes while dirty', async () => {
+  it('reports unacknowledged work across child actors', async () => {
     const { actor } = await startCatalog()
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'dirty' } })
+    const child = listRef(actor, 'a')
 
+    child.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'Dirty' } })
     expect(hasUnackedChanges(actor.getSnapshot())).toBe(true)
 
-    jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
-    await flushMicrotasks()
+    child.send({ type: 'FLUSH' })
+    await waitFor(child, (snapshot) => snapshot.matches('clean'))
     expect(hasUnackedChanges(actor.getSnapshot())).toBe(false)
 
     actor.stop()
   })
-})
 
-describe('todoListsMachine composer', () => {
-  beforeEach(() => {
-    jest.useFakeTimers()
-  })
+  it('ignores selection events for unknown lists', async () => {
+    const { actor } = await startCatalog()
 
-  afterEach(() => {
-    jest.useRealTimers()
-  })
-
-  it('materializes on first non-whitespace, hides linked row, and submits', async () => {
-    const { actor } = await startCatalog({
-      fetchTodoLists: jest.fn().mockResolvedValue({
-        a: { id: 'a', title: 'A', todos: [] },
-      }),
-      saveTodoList: jest.fn().mockResolvedValue({ todos: [] }),
-    })
-
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'COMPOSER_CHANGE', text: '   ' })
-    expect(activeEntry(actor).draft).toHaveLength(0)
-    expect(activeEntry(actor).composer.text).toBe('   ')
-
-    actor.send({ type: 'COMPOSER_CHANGE', text: 'B' })
-    actor.send({ type: 'COMPOSER_CHANGE', text: 'Buy milk' })
-    const entry = activeEntry(actor)
-    expect(entry.draft).toHaveLength(1)
-    expect(entry.draft[0].text).toBe('Buy milk')
-    expect(entry.composer).toEqual({
-      text: 'Buy milk',
-      linkedId: entry.draft[0].id,
-    })
-    expect(selectVisibleTodos(entry)).toHaveLength(0)
-    expect(entry.status).toBe('dirty')
-
-    actor.send({ type: 'COMPOSER_SUBMIT' })
-    expect(activeEntry(actor).composer.linkedId).toBeNull()
-    expect(selectVisibleTodos(activeEntry(actor))).toHaveLength(1)
+    actor.send({ type: 'SELECT_LIST', id: 'missing' })
+    expect(actor.getSnapshot().context.activeListId).toBeNull()
 
     actor.stop()
   })
 
-  it('dematerializes when the linked composer is cleared', async () => {
-    const { actor } = await startCatalog({
-      saveTodoList: jest.fn().mockResolvedValue({ todos: [] }),
-    })
+  it('stops old list actors before reloading a fresh catalog', async () => {
+    const fetchTodoLists = jest
+      .fn()
+      .mockResolvedValueOnce(seedLists)
+      .mockResolvedValueOnce({
+        c: { id: 'c', title: 'C', todos: [] },
+      })
+    const { actor } = await startCatalog({ fetchTodoLists })
+    const oldRef = listRef(actor, 'a')
 
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'COMPOSER_CHANGE', text: 'Temp' })
-    expect(activeEntry(actor).draft).toHaveLength(2)
-
-    actor.send({ type: 'COMPOSER_CHANGE', text: '' })
-    expect(activeEntry(actor).draft).toHaveLength(1)
-    expect(activeEntry(actor).draft[0].id).toBe('1')
-    expect(activeEntry(actor).composer.linkedId).toBeNull()
-
-    actor.stop()
-  })
-
-  it('keeps emptied existing todos (clear-then-type) including completed/dueDate', async () => {
-    const { actor } = await startCatalog({
-      fetchTodoLists: jest.fn().mockResolvedValue({
-        a: {
-          id: 'a',
-          title: 'A',
-          todos: [
-            createTodo({ id: 't1', text: 'Done', completed: true }),
-            createTodo({ id: 't2', text: 'Dated', dueDate: '2099-01-01' }),
-            createTodo({ id: 't3', text: 'Plain' }),
-          ],
-        },
-      }),
-      saveTodoList: jest.fn().mockResolvedValue({ todos: [] }),
-    })
-
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: 't1', patch: { text: '' } })
-    actor.send({ type: 'TODO_PATCH', id: 't2', patch: { text: '' } })
-    actor.send({ type: 'TODO_PATCH', id: 't3', patch: { text: '' } })
-
-    expect(activeEntry(actor).draft).toHaveLength(3)
-    expect(activeEntry(actor).draft[2]).toEqual(
-      expect.objectContaining({ id: 't3', text: '' })
+    actor.send({ type: 'RELOAD' })
+    await waitFor(
+      actor,
+      (snapshot) => snapshot.matches('ready') && snapshot.context.listIds[0] === 'c'
     )
 
+    expect(oldRef.getSnapshot().status).toBe('stopped')
+    expect(actor.getSnapshot().context.listIds).toEqual(['c'])
     actor.stop()
   })
 
-  it('does not clobber a newer draft when an older save completes', async () => {
-    let resolveSave
-    const slowSave = jest.fn(
-      () =>
-        new Promise((resolve) => {
-          resolveSave = resolve
-        })
+  it('surfaces loading errors and retries', async () => {
+    const fetchTodoLists = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(seedLists)
+    const actor = createActor(
+      createTodoListsMachine({
+        fetchTodoLists,
+        saveTodoList: jest.fn(),
+      })
     )
-    const { actor } = await startCatalog({ saveTodoList: slowSave })
+    actor.start()
 
-    actor.send({ type: 'SELECT_LIST', id: 'a' })
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'v1' } })
-    actor.send({ type: 'FLUSH_ACTIVE' })
-    await flushMicrotasks()
+    await waitFor(actor, (snapshot) => snapshot.matches('error'))
+    expect(selectCatalogView(actor.getSnapshot())).toEqual(
+      expect.objectContaining({ loadState: 'error', loadError: 'offline' })
+    )
 
-    actor.send({ type: 'TODO_PATCH', id: '1', patch: { text: 'v2' } })
-
-    resolveSave({
-      id: 'a',
-      title: 'A',
-      todos: [createTodo({ id: '1', text: 'v1' })],
-    })
-    await flushMicrotasks()
-
-    expect(activeEntry(actor).draft[0].text).toBe('v2')
-    expect(activeEntry(actor).status).toBe('saving')
-
+    actor.send({ type: 'RELOAD' })
+    await waitFor(actor, (snapshot) => snapshot.matches('ready'))
+    expect(fetchTodoLists).toHaveBeenCalledTimes(2)
     actor.stop()
   })
 })

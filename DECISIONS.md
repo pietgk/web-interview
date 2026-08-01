@@ -66,7 +66,7 @@ Shape:
 
 `dueDate` is `YYYY-MM-DD` or `null`.
 
-## Autosave: one XState actor
+## Autosave: an XState actor per independent lifecycle
 
 **Why:** Debounce must control network frequency, not the lifetime of user data. The
 protocols around flush-on-switch, in-flight coalesce, retry, and type-to-create are
@@ -74,10 +74,11 @@ easier to prove and present as explicit states/events than as an ad-hoc queue.
 
 **Design:**
 
-- One `todoListsMachine` holds the catalog, drafts, composer, and per-list save `status`
-- Persistence status in context: `clean` → `dirty` → `saving` → `clean` | `error` (debounce via delayed `SAVE_DUE`)
-- UI talks via `send(event)` + `selectViewModel(snapshot)` only
-- Flush on list switch, blur, and `pagehide`; warn on `beforeunload` while unacked
+- `todoListsMachine` loads the catalog, owns selection, and spawns one `todoListMachine` per list
+- Each list actor owns its draft and follows `clean` -> `dirty` -> `saving` -> `clean` | `error`
+- Debounce is a delayed transition in `dirty`; the `saving` invocation serializes that list
+- Navigation rows and the active editor subscribe directly to their actor refs with `useSelector`
+- Flush on list switch, blur, and `pagehide`; warn on `beforeunload` while unacknowledged
 - Failed saves stay dirty/error and expose an accessible **Retry** action
 - Details + state/event table: [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md)
 
@@ -104,7 +105,7 @@ Existing rows keep empty text on clear so clear-then-type still works. See ADR 0
 | Integration (supertest + Express app) | HTTP contract and persistence |
 | E2E (Playwright) | A few complete user journeys across refresh and list switching |
 
-**Backend runner:** Node’s built-in `node:test` — no extra test-runner dependency on the server.
+**Backend runner:** Node’s built-in `node:test` - no extra test-runner dependency on the server.
 
 **Story for the interview:** Tests are the living spec. Red → green → refactor. Failure-path regressions (list switch, ordering, retry, validation, completed-due) are first-class.
 
@@ -115,6 +116,6 @@ Existing rows keep empty text on clear so clear-then-type still works. See ADR 0
 - Real database
 - Multi-tab sync / conflict resolution
 - Selected active list is not persisted across refresh (session UX gap)
-- Global Redux-style stores (one XState actor covers this surface)
+- Global Redux-style stores
 - React 19 / Suspense modernization (separate change; does not fix mutation ordering)
 - Immutable.js (plain objects + functional updates are enough here)

@@ -113,7 +113,7 @@ describe('TodoListForm', () => {
     expect(screen.getByText(/Save failed: network down/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Retry saving todo list' }))
-    expect(onSend).toHaveBeenCalledWith({ type: 'RETRY_SAVE' })
+    expect(onSend).toHaveBeenCalledWith({ type: 'RETRY' })
   })
 })
 
@@ -144,7 +144,7 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
               )
               setTodos(latestTodos)
             }
-            if (event.type === 'FLUSH_ACTIVE') {
+            if (event.type === 'FLUSH') {
               saves.push(latestTodos)
             }
           }}
@@ -158,7 +158,7 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
     await user.type(screen.getByLabelText('What to do?'), 'Unsaved switch test')
 
     act(() => {
-      // Owner flush (list switch / blur) — form itself does not unmount-flush.
+      // Owner flush (list switch / blur) - form itself does not unmount-flush.
       saves.push(latestTodos)
     })
     rerender(<Harness open={false} />)

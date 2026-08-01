@@ -1,4 +1,5 @@
 import React, { Fragment } from 'react'
+import { shallowEqual, useSelector } from '@xstate/react'
 import {
   Card,
   CardContent,
@@ -14,9 +15,61 @@ import ReceiptIcon from '@mui/icons-material/Receipt'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { TodoListForm } from './TodoListForm'
 import { useTodoLists } from '../useTodoLists'
+import {
+  selectListSummary,
+  selectTodoListView,
+} from '../todoListMachine'
+
+const TodoListButton = ({ actorRef, selected, onSelect }) => {
+  const list = useSelector(actorRef, selectListSummary, shallowEqual)
+
+  return (
+    <ListItemButton
+      selected={selected}
+      aria-current={selected ? 'true' : undefined}
+      onClick={onSelect}
+    >
+      <ListItemIcon>
+        {list.completed ? (
+          <CheckCircleIcon color='success' aria-hidden />
+        ) : (
+          <ReceiptIcon aria-hidden />
+        )}
+      </ListItemIcon>
+      <ListItemText
+        primary={list.title}
+        secondary={list.completed ? 'All todos completed' : null}
+      />
+    </ListItemButton>
+  )
+}
+
+const ActiveTodoList = ({ actorRef }) => {
+  const activeEntry = useSelector(actorRef, selectTodoListView, shallowEqual)
+
+  return (
+    <TodoListForm
+      todoList={{
+        id: activeEntry.id,
+        title: activeEntry.title,
+        todos: activeEntry.draft,
+      }}
+      composerText={activeEntry.composerText}
+      saveChrome={activeEntry.saveChrome}
+      send={actorRef.send}
+    />
+  )
+}
 
 export const TodoLists = ({ style }) => {
-  const { loadState, loadError, lists, activeEntry, send } = useTodoLists()
+  const {
+    loadState,
+    loadError,
+    lists,
+    activeListId,
+    activeListRef,
+    send,
+  } = useTodoLists()
 
   if (loadState === 'loading') {
     return (
@@ -51,8 +104,6 @@ export const TodoLists = ({ style }) => {
     )
   }
 
-  const activeListId = activeEntry?.id ?? null
-
   return (
     <Fragment>
       <Card style={style} component='section' aria-labelledby='todo-lists-heading'>
@@ -61,44 +112,22 @@ export const TodoLists = ({ style }) => {
             My Todo Lists
           </Typography>
           <List aria-label='Todo lists'>
-            {lists.map((list) => {
-              const isActive = list.id === activeListId
+            {lists.map(({ id, actorRef }) => {
+              const isActive = id === activeListId
               return (
-                <ListItemButton
-                  key={list.id}
+                <TodoListButton
+                  key={id}
+                  actorRef={actorRef}
                   selected={isActive}
-                  aria-current={isActive ? 'true' : undefined}
-                  onClick={() => send({ type: 'SELECT_LIST', id: list.id })}
-                >
-                  <ListItemIcon>
-                    {list.completed ? (
-                      <CheckCircleIcon color='success' aria-hidden />
-                    ) : (
-                      <ReceiptIcon aria-hidden />
-                    )}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={list.title}
-                    secondary={list.completed ? 'All todos completed' : null}
-                  />
-                </ListItemButton>
+                  onSelect={() => send({ type: 'SELECT_LIST', id })}
+                />
               )
             })}
           </List>
         </CardContent>
       </Card>
-      {activeEntry && (
-        <TodoListForm
-          key={activeEntry.id}
-          todoList={{
-            id: activeEntry.id,
-            title: activeEntry.title,
-            todos: activeEntry.draft,
-          }}
-          composerText={activeEntry.composerText}
-          saveChrome={activeEntry.saveChrome}
-          send={send}
-        />
+      {activeListRef && (
+        <ActiveTodoList key={activeListId} actorRef={activeListRef} />
       )}
     </Fragment>
   )

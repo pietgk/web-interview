@@ -30,15 +30,10 @@ export const TodoListForm = ({
 
         <SaveStatus
           saveChrome={saveChrome}
-          onRetry={() => send({ type: 'RETRY_SAVE' })}
+          onRetry={() => send({ type: 'RETRY' })}
         />
 
-        <TodoEditor
-          onLeave={() => {
-            send({ type: 'COMPOSER_COMMIT' })
-            send({ type: 'FLUSH_ACTIVE' })
-          }}
-        >
+        <TodoEditor onLeave={() => send({ type: 'FLUSH' })}>
           <TodoComposer
             text={composerText}
             onChange={(text) => send({ type: 'COMPOSER_CHANGE', text })}

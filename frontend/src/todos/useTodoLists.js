@@ -8,7 +8,7 @@ import { getInspect } from './inspect'
 import {
   createTodoListsMachine,
   hasUnackedChanges,
-  selectViewModel,
+  selectCatalogView,
 } from './todoListsMachine'
 
 const machine = createTodoListsMachine({
@@ -41,7 +41,7 @@ export const useTodoLists = () => {
   }, [actorRef])
 
   return {
-    ...selectViewModel(snapshot),
+    ...selectCatalogView(snapshot),
     send,
   }
 }

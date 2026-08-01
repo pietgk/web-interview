@@ -1,4 +1,4 @@
-# ADR 002: XState actor for todos and autosave
+# ADR 002: XState actors for todos and autosave
 
 ## Status
 
@@ -16,31 +16,43 @@ an empty linked composer dematerializes it.
 
 ## Decision
 
-Model the frontend with **one XState v5 actor** (`todoListsMachine`):
+Model the frontend as an XState v5 actor hierarchy:
 
-- Load the catalog (`loading` → `ready` | `error`)
-- Hold every list’s draft, composer, revisions, and persistence `status` in context
-- Debounce writes with a cancelable delayed `SAVE_DUE` event; run PUTs through a small
-  save queue under `ready.watching` / `ready.saving`
+- `todoListsMachine` loads the catalog, owns selection, and spawns one child actor per list.
+- Each `todoListMachine` owns its draft, composer, revision, and persistence lifecycle.
+- A child debounces in `dirty`, invokes one PUT in `saving`, and immediately saves a
+  newer revision after the current request finishes.
+- Different lists may save concurrently. Each individual list remains serialized.
 
-React stays a thin boundary: `useTodoLists` exposes `send` + `selectViewModel(snapshot)`.
-Components emit flat intent events. Domain helpers stay in `todoModel.js`. HTTP stays in
-`api/todoLists.js`.
+React stays a thin boundary. `useTodoLists` exposes the catalog snapshot and actor refs.
+Navigation rows and the active editor subscribe directly to their owning actor with
+`useSelector`. `TodoListForm` still emits intent events through a single `send` prop.
+Domain helpers stay in `todoModel.js`. HTTP stays in `api/todoLists.js`.
 
 ### State / event table
 
-Copied from the machine definition — update this table whenever `states` / `on` keys change.
+Copied from the machine definition - update this table whenever `states` / `on` keys change.
 Live diagrams belong in the Stately Inspector, not hand-drawn mermaid here.
+
+Catalog actor:
 
 | State | Events handled | Notes |
 |-------|----------------|-------|
-| `loading` | (invoke `loadLists`) | Entry resets catalog; success → `ready`, failure → `error` |
-| `ready` | `COMPOSER_CHANGE`, `COMPOSER_COMMIT`, `COMPOSER_SUBMIT`, `TODO_PATCH`, `TODO_REMOVE`, `RELOAD` | Shared edit handlers for the active list |
-| `ready.watching` | `SELECT_LIST`, `SAVE_DUE`, `FLUSH_ACTIVE`, `FLUSH_ALL`, `RETRY_SAVE` | `always` → `saving` when `saveQueue` is non-empty |
-| `ready.saving` | `SELECT_LIST`, `SAVE_DUE`, `FLUSH_ACTIVE`, `FLUSH_ALL`, `RETRY_SAVE` + invoke `saveList` | Edits still apply; newer drafts re-queue after ack |
+| `loading` | invoke `loadLists` | Stops old children; success spawns fresh list actors |
+| `ready` | `SELECT_LIST`, `FLUSH_ALL`, `RELOAD` | Flushes the previous child when selection changes |
 | `error` | `RELOAD` | Load failure; retry returns to `loading` |
 
-Per-list persistence `status` in context (not nested actors): `clean` → `dirty` → `saving` → `clean` | `error`.
+Per-list actor:
+
+| State | Events handled | Notes |
+|-------|----------------|-------|
+| `clean` | edit events, `FLUSH` | A real draft change enters `dirty` |
+| `dirty` | edit events, `FLUSH`, delayed autosave | Re-entering on edits resets the debounce |
+| `saving` | edit events, `FLUSH`, invoke `saveList` | Newer drafts cause a fresh `saving` invocation after completion |
+| `error` | edit events, `FLUSH`, `RETRY` | Draft remains available; edit debounces again and retry saves immediately |
+
+The child state value is the persistence status. There is no duplicate status string or
+global save queue in context.
 
 ### Ghost composer
 
@@ -55,10 +67,23 @@ Rules:
 - Existing rows keep empty text on clear (so clear-then-type edits work); use delete to remove them.
 - Linked drafts are still included in PUT payloads (they are real draft state).
 
+### Testing strategy
+
+Actor tests use XState's `SimulatedClock` for debounce behavior and controlled promises for
+request ordering and failures. Catalog tests exercise child spawning, flush-on-switch,
+reload cleanup, and concurrent saves across different lists. React tests verify subscriptions
+and user-visible behavior, while Playwright covers persistence through the real HTTP boundary.
+
+XState's graph-based model test helper does not support invoked actors or delayed transitions.
+Those are the core behaviors here, so a duplicate simplified model would provide weaker evidence
+than deterministic tests against the production machines. Model-based testing should be
+reconsidered if the finite interaction state grows independently of timers and promises.
+
 ### Inspector (demo)
 
 In development, `@statelyai/inspect` is bootstrapped at app startup via `ensureInspector()`
-so the Stately Inspector opens in a **new browser tab/window**.
+so the Stately Inspector opens in a **new browser tab/window**. The actor hierarchy shows the
+catalog and each list's real persistence state independently.
 
 1. `npm start` in `frontend/`
 2. Allow pop-ups for the app origin if the Inspector tab does not appear
@@ -71,18 +96,23 @@ Never enabled in `test` or production builds.
 
 **Positive**
 
-- One explainable actor: events in, snapshot out — strong interview narrative.
-- Form is intent-only; save chrome is a selector over the snapshot.
-- Same failure-path guarantees as before (flush on switch, coalesce, retry).
+- Actor boundaries match ownership and concurrency in the domain.
+- Persistence states are visible and enforceable instead of duplicated in context.
+- Form is intent-only; save chrome is a selector over the child snapshot.
+- Same-list writes are serialized while unrelated lists can save concurrently.
+- Flush on switch, in-flight coalescing, and retry remain explicit transitions.
 
 **Trade-offs**
 
 - XState dependency and a slightly steeper onboarding curve.
-- Per-list persistence status lives in context; inspect live transitions in the Inspector.
+- React components that render child state must subscribe to the relevant actor ref.
 
 ## Alternatives considered
 
-- Keep reducer + `createSaveQueue` — less demoable for protocol edge cases.
-- Per-list child actors + `FORWARD` — too much indirection for this interview surface.
-- React Query / SWR — poor fit for debounced whole-list PUT with local revisions.
-- Hand-drawn mermaid in the ADR — drifts from the machine; Inspector + table instead.
+- One catalog/editor/queue actor - compact React adapter, but it hides per-list states in
+  context and requires manual timers, revisions, and global queue bookkeeping.
+- Child actors plus a root `FORWARD` event - correct ownership, but unnecessary routing and
+  manual React subscriptions. Direct actor refs plus `useSelector` remove that indirection.
+- Keep reducer plus `createSaveQueue` - less inspectable for protocol edge cases.
+- React Query or SWR - poor fit for debounced whole-list PUT with local revisions.
+- Hand-drawn Mermaid in the ADR - likely to drift; the Inspector and tables stay closer to code.

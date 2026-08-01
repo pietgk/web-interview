@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodoLists } from './TodoLists'
 import * as api from '../../api/todoLists'
-import { AUTOSAVE_DEBOUNCE_MS } from '../todoListsMachine'
+import { AUTOSAVE_DEBOUNCE_MS } from '../todoListMachine'
 import { createTodo } from '../todoModel'
 
 jest.mock('../../api/todoLists')
@@ -70,6 +70,34 @@ describe('TodoLists persistence regressions', () => {
 
     await user.click(screen.getByText('First List'))
     expect(screen.getByLabelText('What to do?')).toHaveValue('Unsaved switch test')
+  })
+
+  it('flushes dirty child actors when the page is hidden', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    render(<TodoLists style={{}} />)
+    await flushLoad()
+    await user.click(screen.getByText('First List'))
+
+    const field = screen.getByLabelText('What to do?')
+    await user.clear(field)
+    await user.type(field, 'Leaving now')
+    expect(api.saveTodoList).not.toHaveBeenCalled()
+
+    await act(async () => {
+      window.dispatchEvent(new Event('pagehide'))
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    await waitFor(() => {
+      expect(api.saveTodoList).toHaveBeenCalledWith(
+        '0000000001',
+        expect.objectContaining({
+          todos: [expect.objectContaining({ text: 'Leaving now' })],
+        })
+      )
+    })
+    expect(await screen.findByText('All changes saved')).toBeInTheDocument()
   })
 
   it('coalesces an edit made while a save is in flight', async () => {
@@ -184,10 +212,20 @@ describe('TodoLists persistence regressions', () => {
       'true'
     )
 
-    pending.resolve({
-      id: '0000000001',
-      title: 'First List',
-      todos: [createTodo({ id: 't1', text: 'First todo of first list!', completed: true })],
+    await act(async () => {
+      pending.resolve({
+        id: '0000000001',
+        title: 'First List',
+        todos: [
+          createTodo({
+            id: 't1',
+            text: 'First todo of first list!',
+            completed: true,
+          }),
+        ],
+      })
+      await Promise.resolve()
+      await Promise.resolve()
     })
   })
 

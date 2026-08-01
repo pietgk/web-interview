@@ -31,6 +31,7 @@ export const fetchTodoLists = async ({ signal } = {}) => {
 export const saveTodoList = async (id, { todos }) => {
   const response = await fetch(`${API_BASE}/api/todo-lists/${id}`, {
     method: 'PUT',
+    keepalive: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ todos }),
   })
