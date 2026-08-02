@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Strict mode adoption follow-up</title>
+  <style>
+    :root {
+      --primary: #1976d2;
+      --primary-dark: #0d47a1;
+      --primary-soft: #e3f2fd;
+      --success: #2e7d32;
+      --success-soft: #e8f5e9;
+      --warning: #9a6700;
+      --warning-soft: #fff8e1;
+      --danger: #c62828;
+      --danger-soft: #ffebee;
+      --ink: #17212b;
+      --muted: #5f6b76;
+      --line: #dfe4ea;
+      --surface: #ffffff;
+      --background: #f5f7fa;
+      --shadow: 0 2px 12px rgb(16 32 48 / 8%);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--background);
+      font-family: Roboto, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      color: #fff;
+      background: var(--primary);
+      box-shadow: 0 2px 7px rgb(0 0 0 / 20%);
+    }
+    .header-inner, main {
+      width: min(1160px, calc(100% - 28px));
+      margin: 0 auto;
+    }
+    .header-inner { padding: 20px 0; }
+    h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2rem); line-height: 1.2; }
+    header p { margin: 5px 0 0; opacity: .9; }
+    main { padding: 28px 0 64px; }
+    section { margin-top: 24px; }
+    h2 { margin: 0 0 12px; font-size: clamp(1.3rem, 2.6vw, 1.85rem); line-height: 1.25; }
+    h3 { margin: 0 0 9px; font-size: 1.06rem; line-height: 1.35; }
+    p { margin: 0 0 10px; }
+    p:last-child { margin-bottom: 0; }
+    ul, ol { margin: 9px 0 0; padding-left: 22px; }
+    li + li { margin-top: 6px; }
+
+    .card {
+      min-width: 0;
+      padding: 20px;
+      overflow-wrap: anywhere;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      padding: clamp(22px, 4vw, 34px);
+      border-top: 5px solid var(--success);
+    }
+    .eyebrow {
+      color: var(--success);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .hero h2 { max-width: 26ch; margin: 6px 0 10px; font-size: clamp(1.55rem, 3.2vw, 2.35rem); }
+    .lead { max-width: 78ch; color: #344452; font-size: 1.04rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+    .chip {
+      max-width: 100%;
+      padding: 6px 10px;
+      color: var(--primary-dark);
+      background: var(--primary-soft);
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 750;
+    }
+    .chip.good { color: var(--success); background: var(--success-soft); }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .metric { min-width: 0; padding: 18px; }
+    .metric .value { display: block; color: var(--primary-dark); font-size: 1.85rem; font-weight: 800; line-height: 1.1; }
+    .metric .label { display: block; margin-top: 6px; color: var(--muted); font-size: .84rem; }
+    .metric.success .value { color: var(--success); }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .recommended { border-top: 4px solid var(--success); }
+    .alternative { border-top: 4px solid #90a4ae; }
+    .tag {
+      display: inline-block;
+      margin-bottom: 9px;
+      padding: 3px 8px;
+      color: var(--success);
+      background: var(--success-soft);
+      border-radius: 4px;
+      font-size: .73rem;
+      font-weight: 800;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .tag.neutral { color: #455a64; background: #eceff1; }
+    .tag.warning { color: var(--warning); background: var(--warning-soft); }
+
+    .table-wrap {
+      min-width: 0;
+      overflow-x: auto;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; }
+    th, td { padding: 12px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: #425466; background: #f7f9fb; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .number { font-variant-numeric: tabular-nums; font-weight: 760; }
+    .muted { color: var(--muted); }
+    .caption { margin-top: 8px; color: var(--muted); font-size: .83rem; }
+
+    code {
+      padding: 2px 5px;
+      color: var(--primary-dark);
+      background: var(--primary-soft);
+      border-radius: 4px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .88em;
+      overflow-wrap: anywhere;
+    }
+    pre {
+      margin: 12px 0 0;
+      padding: 15px;
+      overflow: auto;
+      color: #e7f0f8;
+      background: #102131;
+      border-radius: 8px;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .8rem;
+      line-height: 1.5;
+    }
+
+    .rollout {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      counter-reset: phase;
+    }
+    .phase { position: relative; min-width: 0; padding-top: 56px; }
+    .phase::before {
+      counter-increment: phase;
+      content: counter(phase);
+      position: absolute;
+      top: 17px;
+      left: 18px;
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      color: #fff;
+      background: var(--primary);
+      border-radius: 50%;
+      font-weight: 800;
+    }
+    .diagnostic { color: var(--danger); font-weight: 800; }
+    .exit {
+      margin-top: 14px;
+      padding-top: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: .86rem;
+    }
+    .exit strong { color: var(--success); }
+
+    .callout { background: var(--warning-soft); border-color: #f0cf74; }
+    .guardrails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .guardrail { border-left: 4px solid var(--primary); }
+
+    .gates { display: grid; gap: 10px; }
+    .gate { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 14px; align-items: start; }
+    .gate strong { color: var(--primary-dark); }
+
+    form { margin-top: 15px; }
+    fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+    legend { margin-bottom: 12px; font-weight: 800; }
+    .choices { display: grid; gap: 10px; }
+    .choice {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 11px;
+      align-items: start;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .choice:has(input:checked) { background: var(--primary-soft); border-color: var(--primary); }
+    .choice input { margin-top: 4px; accent-color: var(--primary); }
+    .choice-title { display: block; font-weight: 780; }
+    .choice-note { display: block; margin-top: 3px; color: var(--muted); font-size: .86rem; }
+    button {
+      margin-top: 13px;
+      padding: 9px 16px;
+      color: #fff;
+      background: var(--primary);
+      border: 0;
+      border-radius: 6px;
+      box-shadow: 0 2px 5px rgb(0 0 0 / 20%);
+      font: inherit;
+      font-weight: 760;
+      cursor: pointer;
+    }
+    button:hover { background: var(--primary-dark); }
+    .input-help { margin-top: 9px; color: var(--muted); font-size: .82rem; }
+
+    @media (max-width: 900px) {
+      .metrics, .rollout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .guardrails { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 680px) {
+      .grid-2, .metrics, .rollout { grid-template-columns: minmax(0, 1fr); }
+      .gate { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+      .card { padding: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Strict mode adoption follow-up</h1>
+      <p>Repository-specific implementation plan after the TypeScript 7 declaration work</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="card hero">
+      <div class="eyebrow">Recommended direction</div>
+      <h2>Keep JavaScript, make every project genuinely strict</h2>
+      <p class="lead">Adopt <code>strict: true</code> one project at a time, using typed JSDoc and real runtime narrowing at untrusted boundaries. Do not leave a permanent matrix of individual strict flags. Once all four project checks pass independently, move <code>strict: true</code> into the shared base configuration.</p>
+      <div class="chips">
+        <span class="chip good">Declaration prerequisite complete</span>
+        <span class="chip">185 current diagnostics</span>
+        <span class="chip">No TypeScript source conversion required</span>
+        <span class="chip">Four independently passing gates</span>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Strict mode measurements">
+      <article class="card metric success"><span class="value">67%</span><span class="label">fewer diagnostics than before declaration hardening</span></article>
+      <article class="card metric"><span class="value">185</span><span class="label">strict diagnostics now, down from 564</span></article>
+      <article class="card metric"><span class="value">107</span><span class="label">production diagnostics across shared, backend, and frontend</span></article>
+      <article class="card metric"><span class="value">78</span><span class="label">test and E2E diagnostics</span></article>
+    </section>
+
+    <section>
+      <h2>Current state</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Project gate</th><th>Total</th><th>Production</th><th>Tests / E2E</th><th>Dominant work</th></tr></thead>
+          <tbody>
+            <tr><td>Root and E2E</td><td class="number">9</td><td class="number">0</td><td class="number">9</td><td>Playwright fixture types, nullable bounding boxes, typed dialog collection</td></tr>
+            <tr><td>Shared</td><td class="number">13</td><td class="number">1</td><td class="number">12</td><td>Unknown error narrowing and typed actor/storage test doubles</td></tr>
+            <tr><td>Backend</td><td class="number">57</td><td class="number">26</td><td class="number">31</td><td>Express boundaries, config parsers, journal storage, test lifecycle state</td></tr>
+            <tr><td>Frontend</td><td class="number">106</td><td class="number">80</td><td class="number">26</td><td>React props/state, UI event union, IndexedDB boundary, model helpers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">Measured on 2 August 2026 with TypeScript 7.0.2 using <code>tsc -p &lt;project&gt; --strict true --pretty false</code>. The existing non-strict typecheck and all 89 unit tests pass.</p>
+    </section>
+
+    <section class="grid-2">
+      <article class="card recommended">
+        <span class="tag">Recommended</span>
+        <h3>Project-gated strict adoption</h3>
+        <p>Set <code>strict: true</code> in each leaf config only when that entire project is clean. This creates a durable ratchet with a clear owner and an independently verifiable exit condition.</p>
+        <ul>
+          <li>No temporary weakening after a project passes.</li>
+          <li>Production and tests become strict together.</li>
+          <li>The final base-config flip is mechanical.</li>
+        </ul>
+      </article>
+      <article class="card alternative">
+        <span class="tag neutral">Not preferred</span>
+        <h3>Flag-by-flag adoption</h3>
+        <p>Enabling <code>strictNullChecks</code>, then <code>noImplicitAny</code>, then the remaining flags across every project appears incremental, but it creates a long-lived configuration matrix and mixes ownership between four codebases.</p>
+        <ul>
+          <li><code>noImplicitAny</code> already accounts for nearly all remaining work.</li>
+          <li>Several strict flags produce zero diagnostics today.</li>
+          <li>Project gates give a clearer definition of done.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section>
+      <h2>Implementation sequence</h2>
+      <div class="rollout">
+        <article class="card phase">
+          <span class="tag">Shared</span>
+          <h3>Finish the public boundary</h3>
+          <p><span class="diagnostic">13 diagnostics</span>, only one in production.</p>
+          <ul>
+            <li>Narrow caught values before reading <code>code</code>.</li>
+            <li>Type memory storage, clock callbacks, and fixture arrays against exported contracts.</li>
+            <li>Keep declaration emit free of <code>any</code>.</li>
+          </ul>
+          <div class="exit"><strong>Exit:</strong> shared config has <code>strict: true</code>; shared tests, declaration build, and consumer type tests pass.</div>
+        </article>
+
+        <article class="card phase">
+          <span class="tag">Root / E2E</span>
+          <h3>Make the user-path harness strict</h3>
+          <p><span class="diagnostic">9 diagnostics</span>, all in E2E code.</p>
+          <ul>
+            <li>Use Playwright's exported request, page, and response types.</li>
+            <li>Turn nullable layout measurements into explicit E2E assertions.</li>
+            <li>Type dialog observations as a string literal array.</li>
+          </ul>
+          <div class="exit"><strong>Exit:</strong> root config has <code>strict: true</code>; the full Playwright suite passes against production builds.</div>
+        </article>
+
+        <article class="card phase">
+          <span class="tag">Backend</span>
+          <h3>Type adapters and persistence</h3>
+          <p><span class="diagnostic">57 diagnostics</span>, split across runtime code and tests.</p>
+          <ul>
+            <li>Import shared actor, transaction, and read-model contracts in JSDoc.</li>
+            <li>Use Express and CORS callback types at HTTP boundaries.</li>
+            <li>Type config inputs and every journal field, map, and buffer transform.</li>
+            <li>Normalize unknown transaction errors without unsafe property access.</li>
+          </ul>
+          <div class="exit"><strong>Exit:</strong> backend config has <code>strict: true</code>; backend unit, lint, and API contract tests pass.</div>
+        </article>
+
+        <article class="card phase">
+          <span class="tag">Frontend</span>
+          <h3>Type state, UI events, and IndexedDB</h3>
+          <p><span class="diagnostic">106 diagnostics</span>, the largest and most connected gate.</p>
+          <ul>
+            <li>Define the UI event discriminated union before typing handlers.</li>
+            <li>Type React props, hook state, refs, and composer maps from shared contracts.</li>
+            <li>Treat IndexedDB reads as unknown and validate or narrow them before use.</li>
+            <li>Type local date/model helpers and component tests.</li>
+          </ul>
+          <div class="exit"><strong>Exit:</strong> frontend config has <code>strict: true</code>; frontend unit, lint, build, and browser E2E checks pass.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Final configuration ratchet</h2>
+      <p>Each phase temporarily opts its leaf project into strict mode. After the fourth gate, move the setting to the shared base and remove redundant leaf overrides, including the current shared-only <code>strictNullChecks</code>.</p>
+      <pre>// During a project phase
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true
+  }
+}
+
+// Final repository state
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true
+  }
+}</pre>
+    </section>
+
+    <section>
+      <h2>Typing strategy by boundary</h2>
+      <div class="guardrails">
+        <article class="card guardrail">
+          <h3>Domain data</h3>
+          <p>Import <code>Todo</code>, <code>TodoList</code>, <code>Transaction</code>, actor, snapshot, and storage contracts from <code>@web-interview/todos/types</code>. Do not duplicate domain shapes in backend or frontend.</p>
+        </article>
+        <article class="card guardrail">
+          <h3>Framework edges</h3>
+          <p>Use framework-owned types for React children/events, Playwright fixtures, Express handlers, CORS callbacks, Node buffers, and IndexedDB primitives. Keep them at the adapter edge.</p>
+        </article>
+        <article class="card guardrail">
+          <h3>Unknown data</h3>
+          <p>Caught errors, HTTP JSON, environment values, journal JSON, and IndexedDB records remain <code>unknown</code> until validated or narrowed. A cast alone is not proof of a runtime contract.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card callout">
+      <span class="tag warning">Important migration rule</span>
+      <h3>Do not solve strictness by weakening the contracts just created</h3>
+      <p>No blanket <code>@ts-ignore</code>, broad <code>any</code>, or type assertions around whole objects. Small assertions are acceptable only after a runtime invariant has been checked. If an IndexedDB or JSON value cannot be proven valid, add a parser or guard and define its fallback behavior.</p>
+    </section>
+
+    <section class="grid-2">
+      <article class="card">
+        <h2>Acceptance gates</h2>
+        <div class="gates">
+          <div class="gate"><strong>Every phase</strong><span>Run the project's strict typecheck, unit tests, and lint. Commit the leaf <code>strict: true</code> override with its fixes.</span></div>
+          <div class="gate"><strong>Shared phase</strong><span>Rebuild declarations, run <code>check:declarations</code>, and compile the strict package consumer tests.</span></div>
+          <div class="gate"><strong>Frontend phase</strong><span>Build the production bundle and inspect the actual application paths touched by state and persistence typing.</span></div>
+          <div class="gate"><strong>Final gate</strong><span>Run <code>npm run typecheck</code>, <code>npm test</code>, <code>npm run lint</code>, the frontend production build, and <code>npm run test:e2e</code>.</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <h2>Risks to watch</h2>
+        <ul>
+          <li><strong>False confidence from casts:</strong> especially at IndexedDB and caught-error boundaries.</li>
+          <li><strong>Over-wide UI events:</strong> an imprecise event shape will push unions and optional fields through every component.</li>
+          <li><strong>Test double drift:</strong> mocks should model the subset under test without pretending to implement impossible states.</li>
+          <li><strong>Inferred null-only state:</strong> React refs and state need intentional union types at initialization.</li>
+          <li><strong>Generated declaration drift:</strong> shared source changes must keep emitted declarations and consumer tests green.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="grid-2" aria-label="Confirmed plan decisions">
+      <article class="card recommended">
+        <span class="tag">Confirmed</span>
+        <h2>JavaScript plus typed JSDoc</h2>
+        <p>The strict-mode follow-up will preserve the current JavaScript source tree. Domain contracts come from the shared package, framework types remain at adapter edges, and runtime narrowing is required for unknown data.</p>
+        <div class="exit"><strong>Out of scope:</strong> converting production modules to <code>.ts</code> or <code>.tsx</code>.</div>
+      </article>
+
+      <article class="card recommended">
+        <span class="tag">Confirmed</span>
+        <h2>Four independently passing gates</h2>
+        <p>Land the work in this order: shared, root and E2E, backend, frontend. Each slice includes its leaf <code>strict: true</code> ratchet and its own verification before the next project begins.</p>
+        <div class="exit"><strong>Next action:</strong> implement the 13-diagnostic shared gate first.</div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
