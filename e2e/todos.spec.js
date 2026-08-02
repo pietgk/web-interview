@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { E2E_API_BASE } from './environment.js'
 
 const firstListTodo = {
   id: '0000000001-todo-1',
@@ -8,7 +9,10 @@ const firstListTodo = {
 }
 
 async function resetFirstList(request) {
-  const response = await request.put('http://localhost:3001/api/todo-lists/0000000001', {
+  const response = await request.put(`${E2E_API_BASE}/api/todo-lists/0000000001`, {
+    headers: {
+      'x-client-id': 'playwright-e2e-reset',
+    },
     data: {
       todos: [firstListTodo],
     },
@@ -32,7 +36,7 @@ test.beforeEach(async ({ request }) => {
 
 test('rejects a due date that does not exist in its month', async ({ request }) => {
   const response = await request.put(
-    'http://localhost:3001/api/todo-lists/0000000001',
+    `${E2E_API_BASE}/api/todo-lists/0000000001`,
     {
       data: {
         todos: [{ ...firstListTodo, dueDate: '2026-02-29' }],
@@ -51,7 +55,7 @@ test('rejects a due date that does not exist in its month', async ({ request }) 
     ],
   })
 
-  const listsResponse = await request.get('http://localhost:3001/api/todo-lists')
+  const listsResponse = await request.get(`${E2E_API_BASE}/api/todo-lists`)
   expect(listsResponse.ok()).toBe(true)
   const lists = await listsResponse.json()
   expect(lists['0000000001'].todos).toEqual([firstListTodo])
@@ -175,7 +179,7 @@ test('commits composer text with Enter', async ({ page }) => {
 test('keeps a durable outbox across reload and syncs after reconnecting', async ({ page }) => {
   await page.goto('/')
   await page.getByText('First List').click()
-  await page.route('http://localhost:3001/**', (route) => route.abort('internetdisconnected'))
+  await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
 
   await page.getByLabel('What to do?').fill('Written while offline')
   await expect(page.getByText('Saved offline')).toBeVisible()
@@ -190,7 +194,7 @@ test('keeps a durable outbox across reload and syncs after reconnecting', async 
   await page.getByText('First List').click()
   await expect(page.getByLabel('What to do?')).toHaveValue('Written while offline')
 
-  await page.unroute('http://localhost:3001/**')
+  await page.unroute(`${E2E_API_BASE}/**`)
   const synced = waitForAutosave(page)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await synced

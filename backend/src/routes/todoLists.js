@@ -66,7 +66,7 @@ export const createTodoListsRouter = (todoActor) => {
     })
   })
 
-  // Compatibility endpoint for the original whole-list client and e2e reset helper.
+  // Whole-list replacement endpoint. Todos omitted from the request are deleted.
   router.put('/:id', async (req, res) => {
     const parsed = parseUpdateTodosRequest(req.body)
     if (!parsed.ok) {

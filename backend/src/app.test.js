@@ -90,7 +90,7 @@ describe('todo lists API', () => {
     assert.deepEqual(second.body.acceptedTransactionIds, [transaction.id])
   })
 
-  it('PUT compatibility endpoint persists todos for later GET', async () => {
+  it('PUT whole-list replacement persists todos and deletes omitted todos', async () => {
     const todos = [
       {
         id: 'new-1',
