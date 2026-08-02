@@ -30,6 +30,33 @@ test.beforeEach(async ({ request }) => {
   await resetFirstList(request)
 })
 
+test('rejects a due date that does not exist in its month', async ({ request }) => {
+  const response = await request.put(
+    'http://localhost:3001/api/todo-lists/0000000001',
+    {
+      data: {
+        todos: [{ ...firstListTodo, dueDate: '2026-02-29' }],
+      },
+    }
+  )
+
+  expect(response.status()).toBe(400)
+  await expect(response.json()).resolves.toMatchObject({
+    code: 'VALIDATION_ERROR',
+    issues: [
+      {
+        path: ['todos', 0, 'dueDate'],
+        message: 'dueDate must be a real calendar date',
+      },
+    ],
+  })
+
+  const listsResponse = await request.get('http://localhost:3001/api/todo-lists')
+  expect(listsResponse.ok()).toBe(true)
+  const lists = await listsResponse.json()
+  expect(lists['0000000001'].todos).toEqual([firstListTodo])
+})
+
 test('autosaves todos and persists them across refresh', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('My Todo Lists')).toBeVisible()

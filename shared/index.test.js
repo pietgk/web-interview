@@ -7,25 +7,56 @@ import {
 } from './index.js'
 
 describe('todo contract', () => {
-  it('rejects an impossible calendar date', () => {
-    const result = parseUpdateTodosRequest({
+  it('rejects days that do not exist in their month', () => {
+    for (const dueDate of ['2026-02-29', '2024-02-30', '2026-04-31']) {
+      const result = parseUpdateTodosRequest({
+        todos: [
+          {
+            id: 't1',
+            text: 'Bad date',
+            completed: false,
+            dueDate,
+          },
+        ],
+      })
+
+      assert.equal(result.ok, false, `${dueDate} should be rejected`)
+      assert.equal(result.body.code, 'VALIDATION_ERROR')
+      assert.ok(
+        result.body.issues.some((issue) =>
+          issue.message.includes('real calendar date')
+        )
+      )
+    }
+  })
+
+  it('accepts February 29 only in leap years', () => {
+    for (const dueDate of ['2024-02-29', '2000-02-29']) {
+      const result = parseUpdateTodosRequest({
+        todos: [
+          {
+            id: 't1',
+            text: 'Leap day',
+            completed: false,
+            dueDate,
+          },
+        ],
+      })
+
+      assert.equal(result.ok, true, `${dueDate} should be accepted`)
+    }
+
+    const nonLeapCentury = parseUpdateTodosRequest({
       todos: [
         {
           id: 't1',
-          text: 'Bad date',
+          text: 'Not a leap day',
           completed: false,
-          dueDate: '2026-02-31',
+          dueDate: '1900-02-29',
         },
       ],
     })
-
-    assert.equal(result.ok, false)
-    assert.equal(result.body.code, 'VALIDATION_ERROR')
-    assert.ok(
-      result.body.issues.some((issue) =>
-        issue.message.includes('real calendar date')
-      )
-    )
+    assert.equal(nonLeapCentury.ok, false)
   })
 
   it('rejects duplicate todo ids', () => {

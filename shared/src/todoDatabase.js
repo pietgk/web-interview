@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isRealCalendarDate } from './calendarDate.js'
 
 export const ATTRIBUTE = Object.freeze({
   LIST_TITLE: 'list/title',
@@ -12,18 +13,7 @@ export const ATTRIBUTE = Object.freeze({
 })
 
 const ATTRIBUTE_VALUES = Object.values(ATTRIBUTE)
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 const MAX_TODO_TEXT = 1000
-
-const isRealCalendarDate = (value) => {
-  const [year, month, day] = value.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  )
-}
 
 const valueMatchesAttribute = (attribute, value) => {
   switch (attribute) {
@@ -40,11 +30,7 @@ const valueMatchesAttribute = (attribute, value) => {
     case ATTRIBUTE.TODO_DELETED:
       return typeof value === 'boolean'
     case ATTRIBUTE.TODO_DUE_DATE:
-      return (
-        typeof value === 'string' &&
-        DATE_ONLY.test(value) &&
-        isRealCalendarDate(value)
-      )
+      return isRealCalendarDate(value)
     default:
       return false
   }
