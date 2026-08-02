@@ -2,8 +2,9 @@ import {
   parseTodoReadModelResponse,
   parseTodoSyncResponse,
 } from '@web-interview/todos/contract'
+import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001'
+const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
 
 export class ApiError extends Error {
   constructor({ message, status = null, code, issues = [], cause }) {
@@ -23,7 +24,7 @@ const requestJson = async (path, options = {}) => {
     if (error?.name === 'AbortError') throw error
     throw new ApiError({
       message: 'Network error',
-      code: 'NETWORK_ERROR',
+      code: ERROR_CODE.NETWORK,
       cause: error,
     })
   }
@@ -33,21 +34,21 @@ const requestJson = async (path, options = {}) => {
     throw new ApiError({
       message: data?.error || `Request failed with status ${response.status}`,
       status: response.status,
-      code: data?.code || 'INVALID_ERROR_RESPONSE',
+      code: data?.code || ERROR_CODE.INVALID_ERROR_RESPONSE,
       issues: Array.isArray(data?.issues) ? data.issues : [],
     })
   }
-  return data
+  return { data, status: response.status }
 }
 
 export const fetchTodoReadModel = async ({ signal } = {}) => {
-  const data = await requestJson('/api/todo-lists/read-model', { signal })
+  const { data, status } = await requestJson(TODO_API_PATH.READ_MODEL, { signal })
   const parsed = parseTodoReadModelResponse(data)
   if (!parsed.ok) {
     throw new ApiError({
       message: parsed.body.error,
-      status: 200,
-      code: 'INVALID_RESPONSE',
+      status,
+      code: ERROR_CODE.INVALID_RESPONSE,
       issues: parsed.body.issues,
     })
   }
@@ -55,7 +56,7 @@ export const fetchTodoReadModel = async ({ signal } = {}) => {
 }
 
 export const syncTodoLists = async ({ basis, transactions, signal }) => {
-  const data = await requestJson('/api/todo-lists/sync', {
+  const { data, status } = await requestJson(TODO_API_PATH.SYNC, {
     method: 'POST',
     signal,
     headers: { 'Content-Type': 'application/json' },
@@ -65,8 +66,8 @@ export const syncTodoLists = async ({ basis, transactions, signal }) => {
   if (!parsed.ok) {
     throw new ApiError({
       message: parsed.body.error,
-      status: 200,
-      code: 'INVALID_RESPONSE',
+      status,
+      code: ERROR_CODE.INVALID_RESPONSE,
       issues: parsed.body.issues,
     })
   }

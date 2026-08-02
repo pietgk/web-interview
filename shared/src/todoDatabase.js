@@ -1,5 +1,11 @@
 import { z } from 'zod'
 import { isRealCalendarDate } from './calendarDate.js'
+import {
+  ERROR_CODE,
+  SYNC_TRANSACTION_LIMIT,
+  TODO_TEXT_MAX_LENGTH,
+  TRANSACTION_VERSION,
+} from './todoProtocol.js'
 
 export const ATTRIBUTE = Object.freeze({
   LIST_TITLE: 'list/title',
@@ -13,7 +19,6 @@ export const ATTRIBUTE = Object.freeze({
 })
 
 const ATTRIBUTE_VALUES = Object.values(ATTRIBUTE)
-const MAX_TODO_TEXT = 1000
 
 const valueMatchesAttribute = (attribute, value) => {
   switch (attribute) {
@@ -25,7 +30,7 @@ const valueMatchesAttribute = (attribute, value) => {
     case ATTRIBUTE.TODO_LIST:
       return typeof value === 'string' && value.length > 0
     case ATTRIBUTE.TODO_TEXT:
-      return typeof value === 'string' && value.length <= MAX_TODO_TEXT
+      return typeof value === 'string' && value.length <= TODO_TEXT_MAX_LENGTH
     case ATTRIBUTE.TODO_COMPLETED:
     case ATTRIBUTE.TODO_DELETED:
       return typeof value === 'boolean'
@@ -66,7 +71,7 @@ const originSchema = z
 
 export const transactionSchema = z
   .object({
-    version: z.literal(1),
+    version: z.literal(TRANSACTION_VERSION),
     id: z.string().min(1),
     basis: z.number().int().nonnegative(),
     serverSeq: z.number().int().positive().optional(),
@@ -79,7 +84,7 @@ export const transactionSchema = z
 export const syncTodoListsRequestSchema = z
   .object({
     basis: z.number().int().nonnegative(),
-    transactions: z.array(transactionSchema).max(100),
+    transactions: z.array(transactionSchema).max(SYNC_TRANSACTION_LIMIT),
   })
   .strict()
   .strict()
@@ -182,7 +187,7 @@ export const applyTransaction = (database, input) => {
   const parsed = transactionSchema.safeParse(input)
   if (!parsed.success) {
     const error = new Error('Invalid transaction')
-    error.code = 'INVALID_TRANSACTION'
+    error.code = ERROR_CODE.INVALID_TRANSACTION
     error.issues = parsed.error.issues
     throw error
   }

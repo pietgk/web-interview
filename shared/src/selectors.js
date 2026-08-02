@@ -1,4 +1,5 @@
 import { transactionAffectsList } from './todoListActor.js'
+import { PERSISTENCE_STATUS, SYNC_STATUS } from './todoProtocol.js'
 
 export const isListCompleted = (todos = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
@@ -14,7 +15,8 @@ export const selectListSummary = (todoList) => ({
 })
 
 export const hasLocallyUndurableChanges = (snapshot) =>
-  snapshot.persistenceStatus === 'writing' || snapshot.persistenceStatus === 'failed'
+  snapshot.persistenceStatus === PERSISTENCE_STATUS.WRITING ||
+  snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED
 
 export const selectListSaveChrome = (snapshot, listId) => {
   const hasPending = snapshot.pendingTransactions.some((transaction) =>
@@ -30,7 +32,7 @@ export const selectListSaveChrome = (snapshot, listId) => {
       saveError: rejected.error,
     }
   }
-  if (snapshot.persistenceStatus === 'failed' && hasPending) {
+  if (snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED && hasPending) {
     return {
       message: `Save failed: ${snapshot.error}`,
       tone: 'error',
@@ -38,7 +40,7 @@ export const selectListSaveChrome = (snapshot, listId) => {
       saveError: snapshot.error,
     }
   }
-  if (snapshot.syncStatus === 'failed' && hasPending) {
+  if (snapshot.syncStatus === SYNC_STATUS.FAILED && hasPending) {
     return {
       message: `Save failed: ${snapshot.error}`,
       tone: 'error',
@@ -46,7 +48,7 @@ export const selectListSaveChrome = (snapshot, listId) => {
       saveError: snapshot.error,
     }
   }
-  if (snapshot.syncStatus === 'offline' && hasPending) {
+  if (snapshot.syncStatus === SYNC_STATUS.OFFLINE && hasPending) {
     return {
       message: 'Saved offline',
       tone: 'secondary',
@@ -56,7 +58,10 @@ export const selectListSaveChrome = (snapshot, listId) => {
   }
   if (hasPending) {
     return {
-      message: snapshot.syncStatus === 'syncing' ? 'Saving…' : 'Unsaved changes',
+      message:
+        snapshot.syncStatus === SYNC_STATUS.SYNCING
+          ? 'Saving…'
+          : 'Unsaved changes',
       tone: 'secondary',
       showRetry: false,
       saveError: null,

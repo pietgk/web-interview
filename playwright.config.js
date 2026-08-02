@@ -5,8 +5,10 @@ import { join } from 'node:path'
 import {
   E2E_API_BASE,
   E2E_API_PORT,
+  E2E_WEB_BASE,
   E2E_WEB_PORT,
 } from './e2e/environment.js'
+import { E2E_SEED_TODO_LISTS } from './e2e/fixture.js'
 
 // Playwright sets FORCE_COLOR=1 for its web servers and workers. Remove the
 // conflicting inherited flag before those child processes are created.
@@ -23,7 +25,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: `http://127.0.0.1:${E2E_WEB_PORT}`,
+    baseURL: E2E_WEB_BASE,
     trace: 'on-first-retry',
   },
   projects: [
@@ -43,14 +45,16 @@ export default defineConfig({
       env: {
         ...process.env,
         APP_ENV: 'e2e',
+        CORS_ORIGINS: E2E_WEB_BASE,
         PORT: String(E2E_API_PORT),
+        TODO_SEED_JSON: JSON.stringify(E2E_SEED_TODO_LISTS),
         TODO_LOG_PATH: join(e2eDataDirectory, 'todos.jsonl'),
       },
     },
     {
       command: `npm start -- --host 127.0.0.1 --port ${E2E_WEB_PORT} --strictPort`,
       cwd: './frontend',
-      url: `http://127.0.0.1:${E2E_WEB_PORT}`,
+      url: E2E_WEB_BASE,
       reuseExistingServer: false,
       timeout: 120_000,
       gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },

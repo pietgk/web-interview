@@ -1,4 +1,6 @@
 import { fetchTodoReadModel, syncTodoLists } from './todoLists'
+import { constants as HTTP } from 'node:http2'
+import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
 
 const originalFetch = global.fetch
 
@@ -25,7 +27,7 @@ describe('todo sync API contract', () => {
   it('validates read-model responses', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      status: 200,
+      status: HTTP.HTTP_STATUS_OK,
       json: vi.fn().mockResolvedValue({ basis: 1, todoLists }),
     })
 
@@ -35,20 +37,20 @@ describe('todo sync API contract', () => {
   it('rejects an invalid successful response', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      status: 200,
+      status: HTTP.HTTP_STATUS_OK,
       json: vi.fn().mockResolvedValue({ basis: 1, todoLists: { bad: true } }),
     })
 
     await expect(fetchTodoReadModel()).rejects.toMatchObject({
-      code: 'INVALID_RESPONSE',
-      status: 200,
+      code: ERROR_CODE.INVALID_RESPONSE,
+      status: HTTP.HTTP_STATUS_OK,
     })
   })
 
   it('posts transaction batches and validates the response', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      status: 200,
+      status: HTTP.HTTP_STATUS_OK,
       json: vi.fn().mockResolvedValue({
         basis: 1,
         todoLists,
@@ -60,7 +62,7 @@ describe('todo sync API contract', () => {
     await syncTodoLists({ basis: 1, transactions: [] })
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'http://localhost:3001/api/todo-lists/sync',
+      TODO_API_PATH.SYNC,
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ basis: 1, transactions: [] }),

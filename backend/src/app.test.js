@@ -5,6 +5,11 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import request from 'supertest'
+import {
+  ERROR_CODE,
+  TODO_API_PATH,
+  todoListPath,
+} from '@web-interview/todos/protocol'
 import { patchTodoTransaction } from '@web-interview/todos/transactions'
 import { createApp } from './app.js'
 import { createServerTodoActor } from './todos/createServerTodoActor.js'
@@ -28,15 +33,33 @@ describe('todo lists API', () => {
   })
 
   it('GET /api/todo-lists returns seeded lists', async () => {
-    const response = await request(app).get('/api/todo-lists')
+    const response = await request(app).get(TODO_API_PATH.ROOT)
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
     assert.equal(response.body['0000000001'].title, 'First List')
     assert.equal(response.body['0000000002'].todos[0].completed, false)
   })
 
+  it('emits CORS headers only for configured origins', async () => {
+    const configuredApp = createApp(actor, {
+      corsOrigins: ['https://allowed.example'],
+    })
+    const allowed = await request(configuredApp)
+      .get(TODO_API_PATH.ROOT)
+      .set('Origin', 'https://allowed.example')
+    const rejected = await request(configuredApp)
+      .get(TODO_API_PATH.ROOT)
+      .set('Origin', 'https://rejected.example')
+
+    assert.equal(
+      allowed.headers['access-control-allow-origin'],
+      'https://allowed.example'
+    )
+    assert.equal(rejected.headers['access-control-allow-origin'], undefined)
+  })
+
   it('GET /read-model returns the actor basis and read model', async () => {
-    const response = await request(app).get('/api/todo-lists/read-model')
+    const response = await request(app).get(TODO_API_PATH.READ_MODEL)
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
     assert.equal(response.body.basis, 1)
@@ -55,7 +78,7 @@ describe('todo lists API', () => {
     })
 
     const response = await request(app)
-      .post('/api/todo-lists/sync')
+      .post(TODO_API_PATH.SYNC)
       .send({ basis: snapshot.basis, transactions: [transaction] })
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
@@ -79,10 +102,10 @@ describe('todo lists API', () => {
     })
 
     const first = await request(app)
-      .post('/api/todo-lists/sync')
+      .post(TODO_API_PATH.SYNC)
       .send({ basis: 1, transactions: [transaction] })
     const second = await request(app)
-      .post('/api/todo-lists/sync')
+      .post(TODO_API_PATH.SYNC)
       .send({ basis: 1, transactions: [transaction] })
 
     assert.equal(first.body.basis, 2)
@@ -107,41 +130,41 @@ describe('todo lists API', () => {
     ]
 
     const putResponse = await request(app)
-      .put('/api/todo-lists/0000000001')
+      .put(todoListPath('0000000001'))
       .send({ todos })
 
     assert.equal(putResponse.status, HTTP.HTTP_STATUS_OK)
     assert.deepEqual(putResponse.body.todos, todos)
 
-    const getResponse = await request(app).get('/api/todo-lists')
+    const getResponse = await request(app).get(TODO_API_PATH.ROOT)
     assert.deepEqual(getResponse.body['0000000001'].todos, todos)
   })
 
   it('PUT returns NOT_FOUND for an unknown list', async () => {
-    const response = await request(app).put('/api/todo-lists/nope').send({ todos: [] })
+    const response = await request(app).put(todoListPath('nope')).send({ todos: [] })
 
     assert.equal(response.status, HTTP.HTTP_STATUS_NOT_FOUND)
-    assert.equal(response.body.code, 'TODO_LIST_NOT_FOUND')
+    assert.equal(response.body.code, ERROR_CODE.TODO_LIST_NOT_FOUND)
   })
 
   it('rejects invalid sync bodies without changing the read model', async () => {
     const before = actor.getSnapshot().authoritativeReadModel
     const response = await request(app)
-      .post('/api/todo-lists/sync')
+      .post(TODO_API_PATH.SYNC)
       .send({ basis: 1, transactions: [{ nope: true }] })
 
     assert.equal(response.status, HTTP.HTTP_STATUS_BAD_REQUEST)
-    assert.equal(response.body.code, 'VALIDATION_ERROR')
+    assert.equal(response.body.code, ERROR_CODE.VALIDATION)
     assert.deepEqual(actor.getSnapshot().authoritativeReadModel, before)
   })
 
   it('returns JSON for malformed JSON bodies', async () => {
     const response = await request(app)
-      .post('/api/todo-lists/sync')
+      .post(TODO_API_PATH.SYNC)
       .set('Content-Type', 'application/json')
       .send('{"basis":')
 
     assert.equal(response.status, HTTP.HTTP_STATUS_BAD_REQUEST)
-    assert.equal(response.body.code, 'MALFORMED_JSON')
+    assert.equal(response.body.code, ERROR_CODE.MALFORMED_JSON)
   })
 })

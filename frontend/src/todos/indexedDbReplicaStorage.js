@@ -1,8 +1,12 @@
 import { fetchTodoReadModel, syncTodoLists } from '../api/todoLists'
-
-const DATABASE_VERSION = 1
-const STORE_NAME = 'replica'
-const STATE_KEY = 'todo-state'
+import { SYNC_TRANSACTION_LIMIT } from '@web-interview/todos/protocol'
+import {
+  LEGACY_REPLICA_DATABASE_NAMES,
+  REPLICA_DATABASE_NAME,
+  REPLICA_DATABASE_VERSION,
+  REPLICA_STATE_KEY,
+  REPLICA_STORE_NAME,
+} from './persistenceConfig'
 
 const emptyReplica = () => ({
   hasReplica: false,
@@ -11,35 +15,45 @@ const emptyReplica = () => ({
   pendingTransactions: [],
 })
 
-const openDatabase = (indexedDb, databaseName) =>
+const openDatabase = (indexedDb, databaseName, databaseVersion, storeName) =>
   new Promise((resolve, reject) => {
-    const request = indexedDb.open(databaseName, DATABASE_VERSION)
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) {
-        request.result.createObjectStore(STORE_NAME)
+    const request = indexedDb.open(databaseName, databaseVersion)
+    let created = false
+    request.onupgradeneeded = (event) => {
+      created = event.oldVersion === 0
+      if (!request.result.objectStoreNames.contains(storeName)) {
+        request.result.createObjectStore(storeName)
       }
     }
-    request.onsuccess = () => resolve(request.result)
+    request.onsuccess = () => resolve({ database: request.result, created })
     request.onerror = () => reject(request.error)
   })
 
-const readState = (database) =>
+const readState = (database, storeName, stateKey) =>
   new Promise((resolve, reject) => {
     const request = database
-      .transaction(STORE_NAME, 'readonly')
-      .objectStore(STORE_NAME)
-      .get(STATE_KEY)
+      .transaction(storeName, 'readonly')
+      .objectStore(storeName)
+      .get(stateKey)
     request.onsuccess = () => resolve(request.result ?? null)
     request.onerror = () => reject(request.error)
   })
 
-const writeState = (database, state) =>
+const writeState = (database, storeName, stateKey, state) =>
   new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite')
-    transaction.objectStore(STORE_NAME).put(state, STATE_KEY)
+    const transaction = database.transaction(storeName, 'readwrite')
+    transaction.objectStore(storeName).put(state, stateKey)
     transaction.oncomplete = () => resolve()
     transaction.onerror = () => reject(transaction.error)
     transaction.onabort = () => reject(transaction.error)
+  })
+
+const deleteDatabase = (indexedDb, databaseName) =>
+  new Promise((resolve, reject) => {
+    const request = indexedDb.deleteDatabase(databaseName)
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error(`Database ${databaseName} is blocked`))
   })
 
 export class IndexedDbReplicaStorage {
@@ -47,11 +61,23 @@ export class IndexedDbReplicaStorage {
 
   constructor({
     indexedDb = globalThis.indexedDB,
-    databaseName = 'web-interview-todos-v1',
+    databaseName = REPLICA_DATABASE_NAME,
+    databaseVersion = REPLICA_DATABASE_VERSION,
+    legacyDatabaseNames,
+    stateKey = REPLICA_STATE_KEY,
+    storeName = REPLICA_STORE_NAME,
     api = { fetchTodoReadModel, syncTodoLists },
   } = {}) {
     this.indexedDb = indexedDb
     this.databaseName = databaseName
+    this.databaseVersion = databaseVersion
+    this.legacyDatabaseNames = legacyDatabaseNames ?? (
+      databaseName === REPLICA_DATABASE_NAME
+        ? LEGACY_REPLICA_DATABASE_NAMES
+        : []
+    )
+    this.stateKey = stateKey
+    this.storeName = storeName
     this.api = api
     this.database = null
     this.replica = emptyReplica()
@@ -61,16 +87,53 @@ export class IndexedDbReplicaStorage {
 
   async load() {
     if (this.indexedDb) {
-      this.database = await openDatabase(this.indexedDb, this.databaseName)
-      this.replica = (await readState(this.database)) ?? emptyReplica()
+      const opened = await openDatabase(
+        this.indexedDb,
+        this.databaseName,
+        this.databaseVersion,
+        this.storeName
+      )
+      this.database = opened.database
+      let state = await readState(this.database, this.storeName, this.stateKey)
+      if (!state) state = await this.#readLegacyState()
+      if (state) {
+        this.replica = state
+        await writeState(this.database, this.storeName, this.stateKey, state)
+      } else {
+        this.replica = emptyReplica()
+      }
     }
     return structuredClone(this.replica)
+  }
+
+  async #readLegacyState() {
+    for (const databaseName of this.legacyDatabaseNames) {
+      if (databaseName === this.databaseName) continue
+      const opened = await openDatabase(
+        this.indexedDb,
+        databaseName,
+        this.databaseVersion,
+        this.storeName
+      )
+      const state = await readState(opened.database, this.storeName, this.stateKey)
+      opened.database.close()
+      if (state) return state
+      if (opened.created) await deleteDatabase(this.indexedDb, databaseName)
+    }
+    return null
   }
 
   #queueLocalWrite(update) {
     const operation = this.localWrites.then(async () => {
       this.replica = update(this.replica)
-      if (this.database) await writeState(this.database, this.replica)
+      if (this.database) {
+        await writeState(
+          this.database,
+          this.storeName,
+          this.stateKey,
+          this.replica
+        )
+      }
     })
     this.localWrites = operation.catch(() => {})
     return operation
@@ -96,7 +159,7 @@ export class IndexedDbReplicaStorage {
     const response = this.replica.hasReplica
       ? await this.api.syncTodoLists({
           basis,
-          transactions: pendingTransactions,
+          transactions: pendingTransactions.slice(0, SYNC_TRANSACTION_LIMIT),
           signal: this.controller.signal,
         })
       : {

@@ -1,4 +1,10 @@
 import { ATTRIBUTE } from './todoDatabase.js'
+import {
+  GENESIS_TRANSACTION_ID,
+  SEED_CLIENT_ID,
+  TRANSACTION_CAUSE,
+  TRANSACTION_VERSION,
+} from './todoProtocol.js'
 
 const fallbackId = () =>
   `tx-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -19,7 +25,7 @@ export const createTransaction = ({
   id = randomId('tx'),
   occurredAt = new Date().toISOString(),
 }) => ({
-  version: 1,
+  version: TRANSACTION_VERSION,
   id,
   basis,
   occurredAt,
@@ -48,7 +54,7 @@ export const createTodoTransaction = ({
     basis,
     clientId,
     listId,
-    cause: 'todo.created',
+    cause: TRANSACTION_CAUSE.TODO_CREATED,
     datoms: [
       [todo.id, ATTRIBUTE.TODO_LIST, listId],
       [todo.id, ATTRIBUTE.TODO_TEXT, todo.text],
@@ -59,6 +65,12 @@ export const createTodoTransaction = ({
       [todo.id, ATTRIBUTE.TODO_ORDER, order],
       [todo.id, ATTRIBUTE.TODO_DELETED, false],
     ],
+  })
+
+export const createTodoAtTopTransaction = ({ now = Date.now, ...input }) =>
+  createTodoTransaction({
+    ...input,
+    order: -now(),
   })
 
 export const patchTodoTransaction = ({
@@ -90,7 +102,7 @@ export const patchTodoTransaction = ({
     basis,
     clientId,
     listId,
-    cause: 'todo.changed',
+    cause: TRANSACTION_CAUSE.TODO_CHANGED,
     datoms,
   })
 }
@@ -100,15 +112,15 @@ export const deleteTodoTransaction = ({ basis, clientId, listId, todo }) =>
     basis,
     clientId,
     listId,
-    cause: 'todo.deleted',
+    cause: TRANSACTION_CAUSE.TODO_DELETED,
     datoms: [[todo.id, ATTRIBUTE.TODO_DELETED, true]],
   })
 
 export const seedTransactionFromTodoLists = ({
   todoLists,
-  clientId = 'server-seed',
-  id = 'tx-genesis',
-  occurredAt = '2026-01-01T00:00:00.000Z',
+  clientId = SEED_CLIENT_ID,
+  id = GENESIS_TRANSACTION_ID,
+  occurredAt = new Date().toISOString(),
 }) => {
   const datoms = []
   Object.values(todoLists).forEach((list, listOrder) => {
@@ -132,7 +144,7 @@ export const seedTransactionFromTodoLists = ({
   return createTransaction({
     basis: 0,
     clientId,
-    cause: 'database.seeded',
+    cause: TRANSACTION_CAUSE.DATABASE_SEEDED,
     datoms,
     id,
     occurredAt,
@@ -192,7 +204,7 @@ export const replaceTodoListTransaction = ({
     basis,
     clientId,
     listId: todoList.id,
-    cause: 'todo-list.replaced',
+    cause: TRANSACTION_CAUSE.TODO_LIST_REPLACED,
     datoms,
   })
 }

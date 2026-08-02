@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
 import { createTodoListActor } from '@web-interview/todos/actor'
+import { ACTOR_STATUS } from '@web-interview/todos/protocol'
 import { createSeedTodoLists } from '../seed.js'
 import { JsonlJournalStorage } from './jsonlJournalStorage.js'
 
@@ -15,7 +16,7 @@ export const createServerTodoActor = async ({
   const storage = new JsonlJournalStorage({ filePath, initialTodoLists, now })
   const actor = createTodoListActor({ storage })
   await actor.start()
-  if (actor.getSnapshot().status !== 'ready') {
+  if (actor.getSnapshot().status !== ACTOR_STATUS.READY) {
     throw new Error(actor.getSnapshot().error || 'Failed to start todo-list actor')
   }
   return actor

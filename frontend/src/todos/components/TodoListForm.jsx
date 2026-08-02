@@ -4,6 +4,7 @@ import { SaveStatus } from './SaveStatus'
 import { TodoComposer } from './TodoComposer'
 import { TodoEditor } from './TodoEditor'
 import { TodoItem } from './TodoItem'
+import { TODO_UI_EVENT } from '../todoUiProtocol'
 
 export const TodoListForm = ({
   todoList,
@@ -30,22 +31,29 @@ export const TodoListForm = ({
 
         <SaveStatus
           saveChrome={saveChrome}
-          onRetry={() => send({ type: 'RETRY' })}
+          onRetry={() => send({ type: TODO_UI_EVENT.RETRY })}
         />
 
-        <TodoEditor onLeave={() => send({ type: 'FLUSH' })}>
+        <TodoEditor onLeave={() => send({ type: TODO_UI_EVENT.FLUSH })}>
           <TodoComposer
             text={composerText}
-            onChange={(text) => send({ type: 'COMPOSER_CHANGE', text })}
-            onSubmit={() => send({ type: 'COMPOSER_SUBMIT' })}
-            onCommit={() => send({ type: 'COMPOSER_COMMIT' })}
+            onChange={(text) => send({ type: TODO_UI_EVENT.COMPOSER_CHANGE, text })}
+            onSubmit={() => send({ type: TODO_UI_EVENT.COMPOSER_SUBMIT })}
+            onCommit={() => send({ type: TODO_UI_EVENT.COMPOSER_COMMIT })}
           />
           {todoList.todos.map((todo) => (
             <TodoItem
               key={todo.id}
               todo={todo}
-              onChange={(patch) => send({ type: 'TODO_PATCH', id: todo.id, patch })}
-              onRemove={() => send({ type: 'TODO_REMOVE', id: todo.id })}
+              onChange={(patch) => send({
+                type: TODO_UI_EVENT.TODO_PATCH,
+                id: todo.id,
+                patch,
+              })}
+              onRemove={() => send({
+                type: TODO_UI_EVENT.TODO_REMOVE,
+                id: todo.id,
+              })}
             />
           ))}
         </TodoEditor>

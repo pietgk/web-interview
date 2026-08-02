@@ -5,6 +5,7 @@ import {
   parseUpdateTodosRequest,
   todosSchema,
 } from './todoContract.js'
+import { ERROR_CODE } from './todoProtocol.js'
 
 describe('todo contract', () => {
   it('rejects days that do not exist in their month', () => {
@@ -21,7 +22,7 @@ describe('todo contract', () => {
       })
 
       assert.equal(result.ok, false, `${dueDate} should be rejected`)
-      assert.equal(result.body.code, 'VALIDATION_ERROR')
+      assert.equal(result.body.code, ERROR_CODE.VALIDATION)
       assert.ok(
         result.body.issues.some((issue) =>
           issue.message.includes('real calendar date')

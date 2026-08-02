@@ -1,17 +1,18 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { createTodoListActor } from '@web-interview/todos/actor'
+import { ACTOR_EVENT } from '@web-interview/todos/protocol'
 import { hasLocallyUndurableChanges } from '@web-interview/todos/selectors'
 import { createIndexedDbReplicaStorage } from './indexedDbReplicaStorage'
+import { CLIENT_ID_STORAGE_KEY } from './persistenceConfig'
 
 const clientId = () => {
-  const key = 'web-interview-todo-client-id'
   try {
-    const existing = localStorage.getItem(key)
+    const existing = localStorage.getItem(CLIENT_ID_STORAGE_KEY)
     if (existing) return existing
     const generated =
       globalThis.crypto?.randomUUID?.() ??
       `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    localStorage.setItem(key, generated)
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, generated)
     return generated
   } catch {
     return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -45,8 +46,8 @@ export const useTodoLists = ({ createStorage = createIndexedDbReplicaStorage } =
       event.preventDefault()
       event.returnValue = ''
     }
-    const onOnline = () => actor.send({ type: 'ONLINE' })
-    const onOffline = () => actor.send({ type: 'OFFLINE' })
+    const onOnline = () => actor.send({ type: ACTOR_EVENT.ONLINE })
+    const onOffline = () => actor.send({ type: ACTOR_EVENT.OFFLINE })
 
     window.addEventListener('beforeunload', onBeforeUnload)
     window.addEventListener('online', onOnline)

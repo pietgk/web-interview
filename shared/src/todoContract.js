@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { isRealCalendarDate } from './calendarDate.js'
+import { ERROR_CODE, TODO_TEXT_MAX_LENGTH } from './todoProtocol.js'
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
-const MAX_TODO_TEXT = 1000
 
 export const dueDateSchema = z.union([
   z.null(),
@@ -15,7 +15,10 @@ export const dueDateSchema = z.union([
 export const todoSchema = z
   .object({
     id: z.string().min(1, 'todo id must be a non-empty string'),
-    text: z.string().max(MAX_TODO_TEXT, `todo text must be at most ${MAX_TODO_TEXT} characters`),
+    text: z.string().max(
+      TODO_TEXT_MAX_LENGTH,
+      `todo text must be at most ${TODO_TEXT_MAX_LENGTH} characters`
+    ),
     completed: z.boolean(),
     dueDate: dueDateSchema,
   })
@@ -82,7 +85,7 @@ export const formatZodIssues = (error) =>
 
 export const validationErrorBody = (error, message = 'Validation failed') => ({
   error: message,
-  code: 'VALIDATION_ERROR',
+  code: ERROR_CODE.VALIDATION,
   issues: formatZodIssues(error),
 })
 

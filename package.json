@@ -12,6 +12,7 @@
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "@web-interview/todos": "file:shared"
   }
 }

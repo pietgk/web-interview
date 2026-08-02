@@ -1,10 +1,14 @@
 import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import {
-  createTodoTransaction,
+  createTodoAtTopTransaction,
   deleteTodoTransaction,
   newTodoId,
   patchTodoTransaction,
 } from '@web-interview/todos/transactions'
+import {
+  ACTOR_EVENT,
+  ACTOR_STATUS,
+} from '@web-interview/todos/protocol'
 import {
   selectListSaveChrome,
   selectListSummary,
@@ -25,6 +29,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import { TodoListForm } from './TodoListForm'
 import { useTodoLists } from '../useTodoLists'
 import { createTodo, isDematerializableTodo } from '../todoModel'
+import { TODO_UI_EVENT } from '../todoUiProtocol'
 
 const listRecap = ({ completedCount, totalCount }) =>
   totalCount === 0
@@ -74,7 +79,7 @@ export const TodoLists = ({ style }) => {
   }, [activeListId, snapshot.readModel])
 
   const transact = (transaction) => {
-    if (transaction) actor.send({ type: 'TRANSACT', transaction })
+    if (transaction) actor.send({ type: ACTOR_EVENT.TRANSACT, transaction })
   }
 
   const sendToList = (todoList, event) => {
@@ -83,7 +88,7 @@ export const TodoLists = ({ style }) => {
       setComposers((current) => ({ ...current, [todoList.id]: next }))
 
     switch (event.type) {
-      case 'COMPOSER_CHANGE': {
+      case TODO_UI_EVENT.COMPOSER_CHANGE: {
         const text = event.text ?? ''
         if (!composer.linkedId) {
           if (!text.trim()) {
@@ -92,12 +97,11 @@ export const TodoLists = ({ style }) => {
           }
           const todo = createTodo({ id: newTodoId(), text })
           transact(
-            createTodoTransaction({
+            createTodoAtTopTransaction({
               basis: snapshot.basis,
               clientId,
               listId: todoList.id,
               todo,
-              order: -Date.now(),
             })
           )
           setComposer({ text, linkedId: todo.id })
@@ -134,11 +138,11 @@ export const TodoLists = ({ style }) => {
         setComposer({ text, linkedId: composer.linkedId })
         return
       }
-      case 'COMPOSER_COMMIT':
-      case 'COMPOSER_SUBMIT':
+      case TODO_UI_EVENT.COMPOSER_COMMIT:
+      case TODO_UI_EVENT.COMPOSER_SUBMIT:
         setComposer({ text: '', linkedId: null })
         return
-      case 'TODO_PATCH': {
+      case TODO_UI_EVENT.TODO_PATCH: {
         const todo = todoList.todos.find((entry) => entry.id === event.id)
         if (!todo) return
         transact(
@@ -152,7 +156,7 @@ export const TodoLists = ({ style }) => {
         )
         return
       }
-      case 'TODO_REMOVE': {
+      case TODO_UI_EVENT.TODO_REMOVE: {
         const todo = todoList.todos.find((entry) => entry.id === event.id)
         if (!todo) return
         transact(
@@ -165,19 +169,22 @@ export const TodoLists = ({ style }) => {
         )
         return
       }
-      case 'RETRY':
-        actor.send({ type: 'RETRY_PERSISTENCE' })
-        actor.send({ type: 'RETRY_SYNC' })
+      case TODO_UI_EVENT.RETRY:
+        actor.send({ type: ACTOR_EVENT.RETRY_PERSISTENCE })
+        actor.send({ type: ACTOR_EVENT.RETRY_SYNC })
         return
-      case 'FLUSH':
-        actor.send({ type: 'SYNC' })
+      case TODO_UI_EVENT.FLUSH:
+        actor.send({ type: ACTOR_EVENT.SYNC })
         return
       default:
         throw new Error(`Unknown todo-list UI event: ${event.type}`)
     }
   }
 
-  if (snapshot.status === 'idle' || snapshot.status === 'loading') {
+  if (
+    snapshot.status === ACTOR_STATUS.IDLE ||
+    snapshot.status === ACTOR_STATUS.LOADING
+  ) {
     return (
       <div
         style={{ ...style, display: 'flex', justifyContent: 'center', padding: '2rem' }}
@@ -189,13 +196,17 @@ export const TodoLists = ({ style }) => {
     )
   }
 
-  if (snapshot.status === 'error') {
+  if (snapshot.status === ACTOR_STATUS.ERROR) {
     return (
       <div style={style} role='alert'>
         <Typography color='error' sx={{ marginBottom: '0.75rem' }}>
           {snapshot.error}
         </Typography>
-        <Button type='button' variant='outlined' onClick={() => actor.send({ type: 'RELOAD' })}>
+        <Button
+          type='button'
+          variant='outlined'
+          onClick={() => actor.send({ type: ACTOR_EVENT.RELOAD })}
+        >
           Retry loading
         </Button>
       </div>

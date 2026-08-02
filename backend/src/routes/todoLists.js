@@ -5,6 +5,7 @@ import {
   parseUpdateTodosRequest,
 } from '@web-interview/todos/contract'
 import { syncTodoListsRequestSchema } from '@web-interview/todos/database'
+import { ERROR_CODE } from '@web-interview/todos/protocol'
 import { replaceTodoListTransaction } from '@web-interview/todos/transactions'
 
 const authoritativeSnapshot = (actor) => actor.getSnapshot()
@@ -19,7 +20,7 @@ const readModelResponse = (actor) => {
 
 const transactionError = (error) => ({
   error: error?.message || 'Transaction rejected',
-  code: error?.code || 'TRANSACTION_REJECTED',
+  code: error?.code || ERROR_CODE.TRANSACTION_REJECTED,
   ...(error?.issues ? { issues: error.issues } : {}),
 })
 
@@ -39,7 +40,7 @@ export const createTodoListsRouter = (todoActor) => {
     if (!parsed.success) {
       return res.status(HTTP.HTTP_STATUS_BAD_REQUEST).json({
         error: 'Validation failed',
-        code: 'VALIDATION_ERROR',
+        code: ERROR_CODE.VALIDATION,
         issues: formatZodIssues(parsed.error),
       })
     }
@@ -78,7 +79,7 @@ export const createTodoListsRouter = (todoActor) => {
     if (!todoList) {
       return res.status(HTTP.HTTP_STATUS_NOT_FOUND).json({
         error: 'Todo list not found',
-        code: 'TODO_LIST_NOT_FOUND',
+        code: ERROR_CODE.TODO_LIST_NOT_FOUND,
       })
     }
 

@@ -95,6 +95,7 @@ export class JsonlJournalStorage {
     if (this.transactions.length === 0) {
       const genesis = seedTransactionFromTodoLists({
         todoLists: this.initialTodoLists,
+        occurredAt: this.now().toISOString(),
       })
       await this.append(genesis)
       if (journalWasEmpty && process.platform !== 'win32') {
