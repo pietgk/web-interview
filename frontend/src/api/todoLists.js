@@ -6,7 +6,17 @@ import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
 
+/**
+ * @typedef {object} ApiErrorOptions
+ * @property {string} message
+ * @property {number | null} [status]
+ * @property {string} code
+ * @property {unknown[]} [issues]
+ * @property {unknown} [cause]
+ */
+
 export class ApiError extends Error {
+  /** @param {ApiErrorOptions} options */
   constructor({ message, status = null, code, issues = [], cause }) {
     super(message, { cause })
     this.name = 'ApiError'
@@ -16,6 +26,10 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * @param {string} path
+ * @param {RequestInit} [options]
+ */
 const requestJson = async (path, options = {}) => {
   let response
   try {
@@ -41,6 +55,7 @@ const requestJson = async (path, options = {}) => {
   return { data, status: response.status }
 }
 
+/** @param {{signal?: AbortSignal}} [options] */
 export const fetchTodoReadModel = async ({ signal } = {}) => {
   const { data, status } = await requestJson(TODO_API_PATH.READ_MODEL, { signal })
   const parsed = parseTodoReadModelResponse(data)
@@ -55,6 +70,7 @@ export const fetchTodoReadModel = async ({ signal } = {}) => {
   return parsed.data
 }
 
+/** @param {{basis: number, transactions: Array<{id: string}>, signal?: AbortSignal}} options */
 export const syncTodoLists = async ({ basis, transactions, signal }) => {
   const { data, status } = await requestJson(TODO_API_PATH.SYNC, {
     method: 'POST',

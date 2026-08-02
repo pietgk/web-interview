@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TypeScript 7 and shared declarations</title>
+  <style>
+    :root { --blue:#1976d2; --blue-dark:#0d47a1; --blue-soft:#e3f2fd; --green:#2e7d32; --green-soft:#e8f5e9; --amber:#9a6700; --amber-soft:#fff8e1; --ink:#17212b; --muted:#5f6b76; --line:#dfe4ea; --bg:#f5f7fa; --card:#fff; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--ink); background:var(--bg); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; line-height:1.5; }
+    header { background:var(--blue); color:#fff; box-shadow:0 2px 7px #0003; }
+    header div, main { width:min(1120px,calc(100% - 28px)); margin:auto; }
+    header div { padding:20px 0; }
+    h1 { margin:0; font-size:clamp(1.4rem,3vw,2rem); }
+    header p { margin:5px 0 0; opacity:.88; }
+    main { padding:26px 0 52px; }
+    section { margin-top:22px; }
+    .card { min-width:0; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; box-shadow:0 2px 12px #10203012; }
+    .hero { border-top:5px solid var(--green); padding:clamp(20px,4vw,32px); }
+    .eyebrow { color:var(--green); font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    h2 { margin:5px 0 10px; font-size:clamp(1.35rem,2.8vw,2rem); line-height:1.2; }
+    h3 { margin:0 0 10px; font-size:1.05rem; }
+    p { margin:0 0 10px; }
+    p:last-child { margin-bottom:0; }
+    .lead { max-width:74ch; color:#344452; font-size:1.03rem; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+    .chip { padding:6px 10px; border-radius:999px; background:var(--blue-soft); color:var(--blue-dark); font-size:.82rem; font-weight:750; }
+    .chip.good { background:var(--green-soft); color:var(--green); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+    .recommended { border-top:4px solid var(--green); }
+    .later { border-top:4px solid #90a4ae; }
+    .label { display:inline-block; margin-bottom:9px; padding:3px 8px; border-radius:4px; font-size:.74rem; font-weight:800; text-transform:uppercase; background:var(--green-soft); color:var(--green); }
+    .label.secondary { background:#eceff1; color:#455a64; }
+    ul,ol { margin:9px 0 0; padding-left:22px; }
+    li+li { margin-top:6px; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:#fff; }
+    table { width:100%; min-width:710px; border-collapse:collapse; }
+    th,td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { background:#f7f9fb; color:#425466; font-size:.76rem; text-transform:uppercase; letter-spacing:.04em; }
+    tr:last-child td { border-bottom:0; }
+    .good { color:var(--green); font-weight:750; }
+    .warn { color:var(--amber); font-weight:750; }
+    code { overflow-wrap:anywhere; padding:2px 5px; border-radius:4px; background:var(--blue-soft); color:var(--blue-dark); font-family:"SFMono-Regular",Consolas,monospace; font-size:.88em; }
+    pre { margin:10px 0 0; padding:14px; overflow:auto; border-radius:8px; background:#102131; color:#e7f0f8; font-size:.8rem; line-height:1.45; }
+    .steps { display:grid; gap:12px; counter-reset:step; }
+    .step { position:relative; padding-left:62px; }
+    .step:before { counter-increment:step; content:counter(step); position:absolute; left:18px; top:18px; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; color:#fff; background:var(--blue); font-weight:800; }
+    .exit { margin-top:8px; color:var(--muted); font-size:.88rem; }
+    .callout { background:var(--amber-soft); border-color:#f0cf74; }
+    @media(max-width:720px){ .grid{grid-template-columns:minmax(0,1fr)} .step{padding-left:18px;padding-top:60px} }
+  </style>
+</head>
+<body>
+  <header><div><h1>TypeScript 7 and declaration strategy</h1><p>Measured against the current JavaScript monorepo</p></div></header>
+  <main>
+    <section class="card hero">
+      <div class="eyebrow">Recommended direction</div>
+      <h2>Pin TypeScript 7, align Zed, then publish strong declarations</h2>
+      <p class="lead">Use the repository version as the source of truth for both CLI and editor. Preserve the current check level explicitly during the compiler upgrade, then improve the shared package boundary before pointing consumers at generated declarations.</p>
+      <div class="chips"><span class="chip good">TypeScript 7.0.2 is stable</span><span class="chip">3 compatibility fixes</span><span class="chip">Declaration emit already succeeds</span><span class="chip">Public types need hardening</span></div>
+    </section>
+
+    <section class="grid">
+      <article class="card recommended"><span class="label">Recommended now</span><h3>Compatibility-first TypeScript 7 upgrade</h3><ul><li>Pin <code>typescript@7.0.2</code> in the repository.</li><li>Set <code>strict: false</code> explicitly because TypeScript 7 defaults it to true.</li><li>Set <code>maxNodeModuleJsDepth: 0</code> so untyped dependency source is not checked.</li><li>Enable <code>vtsls.autoUseWorkspaceTsdk</code> in Zed.</li><li>Annotate three void-returning IndexedDB promises.</li></ul></article>
+      <article class="card later"><span class="label secondary">Separate follow-up</span><h3>Strict mode adoption</h3><ul><li>Do not mix full strict mode into the compiler upgrade.</li><li>Current TypeScript 7 defaults produce hundreds of diagnostics.</li><li>Enable stricter flags per project after declarations and public contracts are stable.</li><li>Start with <code>strictNullChecks</code> in shared because Zod inference depends on it.</li></ul></article>
+    </section>
+
+    <section>
+      <h2>Measured TypeScript 7 impact</h2>
+      <div class="table-wrap"><table><thead><tr><th>Project</th><th>TypeScript 7 defaults</th><th>With strict false</th><th>Plus node module depth 0</th></tr></thead><tbody>
+        <tr><td>Root / E2E</td><td class="warn">10</td><td class="good">0</td><td class="good">0</td></tr>
+        <tr><td>Shared</td><td class="warn">127</td><td class="good">0</td><td class="good">0</td></tr>
+        <tr><td>Backend</td><td class="warn">177</td><td>10 dependency errors</td><td class="good">0</td></tr>
+        <tr><td>Frontend</td><td class="warn">250</td><td>10 dependency + 3 source errors</td><td>3 source errors</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="card callout"><h3>Why not expose the declarations emitted today?</h3><p>The current declaration emit completes, but it includes test files, leaks many <code>any</code> types, and describes required Zod fields as optional because <code>strictNullChecks</code> is disabled. Those files would silence Zed while weakening the actual package contract.</p></section>
+
+    <section>
+      <h2>Implementation sequence</h2>
+      <div class="steps">
+        <article class="card step"><h3>Align compiler and editor</h3><p>Upgrade the root compiler, add explicit compatibility defaults, update Zed settings, and fix the three Promise annotations.</p><div class="exit">Exit: CLI and Zed both use 7.0.2; all four current checks pass.</div></article>
+        <article class="card step"><h3>Strengthen shared source types</h3><p>Enable <code>strictNullChecks</code> for shared and type every exported function, class, storage interface, transaction, database, actor event, and snapshot that currently emits <code>any</code>.</p><div class="exit">Exit: generated public declarations contain intentional types and required Zod fields.</div></article>
+        <article class="card step"><h3>Add a declaration-only build</h3><pre>{
+  "extends": "./jsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "outDir": "dist/types",
+    "strictNullChecks": true
+  },
+  "include": ["src/**/*.js"],
+  "exclude": ["src/**/*.test.js"]
+}</pre><div class="exit">Exit: only production declarations and maps appear under <code>dist/types</code>.</div></article>
+        <article class="card step"><h3>Publish typed export conditions</h3><pre>"./contract": {
+  "types": "./dist/types/todoContract.d.ts",
+  "default": "./src/todoContract.js"
+}</pre><p>Repeat for actor, database, protocol, selectors, and transactions. Keep the <code>types</code> condition first.</p><div class="exit">Exit: consumers resolve declarations while Node and Vite continue to execute JavaScript.</div></article>
+        <article class="card step"><h3>Automate and verify</h3><p>Add <code>build:types</code> and watch scripts, build declarations before consumer typechecks, include them in the packed package, and run a small consumer compilation against every export.</p><div class="exit">Exit: generated files are reproducible and cannot drift from source.</div></article>
+      </div>
+    </section>
+
+    <section class="card"><h2>Artifact policy</h2><p>Do not hand-edit generated <code>.d.ts</code> files. For this private monorepo, keep <code>dist/types</code> generated and ignored, build it during setup and CI, and let aligned TypeScript/Zed inspect workspace source during development. If the package is later distributed without a build step, publish or commit the generated artifacts as part of that release workflow.</p></section>
+  </main>
+</body>
+</html>

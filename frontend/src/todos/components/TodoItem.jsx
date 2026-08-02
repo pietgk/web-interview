@@ -13,6 +13,14 @@ const todoLabel = (todo) => {
   return text || 'untitled'
 }
 
+/**
+ * @param {{
+ *   todo: {id: string, text: string, completed: boolean, dueDate: string | null},
+ *   onChange: (patch: object) => void,
+ *   onRemove: () => void,
+ *   now?: Date
+ * }} props
+ */
 export const TodoItem = ({ todo, onChange, onRemove, now }) => {
   const label = todoLabel(todo)
 

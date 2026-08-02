@@ -6,6 +6,15 @@ const dueInLabel = (status) => {
   return status?.label ?? 'Due date'
 }
 
+/**
+ * @param {{
+ *   dueDate: string | null,
+ *   completed: boolean,
+ *   onChange: (dueDate: string | null) => void,
+ *   todoLabel: string,
+ *   now?: Date
+ * }} props
+ */
 export const DueIn = ({ dueDate, completed, onChange, todoLabel, now }) => {
   const dueStatus = completed ? null : getDueStatus(dueDate, { now })
   const label = dueInLabel(dueStatus)

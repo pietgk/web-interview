@@ -1,3 +1,12 @@
+/**
+ * @typedef {object} Todo
+ * @property {string} id
+ * @property {string} text
+ * @property {boolean} completed
+ * @property {string | null} dueDate
+ */
+
+/** @returns {string} */
 const newTodoId = () => {
   const cryptoApi = typeof crypto !== 'undefined' ? crypto : undefined
   return (
@@ -6,6 +15,10 @@ const newTodoId = () => {
   )
 }
 
+/**
+ * @param {Partial<Todo>} [options]
+ * @returns {Todo}
+ */
 export const createTodo = ({
   id = newTodoId(),
   text = '',
@@ -97,7 +110,7 @@ export const getDueStatus = (dueDate, { completed = false, now = new Date() } = 
   if (Number.isNaN(due.getTime())) return null
 
   const today = startOfLocalDay(now)
-  const days = Math.round((due - today) / MS_PER_DAY)
+  const days = Math.round((due.getTime() - today.getTime()) / MS_PER_DAY)
 
   if (days === 0) {
     return { kind: 'today', label: 'Due today', days: 0, value: 0, unit: 'day' }

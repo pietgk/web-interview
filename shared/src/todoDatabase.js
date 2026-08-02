@@ -7,18 +7,44 @@ import {
   TRANSACTION_VERSION,
 } from './todoProtocol.js'
 
+/**
+ * @typedef {Record<string, {
+ *   id: string,
+ *   title: string,
+ *   todos: Array<{id: string, text: string, completed: boolean, dueDate: string | null}>
+ * }>} TodoLists
+ */
+
+const ATTRIBUTE_VALUES = /** @type {const} */ ([
+  'list/title',
+  'list/order',
+  'todo/list',
+  'todo/text',
+  'todo/completed',
+  'todo/dueDate',
+  'todo/order',
+  'todo/deleted',
+])
+
 export const ATTRIBUTE = Object.freeze({
-  LIST_TITLE: 'list/title',
-  LIST_ORDER: 'list/order',
-  TODO_LIST: 'todo/list',
-  TODO_TEXT: 'todo/text',
-  TODO_COMPLETED: 'todo/completed',
-  TODO_DUE_DATE: 'todo/dueDate',
-  TODO_ORDER: 'todo/order',
-  TODO_DELETED: 'todo/deleted',
+  LIST_TITLE: ATTRIBUTE_VALUES[0],
+  LIST_ORDER: ATTRIBUTE_VALUES[1],
+  TODO_LIST: ATTRIBUTE_VALUES[2],
+  TODO_TEXT: ATTRIBUTE_VALUES[3],
+  TODO_COMPLETED: ATTRIBUTE_VALUES[4],
+  TODO_DUE_DATE: ATTRIBUTE_VALUES[5],
+  TODO_ORDER: ATTRIBUTE_VALUES[6],
+  TODO_DELETED: ATTRIBUTE_VALUES[7],
 })
 
-const ATTRIBUTE_VALUES = Object.values(ATTRIBUTE)
+class TransactionValidationError extends Error {
+  constructor(issues) {
+    super('Invalid transaction')
+    this.name = 'TransactionValidationError'
+    this.code = ERROR_CODE.INVALID_TRANSACTION
+    this.issues = issues
+  }
+}
 
 const valueMatchesAttribute = (attribute, value) => {
   switch (attribute) {
@@ -87,32 +113,32 @@ export const syncTodoListsRequestSchema = z
     transactions: z.array(transactionSchema).max(SYNC_TRANSACTION_LIMIT),
   })
   .strict()
-  .strict()
-  .superRefine((transaction, ctx) => {
-    if (!Array.isArray(transaction.datoms)) return
-    const additions = new Map()
+  .superRefine((request, ctx) => {
+    request.transactions.forEach((transaction, transactionIndex) => {
+      const additions = new Map()
 
-    transaction.datoms.forEach((datom, index) => {
-      const [entity, attribute, value, transactionId, added] = datom
-      if (transactionId !== transaction.id) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Datom transaction id must match its transaction envelope',
-          path: ['datoms', index, 3],
-        })
-      }
+      transaction.datoms.forEach((datom, datomIndex) => {
+        const [entity, attribute, value, transactionId, added] = datom
+        if (transactionId !== transaction.id) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Datom transaction id must match its transaction envelope',
+            path: ['transactions', transactionIndex, 'datoms', datomIndex, 3],
+          })
+        }
 
-      if (!added) return
-      const key = `${entity}\u0000${attribute}`
-      const previous = additions.get(key)
-      if (previous !== undefined && !Object.is(previous, value)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'A cardinality-one attribute cannot add two values in one transaction',
-          path: ['datoms', index],
-        })
-      }
-      additions.set(key, value)
+        if (!added) return
+        const key = `${entity}\u0000${attribute}`
+        const previous = additions.get(key)
+        if (previous !== undefined && !Object.is(previous, value)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'A cardinality-one attribute cannot add two values in one transaction',
+            path: ['transactions', transactionIndex, 'datoms', datomIndex],
+          })
+        }
+        additions.set(key, value)
+      })
     })
   })
 
@@ -186,10 +212,7 @@ const datomKey = ([entity, attribute, value, , added]) =>
 export const applyTransaction = (database, input) => {
   const parsed = transactionSchema.safeParse(input)
   if (!parsed.success) {
-    const error = new Error('Invalid transaction')
-    error.code = ERROR_CODE.INVALID_TRANSACTION
-    error.issues = parsed.error.issues
-    throw error
+    throw new TransactionValidationError(parsed.error.issues)
   }
 
   const transaction = parsed.data
@@ -250,6 +273,7 @@ export const applyTransaction = (database, input) => {
   }
 }
 
+/** @returns {TodoLists} */
 export const projectTodoLists = (database) => {
   const lists = []
 
@@ -279,6 +303,7 @@ export const projectTodoLists = (database) => {
   }
 
   lists.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))
+  /** @type {TodoLists} */
   const result = {}
   for (const list of lists) {
     list.todos.sort(

@@ -1,3 +1,10 @@
+/**
+ * @returns {Record<string, {
+ *   id: string,
+ *   title: string,
+ *   todos: Array<{id: string, text: string, completed: boolean, dueDate: string | null}>
+ * }>}
+ */
 export const createSeedTodoLists = () => ({
   '0000000001': {
     id: '0000000001',

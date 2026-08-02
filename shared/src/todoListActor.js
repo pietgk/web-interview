@@ -11,6 +11,17 @@ import {
   SYNC_STATUS,
 } from './todoProtocol.js'
 
+/** @typedef {typeof ACTOR_STATUS[keyof typeof ACTOR_STATUS]} ActorStatus */
+/** @typedef {typeof PERSISTENCE_STATUS[keyof typeof PERSISTENCE_STATUS]} PersistenceStatus */
+/** @typedef {typeof SYNC_STATUS[keyof typeof SYNC_STATUS]} SyncStatus */
+/**
+ * @typedef {object} SnapshotOverrides
+ * @property {ActorStatus} [status]
+ * @property {PersistenceStatus} [persistenceStatus]
+ * @property {SyncStatus} [syncStatus]
+ * @property {string | null} [error]
+ */
+
 export const SYNC_DEBOUNCE_MS = 400
 const SYNC_RETRY_BASE_MS = 1_000
 const SYNC_RETRY_MAX_MS = 30_000
@@ -65,6 +76,7 @@ export class TodoListActor {
     this.snapshot = this.#createSnapshot({ status: ACTOR_STATUS.IDLE })
   }
 
+  /** @param {SnapshotOverrides} overrides */
   #createSnapshot(overrides = {}) {
     const readModel = projectTodoLists(this.optimisticDatabase)
     const authoritativeReadModel = projectTodoLists(this.authoritativeDatabase)
@@ -87,6 +99,7 @@ export class TodoListActor {
     })
   }
 
+  /** @param {SnapshotOverrides} overrides */
   #publish(overrides = {}) {
     this.snapshot = this.#createSnapshot({
       status: this.snapshot.status,
@@ -350,7 +363,7 @@ export class TodoListActor {
     } catch (error) {
       this.syncRunning = false
       this.retryAttempt += 1
-      const offline = error?.code === ERROR_CODE.NETWORK || this.online === false
+      const offline = error?.code === ERROR_CODE.NETWORK || !this.online
       this.#publish({
         syncStatus: offline ? SYNC_STATUS.OFFLINE : SYNC_STATUS.FAILED,
         error: errorMessage(error, 'Failed to synchronize todo lists'),

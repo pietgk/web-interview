@@ -37,6 +37,7 @@ describe('backend startup', () => {
   })
 
   it('refuses to run in E2E mode without an isolated todo journal', () => {
+    /** @type {NodeJS.ProcessEnv} */
     const environment = {
       ...process.env,
       APP_ENV: 'e2e',

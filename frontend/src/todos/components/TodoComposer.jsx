@@ -4,6 +4,14 @@ import AddIcon from '@mui/icons-material/Add'
 import { focusLeft } from './focusLeft'
 import { TodoRow } from './TodoRow'
 
+/**
+ * @param {{
+ *   text: string,
+ *   onChange: (text: string) => void,
+ *   onSubmit?: () => void,
+ *   onCommit?: () => void
+ * }} props
+ */
 export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
   const inputRef = useRef(null)
 

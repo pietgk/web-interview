@@ -6,9 +6,40 @@ import {
   TRANSACTION_VERSION,
 } from './todoProtocol.js'
 
+/**
+ * @typedef {object} Todo
+ * @property {string} id
+ * @property {string} text
+ * @property {boolean} completed
+ * @property {string | null} dueDate
+ */
+
+/** @typedef {[string, string, string | number | boolean, boolean?]} DatomInput */
+
+/**
+ * @typedef {object} TransactionOptions
+ * @property {number} [basis]
+ * @property {string} clientId
+ * @property {string} cause
+ * @property {string} [listId]
+ * @property {DatomInput[]} datoms
+ * @property {string} [id]
+ * @property {string} [occurredAt]
+ */
+
+/**
+ * @typedef {object} TodoTransactionOptions
+ * @property {number} basis
+ * @property {string} clientId
+ * @property {string} listId
+ * @property {Todo} todo
+ * @property {number} [order]
+ */
+
 const fallbackId = () =>
   `tx-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
+/** @returns {string} */
 const randomId = (prefix) => {
   const cryptoApi = typeof crypto !== 'undefined' ? crypto : undefined
   return `${prefix}-${cryptoApi?.randomUUID?.() ?? fallbackId()}`
@@ -16,6 +47,7 @@ const randomId = (prefix) => {
 
 export const newTodoId = () => randomId('todo')
 
+/** @param {TransactionOptions} options */
 export const createTransaction = ({
   basis = 0,
   clientId,
@@ -43,6 +75,7 @@ export const createTransaction = ({
   ]),
 })
 
+/** @param {TodoTransactionOptions} options */
 export const createTodoTransaction = ({
   basis,
   clientId,
@@ -55,7 +88,7 @@ export const createTodoTransaction = ({
     clientId,
     listId,
     cause: TRANSACTION_CAUSE.TODO_CREATED,
-    datoms: [
+    datoms: /** @type {DatomInput[]} */ ([
       [todo.id, ATTRIBUTE.TODO_LIST, listId],
       [todo.id, ATTRIBUTE.TODO_TEXT, todo.text],
       [todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed],
@@ -64,9 +97,10 @@ export const createTodoTransaction = ({
         : [[todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate]]),
       [todo.id, ATTRIBUTE.TODO_ORDER, order],
       [todo.id, ATTRIBUTE.TODO_DELETED, false],
-    ],
+    ]),
   })
 
+/** @param {TodoTransactionOptions & {now?: () => number}} options */
 export const createTodoAtTopTransaction = ({ now = Date.now, ...input }) =>
   createTodoTransaction({
     ...input,
@@ -80,6 +114,7 @@ export const patchTodoTransaction = ({
   todo,
   patch,
 }) => {
+  /** @type {DatomInput[]} */
   const datoms = []
   if ('text' in patch && patch.text !== todo.text) {
     datoms.push([todo.id, ATTRIBUTE.TODO_TEXT, patch.text])
@@ -122,6 +157,7 @@ export const seedTransactionFromTodoLists = ({
   id = GENESIS_TRANSACTION_ID,
   occurredAt = new Date().toISOString(),
 }) => {
+  /** @type {DatomInput[]} */
   const datoms = []
   Object.values(todoLists).forEach((list, listOrder) => {
     datoms.push(
@@ -132,10 +168,12 @@ export const seedTransactionFromTodoLists = ({
       datoms.push(
         [todo.id, ATTRIBUTE.TODO_LIST, list.id],
         [todo.id, ATTRIBUTE.TODO_TEXT, todo.text],
-        [todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed],
-        ...(todo.dueDate == null
-          ? []
-          : [[todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate]]),
+        [todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed]
+      )
+      if (todo.dueDate != null) {
+        datoms.push([todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate])
+      }
+      datoms.push(
         [todo.id, ATTRIBUTE.TODO_ORDER, todoOrder],
         [todo.id, ATTRIBUTE.TODO_DELETED, false]
       )
@@ -159,6 +197,7 @@ export const replaceTodoListTransaction = ({
 }) => {
   const existing = new Map(todoList.todos.map((todo) => [todo.id, todo]))
   const incomingIds = new Set(todos.map((todo) => todo.id))
+  /** @type {DatomInput[]} */
   const datoms = []
 
   todos.forEach((todo, order) => {
@@ -167,10 +206,12 @@ export const replaceTodoListTransaction = ({
       datoms.push(
         [todo.id, ATTRIBUTE.TODO_LIST, todoList.id],
         [todo.id, ATTRIBUTE.TODO_TEXT, todo.text],
-        [todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed],
-        ...(todo.dueDate == null
-          ? []
-          : [[todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate]]),
+        [todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed]
+      )
+      if (todo.dueDate != null) {
+        datoms.push([todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate])
+      }
+      datoms.push(
         [todo.id, ATTRIBUTE.TODO_ORDER, order],
         [todo.id, ATTRIBUTE.TODO_DELETED, false]
       )

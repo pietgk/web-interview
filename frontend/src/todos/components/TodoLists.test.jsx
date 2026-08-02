@@ -15,6 +15,9 @@ vi.mock('../../api/todoLists', () => ({
   syncTodoLists: vi.fn(),
 }))
 
+const fetchTodoReadModelMock = vi.mocked(api.fetchTodoReadModel)
+const syncTodoListsMock = vi.mocked(api.syncTodoLists)
+
 const seedLists = {
   '0000000001': {
     id: '0000000001',
@@ -32,11 +35,11 @@ let serverDatabase
 
 const installServer = (todoLists = seedLists) => {
   serverDatabase = databaseFromReadModel(todoLists, 1)
-  api.fetchTodoReadModel.mockImplementation(async () => ({
+  fetchTodoReadModelMock.mockImplementation(async () => ({
     basis: serverDatabase.basis,
     todoLists: projectTodoLists(serverDatabase),
   }))
-  api.syncTodoLists.mockImplementation(async ({ transactions }) => {
+  syncTodoListsMock.mockImplementation(async ({ transactions }) => {
     const acceptedTransactionIds = []
     for (const transaction of transactions) {
       const canonical = {
@@ -135,8 +138,9 @@ describe('TodoLists shared replica actor', () => {
 
   it('retains an offline edit and retries synchronization', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    const successfulSync = api.syncTodoLists.getMockImplementation()
-    api.syncTodoLists
+    const successfulSync = syncTodoListsMock.getMockImplementation()
+    if (!successfulSync) throw new Error('Expected sync mock implementation')
+    syncTodoListsMock
       .mockRejectedValueOnce(new Error('network down'))
       .mockImplementation(successfulSync)
     render(<TodoLists style={{}} />)
@@ -156,8 +160,9 @@ describe('TodoLists shared replica actor', () => {
 
   it('updates list completion before server acknowledgement', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    /** @type {((value: Awaited<ReturnType<typeof api.syncTodoLists>>) => void) | undefined} */
     let resolveSync
-    api.syncTodoLists.mockImplementationOnce(
+    syncTodoListsMock.mockImplementationOnce(
       () => new Promise((resolve) => { resolveSync = resolve })
     )
     render(<TodoLists style={{}} />)
@@ -171,11 +176,18 @@ describe('TodoLists shared replica actor', () => {
       'aria-current',
       'true'
     )
-    resolveSync?.({
-      basis: 1,
-      todoLists: seedLists,
-      acceptedTransactionIds: [],
-      rejectedTransactions: [],
+
+    await advanceAutosave()
+    expect(syncTodoListsMock).toHaveBeenCalledTimes(1)
+    if (!resolveSync) throw new Error('Expected pending sync request')
+    await act(async () => {
+      resolveSync({
+        basis: 1,
+        todoLists: seedLists,
+        acceptedTransactionIds: [],
+        rejectedTransactions: [],
+      })
+      await Promise.resolve()
     })
   })
 

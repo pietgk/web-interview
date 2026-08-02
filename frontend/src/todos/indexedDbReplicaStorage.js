@@ -15,6 +15,20 @@ const emptyReplica = () => ({
   pendingTransactions: [],
 })
 
+/**
+ * @typedef {object} IndexedDbReplicaStorageOptions
+ * @property {IDBFactory | null} [indexedDb]
+ * @property {string} [databaseName]
+ * @property {number} [databaseVersion]
+ * @property {string[]} [legacyDatabaseNames]
+ * @property {string} [stateKey]
+ * @property {string} [storeName]
+ * @property {{
+ *   fetchTodoReadModel: typeof fetchTodoReadModel,
+ *   syncTodoLists: typeof syncTodoLists
+ * }} [api]
+ */
+
 const openDatabase = (indexedDb, databaseName, databaseVersion, storeName) =>
   new Promise((resolve, reject) => {
     const request = indexedDb.open(databaseName, databaseVersion)
@@ -59,6 +73,7 @@ const deleteDatabase = (indexedDb, databaseName) =>
 export class IndexedDbReplicaStorage {
   authoritative = false
 
+  /** @param {IndexedDbReplicaStorageOptions} [options] */
   constructor({
     indexedDb = globalThis.indexedDB,
     databaseName = REPLICA_DATABASE_NAME,

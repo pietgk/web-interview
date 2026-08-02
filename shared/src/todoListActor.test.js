@@ -96,8 +96,9 @@ describe('shared todo-list actor', () => {
     }
     const storage = memoryStorage()
     storage.sync = async () => {
-      const error = new Error('Offline')
-      error.code = ERROR_CODE.NETWORK
+      const error = Object.assign(new Error('Offline'), {
+        code: ERROR_CODE.NETWORK,
+      })
       throw error
     }
     const actor = createTodoListActor({

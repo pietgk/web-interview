@@ -9,6 +9,7 @@
     "test:backend": "npm test --prefix backend",
     "test:frontend": "npm test --prefix frontend",
     "test:e2e": "playwright test",
+    "typecheck": "tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend"
   },
   "devDependencies": {

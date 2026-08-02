@@ -14,8 +14,11 @@ const MainAppBar = () => {
   )
 }
 
+/** @type {React.CSSProperties} */
 const mainWrapperStyle = { display: 'flex', flexDirection: 'column' }
+/** @type {React.CSSProperties} */
 const centerContentWrapper = { display: 'flex', justifyContent: 'center' }
+/** @type {React.CSSProperties} */
 const contentWrapperStyle = {
   display: 'flex',
   flexDirection: 'column',

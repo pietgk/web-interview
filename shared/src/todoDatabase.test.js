@@ -6,6 +6,7 @@ import {
   projectTodoLists,
   readModelAsOf,
   replayTransactions,
+  syncTodoListsRequestSchema,
 } from './todoDatabase.js'
 import {
   createTodoTransaction,
@@ -105,6 +106,19 @@ describe('todo datom database', () => {
 
     assert.throws(() => applyTransaction(database, invalid), /unknown list/)
     assert.deepEqual(projectTodoLists(database), seedLists)
+  })
+
+  it('rejects datoms whose transaction id differs from the envelope', () => {
+    const transaction = seedTransactionFromTodoLists({ todoLists: seedLists })
+    transaction.datoms[0][3] = 'tx-different'
+
+    const result = syncTodoListsRequestSchema.safeParse({
+      basis: 0,
+      transactions: [transaction],
+    })
+
+    assert.equal(result.success, false)
+    assert.deepEqual(result.error.issues[0].path, ['transactions', 0, 'datoms', 0, 3])
   })
 
   it('supports deterministic as-of read models', () => {

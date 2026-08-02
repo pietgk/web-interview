@@ -1,5 +1,13 @@
 import { parseTodoLists } from '@web-interview/todos/contract'
 
+/**
+ * @typedef {Record<string, {
+ *   id: string,
+ *   title: string,
+ *   todos: Array<{id: string, text: string, completed: boolean, dueDate: string | null}>
+ * }>} TodoLists
+ */
+
 const DEFAULT_BACKEND_PORT = 3001
 const DEFAULT_DEVELOPMENT_ORIGIN = 'http://localhost:3000'
 
@@ -11,6 +19,7 @@ const parsePort = (value) => {
   return port
 }
 
+/** @returns {TodoLists | undefined} */
 const parseInitialTodoLists = (value) => {
   if (!value) return undefined
 
@@ -25,7 +34,7 @@ const parseInitialTodoLists = (value) => {
   if (!parsed.ok) {
     throw new Error('TODO_SEED_JSON must contain valid todo lists')
   }
-  return parsed.data
+  return /** @type {TodoLists} */ (parsed.data)
 }
 
 const parseCorsOrigins = (value, appEnvironment) => {
@@ -38,6 +47,7 @@ const parseCorsOrigins = (value, appEnvironment) => {
   return appEnvironment === 'production' ? [] : [DEFAULT_DEVELOPMENT_ORIGIN]
 }
 
+/** @param {NodeJS.ProcessEnv} environment */
 export const readBackendConfig = (environment = process.env) => {
   const appEnvironment = environment.APP_ENV ?? 'development'
   const todoLogPath = environment.TODO_LOG_PATH || undefined

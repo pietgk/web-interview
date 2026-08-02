@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>checkJs adoption analysis</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #1976d2;
+      --primary-dark: #0d47a1;
+      --primary-soft: #e3f2fd;
+      --success: #2e7d32;
+      --success-soft: #e8f5e9;
+      --warning: #9a6700;
+      --warning-soft: #fff8e1;
+      --error: #c62828;
+      --error-soft: #ffebee;
+      --ink: #17212b;
+      --muted: #5f6b76;
+      --line: #dfe4ea;
+      --surface: #ffffff;
+      --canvas: #f5f7fa;
+      --shadow: 0 2px 12px rgba(16, 24, 40, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    .appbar {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+    }
+    .appbar-inner, main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    .appbar-inner { padding: 20px 0; }
+    .appbar h1 { margin: 0; font-size: clamp(1.35rem, 2.6vw, 2rem); font-weight: 600; }
+    .appbar p { margin: 5px 0 0; opacity: .88; }
+    main { padding: 28px 0 56px; min-width: 0; }
+    .hero, .card {
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .hero { padding: clamp(20px, 4vw, 34px); border-top: 5px solid var(--success); }
+    .eyebrow { color: var(--success); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    h2 { margin: 6px 0 10px; font-size: clamp(1.45rem, 3vw, 2.25rem); line-height: 1.16; }
+    h3 { margin: 0 0 12px; font-size: 1.08rem; }
+    p { margin: 0 0 12px; }
+    p:last-child { margin-bottom: 0; }
+    .lead { max-width: 72ch; color: #344452; font-size: 1.05rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .chip { display: inline-flex; align-items: center; min-width: 0; padding: 6px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-dark); font-size: .84rem; font-weight: 700; }
+    .chip.good { background: var(--success-soft); color: var(--success); }
+    .section { margin-top: 26px; }
+    .section-title { margin: 0 0 12px; font-size: 1.22rem; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .metric { padding: 18px; }
+    .metric .value { font-size: 2rem; font-weight: 750; line-height: 1; color: var(--primary-dark); }
+    .metric .label { margin-top: 8px; color: var(--muted); font-size: .86rem; }
+    .metric .note { margin-top: 6px; font-size: .78rem; color: var(--muted); }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .card { padding: 20px; }
+    .recommend { border-top: 4px solid var(--success); }
+    .avoid { border-top: 4px solid #90a4ae; }
+    .badge { display: inline-block; margin-bottom: 10px; padding: 3px 8px; border-radius: 4px; font-size: .75rem; font-weight: 800; text-transform: uppercase; }
+    .badge.recommended { background: var(--success-soft); color: var(--success); }
+    .badge.secondary { background: #eceff1; color: #455a64; }
+    ul, ol { margin: 10px 0 0; padding-left: 22px; }
+    li + li { margin-top: 7px; }
+    .table-wrap { min-width: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; }
+    th, td { padding: 13px 15px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+    th { color: #425466; background: #f7f9fb; font-size: .78rem; letter-spacing: .03em; text-transform: uppercase; }
+    tbody tr:last-child td { border-bottom: 0; }
+    td strong { display: block; }
+    code { overflow-wrap: anywhere; color: var(--primary-dark); background: var(--primary-soft); border-radius: 4px; padding: 2px 5px; font-family: "SFMono-Regular", Consolas, monospace; font-size: .88em; }
+    .status { white-space: nowrap; font-weight: 750; }
+    .status.pass { color: var(--success); }
+    .status.blocked { color: var(--warning); }
+    .callout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; padding: 17px 18px; border: 1px solid #ef9a9a; border-radius: 10px; background: var(--error-soft); }
+    .callout .icon { color: var(--error); font-weight: 900; }
+    .callout strong { color: #8e1c1c; }
+    .sequence { counter-reset: phase; display: grid; gap: 12px; }
+    .phase { position: relative; min-width: 0; padding: 18px 18px 18px 64px; }
+    .phase::before {
+      counter-increment: phase;
+      content: counter(phase);
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      color: white;
+      background: var(--primary);
+      font-weight: 800;
+    }
+    .phase p { color: var(--muted); }
+    .phase .exit { margin-top: 8px; color: var(--ink); font-size: .88rem; }
+    .footnote { margin-top: 18px; color: var(--muted); font-size: .82rem; }
+    @media (max-width: 820px) {
+      .metrics, .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 540px) {
+      .appbar-inner, main { width: min(100% - 20px, 1180px); }
+      .metrics, .grid-2 { grid-template-columns: minmax(0, 1fr); }
+      .phase { padding-left: 18px; padding-top: 62px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <div class="appbar-inner">
+      <h1>JavaScript checking adoption</h1>
+      <p>Measured against commit <code>680927b</code> with TypeScript 5.9.3</p>
+    </div>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="eyebrow">Recommendation: proceed</div>
+      <h2><code>checkJs: true</code> is worthwhile and bounded</h2>
+      <p class="lead">Do not flip the shared base config today. Clean the four project boundaries in sequence, add one aggregate typecheck command, then enable it globally. The error count looks noisy, but most diagnostics collapse into a handful of explicit boundary types, dependency declarations, and one genuine validation bug.</p>
+      <div class="chips">
+        <span class="chip good">E2E already passes</span>
+        <span class="chip">77 unique first-party diagnostics</span>
+        <span class="chip">33 production diagnostics</span>
+        <span class="chip">44 test diagnostics</span>
+        <span class="chip">41 dependency diagnostics</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">What the checker found</h2>
+      <div class="metrics">
+        <article class="card metric">
+          <div class="value">0</div>
+          <div class="label">Root / E2E</div>
+          <div class="note">Can be enabled immediately</div>
+        </article>
+        <article class="card metric">
+          <div class="value">13</div>
+          <div class="label">Shared project</div>
+          <div class="note">11 production, 2 test</div>
+        </article>
+        <article class="card metric">
+          <div class="value">74</div>
+          <div class="label">Backend project output</div>
+          <div class="note">22 backend, 11 shared, 41 dependencies</div>
+        </article>
+        <article class="card metric">
+          <div class="value">53</div>
+          <div class="label">Frontend project output</div>
+          <div class="note">42 frontend, 11 shared</div>
+        </article>
+      </div>
+      <p class="footnote">Shared diagnostics appear again when backend and frontend import the local shared package. The unique first-party total removes those duplicates. Current runtime tests: 88 passing. Current lint: clean.</p>
+    </section>
+
+    <section class="section callout">
+      <div class="icon">!</div>
+      <div>
+        <strong>A real bug was reproduced.</strong>
+        <p><code>syncTodoListsRequestSchema</code> refines the request object as if it were a transaction. Its early guard always returns, so a datom whose transaction ID differs from its envelope is accepted. A direct runtime probe returned <code>{ accepted: true }</code>. Existing tests do not cover this invariant.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Decision</h2>
+      <div class="grid-2">
+        <article class="card recommend">
+          <span class="badge recommended">Recommended</span>
+          <h3>Phased cleanup, then global enablement</h3>
+          <ul>
+            <li>Preserves editor feedback and adds a reliable CI gate.</li>
+            <li>Fixes schema and API boundary mistakes instead of hiding them.</li>
+            <li>Keeps JavaScript while documenting contracts with JSDoc and schema-derived types.</li>
+            <li>Lets each project turn green independently.</li>
+          </ul>
+        </article>
+        <article class="card avoid">
+          <span class="badge secondary">Not recommended</span>
+          <h3>Flip the base flag and suppress errors</h3>
+          <ul>
+            <li>Immediately breaks every editor project except E2E.</li>
+            <li>Encourages broad <code>@ts-ignore</code> comments and weakens trust in the check.</li>
+            <li>Leaves third-party JavaScript noise mixed with product defects.</li>
+            <li>Makes the existing test suite look sufficient when the reproduced bug proves otherwise.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Diagnostic clusters and treatment</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Cluster</th>
+              <th>Evidence</th>
+              <th>Interpretation</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Missing package declarations</strong>Backend</td>
+              <td>41 errors originate in Express, Supertest, and transitive JavaScript</td>
+              <td>Configuration prerequisite, not 41 application fixes</td>
+              <td>Add direct dev dependencies for <code>@types/express</code>, <code>@types/cors</code>, and <code>@types/supertest</code></td>
+            </tr>
+            <tr>
+              <td><strong>Sync schema refinement</strong>Shared</td>
+              <td>Properties <code>datoms</code> and <code>id</code> are read from the request wrapper</td>
+              <td>Confirmed runtime defect</td>
+              <td>Refine every transaction in <code>transactions</code> and add a regression test</td>
+            </tr>
+            <tr>
+              <td><strong>Inferred required options</strong>All projects</td>
+              <td>Optional callbacks, <code>signal</code>, <code>cause</code>, <code>now</code>, and legacy database names become required or disappear</td>
+              <td>JavaScript destructuring does not express the intended contract</td>
+              <td>Add JSDoc types at exported functions, constructors, and component props</td>
+            </tr>
+            <tr>
+              <td><strong>Over-narrow IDs and styles</strong>Frontend</td>
+              <td>Generated IDs infer template-literal types; extracted CSS objects widen values to <code>string</code></td>
+              <td>Inference friction with large fan-out</td>
+              <td>Declare IDs as <code>string</code>; type style constants as React CSS properties</td>
+            </tr>
+            <tr>
+              <td><strong>Vitest mocks</strong>Frontend tests</td>
+              <td>Mock methods are unavailable on statically imported function types</td>
+              <td>Test-only typing gap</td>
+              <td>Use <code>vi.mocked(...)</code> or explicitly typed mock aliases</td>
+            </tr>
+            <tr>
+              <td><strong>Mutable actor state</strong>Shared and backend</td>
+              <td>Literal initialization makes later status comparisons look impossible</td>
+              <td>Control-flow limitation around mutable object state</td>
+              <td>Type actor snapshots and storage interfaces explicitly, without suppressions</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Implementation sequence</h2>
+      <div class="sequence">
+        <article class="card phase">
+          <h3>Lock in the checker and the reproduced behavior</h3>
+          <p>Add a root <code>typecheck</code> script that runs all four configs. Add the failing shared regression test for mismatched transaction IDs before changing the schema.</p>
+          <div class="exit"><strong>Exit:</strong> the new regression test fails for the expected reason and E2E typechecking remains green.</div>
+        </article>
+        <article class="card phase">
+          <h3>Make shared the trusted type source</h3>
+          <p>Fix the request refinement, define the Zod enum as a non-empty tuple, type the custom error shape, exported transaction builders, database structures, actor snapshot, storage, and events.</p>
+          <div class="exit"><strong>Exit:</strong> <code>tsc -p shared/jsconfig.json --checkJs</code> has zero errors and shared tests pass.</div>
+        </article>
+        <article class="card phase">
+          <h3>Clean the backend boundary</h3>
+          <p>Install direct declaration packages, then type config/environment input, seed data, server actor options, Express handlers, and tests. Re-run after declarations because they may reveal more precise application errors.</p>
+          <div class="exit"><strong>Exit:</strong> backend typecheck, tests, and lint are green with no application or dependency JavaScript diagnostics.</div>
+        </article>
+        <article class="card phase">
+          <h3>Clean frontend production code, then tests</h3>
+          <p>Type API options and errors, replica storage options, todo IDs, date calculations, React style objects, and component props. Finish with typed Vitest mocks and valid test fixtures.</p>
+          <div class="exit"><strong>Exit:</strong> frontend typecheck, 54 tests, build, and lint are green.</div>
+        </article>
+        <article class="card phase">
+          <h3>Enable globally and enforce in CI</h3>
+          <p>Set <code>checkJs: true</code> in <code>tsconfig.base.json</code>, remove temporary project overrides, and make the aggregate typecheck a required CI step. Permit narrow <code>@ts-expect-error</code> only for deliberate negative type tests.</p>
+          <div class="exit"><strong>Exit:</strong> a clean checkout passes typecheck, tests, lint, build, and E2E checks.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2 class="section-title">Guardrails</h2>
+      <ul>
+        <li>Do not exclude production files or imported shared code to reduce the count.</li>
+        <li>Prefer schema-derived and shared JSDoc types at module boundaries over duplicating object shapes.</li>
+        <li>Keep <code>skipLibCheck</code>, but understand that it skips declaration-file checking, not untyped JavaScript in <code>node_modules</code>.</li>
+        <li>Declare frontend React types directly rather than relying on MUI or Testing Library to install them transitively.</li>
+        <li>Treat fixes that change runtime behavior, especially schema refinement, as bug fixes with focused tests.</li>
+      </ul>
+    </section>
+
+    <p class="footnote">Design source: the repository's existing Material UI styling, using its default blue primary color, white cards, restrained elevation, and simple responsive layout.</p>
+  </main>
+</body>
+</html>

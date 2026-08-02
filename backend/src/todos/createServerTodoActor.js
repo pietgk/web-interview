@@ -8,6 +8,12 @@ export const DEFAULT_TODO_LOG_PATH = fileURLToPath(
   new URL('../../data/todos.jsonl', import.meta.url)
 )
 
+/**
+ * @param {object} options
+ * @param {string} [options.filePath]
+ * @param {ReturnType<typeof createSeedTodoLists>} [options.initialTodoLists]
+ * @param {() => Date} [options.now]
+ */
 export const createServerTodoActor = async ({
   filePath = DEFAULT_TODO_LOG_PATH,
   initialTodoLists = createSeedTodoLists(),
