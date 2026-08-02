@@ -5,7 +5,7 @@ import { CompletionField } from './CompletionField'
 describe('CompletionField', () => {
   it('toggles when its outlined field is clicked', async () => {
     const user = userEvent.setup()
-    const onChange = jest.fn()
+    const onChange = vi.fn()
 
     render(
       <CompletionField

@@ -22,7 +22,7 @@ const seed = {
   todos: [createTodo({ id: '1', text: 'Original' })],
 }
 
-const startList = ({ saveTodoList = jest.fn(async (id, { todos }) => ({ id, todos })) } = {}) => {
+const startList = ({ saveTodoList = vi.fn(async (id, { todos }) => ({ id, todos })) } = {}) => {
   const clock = new SimulatedClock()
   const actor = createActor(createTodoListMachine({ saveTodoList }), {
     input: seed,
@@ -57,7 +57,7 @@ describe('todoListMachine', () => {
   it('serializes one list while immediately persisting a newer in-flight edit', async () => {
     const first = deferred()
     const second = deferred()
-    const saveTodoList = jest
+    const saveTodoList = vi
       .fn()
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise)
@@ -84,7 +84,7 @@ describe('todoListMachine', () => {
   })
 
   it('retains a failed draft and retries the latest revision', async () => {
-    const saveTodoList = jest
+    const saveTodoList = vi
       .fn()
       .mockRejectedValueOnce(new Error('network down'))
       .mockImplementationOnce(async (id, { todos }) => ({ id, todos }))
@@ -111,7 +111,7 @@ describe('todoListMachine', () => {
 
   it('retries the newest draft when an older in-flight revision fails', async () => {
     const first = deferred()
-    const saveTodoList = jest
+    const saveTodoList = vi
       .fn()
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(async (id, { todos }) => ({ id, todos }))

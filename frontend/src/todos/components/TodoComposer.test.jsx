@@ -5,8 +5,8 @@ import { TodoComposer } from './TodoComposer'
 describe('TodoComposer', () => {
   it('emits text changes and submits via Enter and Add', async () => {
     const user = userEvent.setup()
-    const onChange = jest.fn()
-    const onSubmit = jest.fn()
+    const onChange = vi.fn()
+    const onSubmit = vi.fn()
 
     render(<TodoComposer text='' onChange={onChange} onSubmit={onSubmit} />)
 

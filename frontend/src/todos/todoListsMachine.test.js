@@ -31,8 +31,8 @@ const seedLists = {
 }
 
 const startCatalog = async ({
-  fetchTodoLists = jest.fn().mockResolvedValue(seedLists),
-  saveTodoList = jest.fn(async (id, { todos }) => ({ id, todos })),
+  fetchTodoLists = vi.fn().mockResolvedValue(seedLists),
+  saveTodoList = vi.fn(async (id, { todos }) => ({ id, todos })),
 } = {}) => {
   const clock = new SimulatedClock()
   const actor = createActor(createTodoListsMachine({ fetchTodoLists, saveTodoList }), {
@@ -81,7 +81,7 @@ describe('todoListsMachine', () => {
 
   it('allows unrelated lists to save concurrently', async () => {
     const saves = { a: deferred(), b: deferred() }
-    const saveTodoList = jest.fn((id) => saves[id].promise)
+    const saveTodoList = vi.fn((id) => saves[id].promise)
     const { actor } = await startCatalog({ saveTodoList })
 
     listRef(actor, 'a').send({
@@ -134,7 +134,7 @@ describe('todoListsMachine', () => {
   })
 
   it('stops old list actors before reloading a fresh catalog', async () => {
-    const fetchTodoLists = jest
+    const fetchTodoLists = vi
       .fn()
       .mockResolvedValueOnce(seedLists)
       .mockResolvedValueOnce({
@@ -155,14 +155,14 @@ describe('todoListsMachine', () => {
   })
 
   it('surfaces loading errors and retries', async () => {
-    const fetchTodoLists = jest
+    const fetchTodoLists = vi
       .fn()
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce(seedLists)
     const actor = createActor(
       createTodoListsMachine({
         fetchTodoLists,
-        saveTodoList: jest.fn(),
+        saveTodoList: vi.fn(),
       })
     )
     actor.start()

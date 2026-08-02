@@ -88,7 +88,7 @@ catalog and each list's real persistence state independently.
 1. `npm start` in `frontend/`
 2. Allow pop-ups for the app origin if the Inspector tab does not appear
 3. Check the console for: `XState Inspector: opened in a new browser tab/window…`
-4. Disable with `REACT_APP_XSTATE_INSPECT=0`
+4. Disable with `VITE_XSTATE_INSPECT=0`
 
 Never enabled in `test` or production builds.
 

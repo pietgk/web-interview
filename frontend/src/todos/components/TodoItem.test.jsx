@@ -6,8 +6,8 @@ import { createTodo } from '../todoModel'
 describe('TodoItem', () => {
   it('notifies on text, completed, due date, and delete, and shows due status in the date label', async () => {
     const user = userEvent.setup()
-    const onChange = jest.fn()
-    const onRemove = jest.fn()
+    const onChange = vi.fn()
+    const onRemove = vi.fn()
     const todo = createTodo({ id: '1', text: 'Buy milk', dueDate: '2026-08-01' })
     const now = new Date(2026, 6, 31)
 
@@ -45,7 +45,7 @@ describe('TodoItem', () => {
     const now = new Date(2026, 6, 31)
 
     render(
-      <TodoItem todo={todo} onChange={jest.fn()} onRemove={jest.fn()} now={now} />
+      <TodoItem todo={todo} onChange={vi.fn()} onRemove={vi.fn()} now={now} />
     )
 
     expect(screen.getByLabelText('Due date: Done')).toBeInTheDocument()

@@ -32,7 +32,7 @@ Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and [`docs/adr/002-xstate
 **new browser tab/window** (allow pop-ups for localhost if it does not appear). Check the
 console for the Inspector bootstrap message. Diagrams live in the Inspector — the ADR keeps
 a machine-derived state/event table instead of hand-drawn mermaid.
-Set `REACT_APP_XSTATE_INSPECT=0` to disable.
+Set `VITE_XSTATE_INSPECT=0` to disable.
 
 ### Running tests
 
@@ -78,7 +78,7 @@ Shared Zod contract (`shared/`) is pulled in via `file:` dependencies from backe
 
  A browser tab will automatically open and load the app. In development the Stately
  Inspector also opens in a **new tab/window** for the todo actor hierarchy — allow
- pop-ups if you do not see it (see ADR 002). Set `REACT_APP_XSTATE_INSPECT=0` to disable.
+ pop-ups if you do not see it (see ADR 002). Set `VITE_XSTATE_INSPECT=0` to disable.
 
 ### End-to-end tests
 

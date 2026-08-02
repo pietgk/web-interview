@@ -49,7 +49,7 @@ const StatefulForm = ({
 describe('TodoListForm', () => {
   it('emits intent events without a Save button', async () => {
     const user = userEvent.setup()
-    const onSend = jest.fn()
+    const onSend = vi.fn()
 
     render(
       <StatefulForm
@@ -75,7 +75,7 @@ describe('TodoListForm', () => {
 
   it('emits composer changes and submit from the top ghost row', async () => {
     const user = userEvent.setup()
-    const onSend = jest.fn()
+    const onSend = vi.fn()
 
     render(
       <StatefulForm
@@ -95,7 +95,7 @@ describe('TodoListForm', () => {
 
   it('shows Retry when save failed and keeps the draft visible', async () => {
     const user = userEvent.setup()
-    const onSend = jest.fn()
+    const onSend = vi.fn()
 
     render(
       <StatefulForm
@@ -119,8 +119,7 @@ describe('TodoListForm', () => {
 
 describe('TodoListForm unmount flush contract (owner responsibility)', () => {
   it('flushes an edited todo when the form unmounts before the debounce expires', async () => {
-    jest.useFakeTimers()
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup()
 
     const saves = []
     let latestTodos = [createTodo({ id: 't1', text: 'Original' })]
@@ -165,7 +164,5 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
     unmount()
 
     expect(saves.at(-1)[0].text).toBe('Unsaved switch test')
-
-    jest.useRealTimers()
   })
 })

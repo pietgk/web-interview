@@ -51,9 +51,9 @@ describe('API response contract', () => {
         dueDate: null,
       },
     ]
-    global.fetch = jest.fn().mockResolvedValue({
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: jest.fn().mockResolvedValue({ id: '1', title: 'A', todos }),
+      json: vi.fn().mockResolvedValue({ id: '1', title: 'A', todos }),
     })
 
     await saveTodoList('1', { todos })

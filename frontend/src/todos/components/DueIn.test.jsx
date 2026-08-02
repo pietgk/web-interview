@@ -23,7 +23,7 @@ describe('DueIn', () => {
         <DueIn
           dueDate={dueDate}
           completed={completed}
-          onChange={jest.fn()}
+          onChange={vi.fn()}
           todoLabel='Buy milk'
           now={now}
         />

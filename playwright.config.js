@@ -35,7 +35,7 @@ export default defineConfig({
       env: {
         ...process.env,
         BROWSER: 'none',
-        REACT_APP_API_BASE: 'http://localhost:3001',
+        VITE_API_BASE: 'http://localhost:3001',
       },
     },
   ],

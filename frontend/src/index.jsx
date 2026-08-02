@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { ensureInspector } from './todos/inspect'
 
-ensureInspector()
-
 const root = createRoot(document.getElementById('root'))
-root.render(<App />)
+
+ensureInspector().finally(() => {
+  root.render(<App />)
+})

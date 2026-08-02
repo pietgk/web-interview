@@ -5,7 +5,10 @@ import * as api from '../../api/todoLists'
 import { AUTOSAVE_DEBOUNCE_MS } from '../todoListMachine'
 import { createTodo } from '../todoModel'
 
-jest.mock('../../api/todoLists')
+vi.mock('../../api/todoLists', () => ({
+  fetchTodoLists: vi.fn(),
+  saveTodoList: vi.fn(),
+}))
 
 const seedLists = {
   '0000000001': {
@@ -31,7 +34,7 @@ const flushLoad = async () => {
 
 describe('TodoLists persistence regressions', () => {
   beforeEach(() => {
-    jest.useFakeTimers()
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     api.fetchTodoLists.mockResolvedValue(seedLists)
     api.saveTodoList.mockImplementation(async (id, { todos }) => ({
       id,
@@ -41,8 +44,8 @@ describe('TodoLists persistence regressions', () => {
   })
 
   afterEach(() => {
-    jest.useRealTimers()
-    jest.clearAllMocks()
+    vi.useRealTimers()
+    vi.clearAllMocks()
   })
 
   it('always summarizes incomplete and empty lists', async () => {
@@ -59,7 +62,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('flushes an edited todo when switching lists before the debounce expires', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<TodoLists style={{}} />)
     await flushLoad()
     await user.click(screen.getByText('First List'))
@@ -86,7 +89,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('flushes dirty child actors when the page is hidden', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<TodoLists style={{}} />)
     await flushLoad()
     await user.click(screen.getByText('First List'))
@@ -114,7 +117,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('coalesces an edit made while a save is in flight', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     const first = {}
     first.promise = new Promise((resolve) => {
       first.resolve = resolve
@@ -138,7 +141,7 @@ describe('TodoLists persistence regressions', () => {
     await user.clear(field)
     await user.type(field, 'first')
     await act(async () => {
-      jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
     })
 
     await waitFor(() => expect(api.saveTodoList).toHaveBeenCalledTimes(1))
@@ -176,7 +179,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('keeps a failed draft and retries successfully', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     api.saveTodoList
       .mockRejectedValueOnce(new Error('network down'))
       .mockResolvedValueOnce({
@@ -193,7 +196,7 @@ describe('TodoLists persistence regressions', () => {
     await user.clear(field)
     await user.type(field, 'Retry me')
     await act(async () => {
-      jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
     })
 
     expect(await screen.findByText(/Save failed: network down/)).toBeInTheDocument()
@@ -204,7 +207,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('updates list completion from the draft while a save is pending', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     const pending = {}
     pending.promise = new Promise((resolve) => {
       pending.resolve = resolve
@@ -243,7 +246,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('materializes a todo from the top composer and dematerializes when cleared', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<TodoLists style={{}} />)
     await flushLoad()
     await user.click(screen.getByText('First List'))
@@ -256,7 +259,7 @@ describe('TodoLists persistence regressions', () => {
     expect(screen.getAllByLabelText('What to do?')).toHaveLength(1)
 
     await act(async () => {
-      jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
     })
 
     await waitFor(() => {
@@ -273,7 +276,7 @@ describe('TodoLists persistence regressions', () => {
     await user.clear(composer)
 
     await act(async () => {
-      jest.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
+      vi.advanceTimersByTime(AUTOSAVE_DEBOUNCE_MS)
     })
 
     await waitFor(() => {
@@ -284,7 +287,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('commits the composer with Enter and the Add button', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<TodoLists style={{}} />)
     await flushLoad()
     await user.click(screen.getByText('First List'))
@@ -306,7 +309,7 @@ describe('TodoLists persistence regressions', () => {
   })
 
   it('exposes named regions for save status, editor, and composer', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     render(<TodoLists style={{}} />)
     await flushLoad()
     await user.click(screen.getByText('First List'))

@@ -1,6 +1,6 @@
 import { parseTodoList, parseTodoLists } from '@web-interview/todo-contract'
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001'
 
 const readErrorMessage = (data, status) => {
   if (data?.error) return data.error
