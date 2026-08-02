@@ -4,7 +4,7 @@ import {
   parseTodoList,
   parseUpdateTodosRequest,
   todosSchema,
-} from './index.js'
+} from './todoContract.js'
 
 describe('todo contract', () => {
   it('rejects days that do not exist in their month', () => {

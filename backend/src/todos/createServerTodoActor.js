@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { createTodoListActor } from '@web-interview/todo-contract'
+import { createTodoListActor } from '@web-interview/todos/actor'
 import { createSeedTodoLists } from '../seed.js'
 import { JsonlJournalStorage } from './jsonlJournalStorage.js'
 

@@ -4,8 +4,8 @@ import {
   applyTransaction,
   databaseFromReadModel,
   projectTodoLists,
-  SYNC_DEBOUNCE_MS,
-} from '@web-interview/todo-contract'
+} from '@web-interview/todos/database'
+import { SYNC_DEBOUNCE_MS } from '@web-interview/todos/actor'
 import { TodoLists } from './TodoLists'
 import * as api from '../../api/todoLists'
 import { createTodo } from '../todoModel'

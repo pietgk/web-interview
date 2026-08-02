@@ -3,10 +3,8 @@ import assert from 'node:assert/strict'
 import { appendFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  createTodoListActor,
-  patchTodoTransaction,
-} from '@web-interview/todo-contract'
+import { createTodoListActor } from '@web-interview/todos/actor'
+import { patchTodoTransaction } from '@web-interview/todos/transactions'
 import { createSeedTodoLists } from '../seed.js'
 import { JsonlJournalStorage } from './jsonlJournalStorage.js'
 

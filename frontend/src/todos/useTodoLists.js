@@ -1,8 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react'
-import {
-  createTodoListActor,
-  hasLocallyUndurableChanges,
-} from '@web-interview/todo-contract'
+import { createTodoListActor } from '@web-interview/todos/actor'
+import { hasLocallyUndurableChanges } from '@web-interview/todos/selectors'
 import { createIndexedDbReplicaStorage } from './indexedDbReplicaStorage'
 
 const clientId = () => {

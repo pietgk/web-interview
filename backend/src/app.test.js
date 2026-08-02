@@ -5,9 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import request from 'supertest'
-import {
-  patchTodoTransaction,
-} from '@web-interview/todo-contract'
+import { patchTodoTransaction } from '@web-interview/todos/transactions'
 import { createApp } from './app.js'
 import { createServerTodoActor } from './todos/createServerTodoActor.js'
 

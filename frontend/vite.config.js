@@ -13,7 +13,7 @@ export default defineConfig({
     setupFiles: './src/setupTests.js',
     server: {
       deps: {
-        inline: ['@web-interview/todo-contract', 'zod'],
+        inline: [/^@web-interview\/todos(?:\/|$)/, 'zod'],
       },
     },
   },

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isRealCalendarDate } from './src/calendarDate.js'
+import { isRealCalendarDate } from './calendarDate.js'
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 const MAX_TODO_TEXT = 1000
@@ -131,40 +131,3 @@ export const parseTodoSyncResponse = (data) => {
   }
   return { ok: true, data: result.data }
 }
-
-export {
-  ATTRIBUTE,
-  applyTransaction,
-  createEmptyDatabase,
-  databaseFromReadModel,
-  datomSchema,
-  projectTodoLists,
-  readModelAsOf,
-  replayTransactions,
-  syncTodoListsRequestSchema,
-  transactionSchema,
-} from './src/todoDatabase.js'
-
-export {
-  createTodoTransaction,
-  createTransaction,
-  deleteTodoTransaction,
-  newTodoId,
-  patchTodoTransaction,
-  replaceTodoListTransaction,
-  seedTransactionFromTodoLists,
-} from './src/transactions.js'
-
-export {
-  createTodoListActor,
-  SYNC_DEBOUNCE_MS,
-  TodoListActor,
-} from './src/todoListActor.js'
-
-export {
-  hasLocallyUndurableChanges,
-  isListCompleted,
-  selectListSaveChrome,
-  selectListSummary,
-  selectTodoLists,
-} from './src/selectors.js'

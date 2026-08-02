@@ -6,8 +6,8 @@ import {
   createEmptyDatabase,
   projectTodoLists,
   replayTransactions,
-  seedTransactionFromTodoLists,
-} from '@web-interview/todo-contract'
+} from '@web-interview/todos/database'
+import { seedTransactionFromTodoLists } from '@web-interview/todos/transactions'
 
 const RECORD_VERSION = 1
 

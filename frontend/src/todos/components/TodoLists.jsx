@@ -4,9 +4,11 @@ import {
   deleteTodoTransaction,
   newTodoId,
   patchTodoTransaction,
+} from '@web-interview/todos/transactions'
+import {
   selectListSaveChrome,
   selectListSummary,
-} from '@web-interview/todo-contract'
+} from '@web-interview/todos/selectors'
 import {
   Card,
   CardContent,

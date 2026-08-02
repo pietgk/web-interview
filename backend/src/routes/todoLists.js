@@ -3,9 +3,9 @@ import { constants as HTTP } from 'node:http2'
 import {
   formatZodIssues,
   parseUpdateTodosRequest,
-  replaceTodoListTransaction,
-  syncTodoListsRequestSchema,
-} from '@web-interview/todo-contract'
+} from '@web-interview/todos/contract'
+import { syncTodoListsRequestSchema } from '@web-interview/todos/database'
+import { replaceTodoListTransaction } from '@web-interview/todos/transactions'
 
 const authoritativeSnapshot = (actor) => actor.getSnapshot()
 
