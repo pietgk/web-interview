@@ -13,6 +13,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
-    "@web-interview/todos": "file:shared"
+    "@types/node": "^24.13.3",
+    "@web-interview/todos": "file:shared",
+    "typescript": "5.9.3"
   }
 }
