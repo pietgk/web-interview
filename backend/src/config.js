@@ -1,16 +1,11 @@
 import { parseTodoLists } from '@web-interview/todos/contract'
 
-/**
- * @typedef {Record<string, {
- *   id: string,
- *   title: string,
- *   todos: Array<{id: string, text: string, completed: boolean, dueDate: string | null}>
- * }>} TodoLists
- */
+/** @typedef {import('@web-interview/todos/types').TodoLists} TodoLists */
 
 const DEFAULT_BACKEND_PORT = 3001
 const DEFAULT_DEVELOPMENT_ORIGIN = 'http://localhost:3000'
 
+/** @param {string | undefined} value */
 const parsePort = (value) => {
   const port = Number(value ?? DEFAULT_BACKEND_PORT)
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -19,7 +14,10 @@ const parsePort = (value) => {
   return port
 }
 
-/** @returns {TodoLists | undefined} */
+/**
+ * @param {string | undefined} value
+ * @returns {TodoLists | undefined}
+ */
 const parseInitialTodoLists = (value) => {
   if (!value) return undefined
 
@@ -37,6 +35,10 @@ const parseInitialTodoLists = (value) => {
   return /** @type {TodoLists} */ (parsed.data)
 }
 
+/**
+ * @param {string | undefined} value
+ * @param {string} appEnvironment
+ */
 const parseCorsOrigins = (value, appEnvironment) => {
   if (value) {
     return value

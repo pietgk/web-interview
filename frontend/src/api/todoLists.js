@@ -4,6 +4,8 @@ import {
 } from '@web-interview/todos/contract'
 import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
 
+/** @typedef {import('@web-interview/todos/types').Transaction} Transaction */
+
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
 
 /**
@@ -26,6 +28,12 @@ export class ApiError extends Error {
   }
 }
 
+/** @param {unknown} value */
+const objectRecord = (value) =>
+  typeof value === 'object' && value !== null
+    ? /** @type {Record<string, unknown>} */ (value)
+    : {}
+
 /**
  * @param {string} path
  * @param {RequestInit} [options]
@@ -35,7 +43,7 @@ const requestJson = async (path, options = {}) => {
   try {
     response = await fetch(`${API_BASE}${path}`, options)
   } catch (error) {
-    if (error?.name === 'AbortError') throw error
+    if (objectRecord(error).name === 'AbortError') throw error
     throw new ApiError({
       message: 'Network error',
       code: ERROR_CODE.NETWORK,
@@ -43,13 +51,18 @@ const requestJson = async (path, options = {}) => {
     })
   }
 
-  const data = await response.json().catch(() => ({}))
+  const data = /** @type {unknown} */ (await response.json().catch(() => ({})))
   if (!response.ok) {
+    const details = objectRecord(data)
     throw new ApiError({
-      message: data?.error || `Request failed with status ${response.status}`,
+      message: typeof details.error === 'string' && details.error
+        ? details.error
+        : `Request failed with status ${response.status}`,
       status: response.status,
-      code: data?.code || ERROR_CODE.INVALID_ERROR_RESPONSE,
-      issues: Array.isArray(data?.issues) ? data.issues : [],
+      code: typeof details.code === 'string' && details.code
+        ? details.code
+        : ERROR_CODE.INVALID_ERROR_RESPONSE,
+      issues: Array.isArray(details.issues) ? details.issues : [],
     })
   }
   return { data, status: response.status }
@@ -70,7 +83,7 @@ export const fetchTodoReadModel = async ({ signal } = {}) => {
   return parsed.data
 }
 
-/** @param {{basis: number, transactions: Array<{id: string}>, signal?: AbortSignal}} options */
+/** @param {{basis: number, transactions: Transaction[], signal?: AbortSignal}} options */
 export const syncTodoLists = async ({ basis, transactions, signal }) => {
   const { data, status } = await requestJson(TODO_API_PATH.SYNC, {
     method: 'POST',

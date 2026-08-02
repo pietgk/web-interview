@@ -4,6 +4,17 @@ import { useState } from 'react'
 import { TodoListForm } from './TodoListForm'
 import { createTodo } from '../todoModel'
 
+/** @typedef {import('@web-interview/todos/types').Todo} Todo */
+/** @typedef {import('../todoUiProtocol').TodoUiEvent} TodoUiEvent */
+/** @typedef {{message: string | null, tone: 'error' | 'secondary', showRetry: boolean}} SaveChrome */
+
+/**
+ * @param {{
+ *   initialTodos: Todo[],
+ *   saveChrome?: SaveChrome,
+ *   onSend?: (event: TodoUiEvent) => void
+ * }} props
+ */
 const StatefulForm = ({
   initialTodos,
   saveChrome = {
@@ -16,6 +27,7 @@ const StatefulForm = ({
   const [todos, setTodos] = useState(initialTodos)
   const [composerText, setComposerText] = useState('')
 
+  /** @param {TodoUiEvent} event */
   const send = (event) => {
     onSend?.(event)
     if (event.type === 'COMPOSER_CHANGE') {
@@ -121,9 +133,12 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
   it('flushes an edited todo when the form unmounts before the debounce expires', async () => {
     const user = userEvent.setup()
 
+    /** @type {Todo[][]} */
     const saves = []
+    /** @type {Todo[]} */
     let latestTodos = [createTodo({ id: 't1', text: 'Original' })]
 
+    /** @param {{open: boolean}} props */
     const Harness = ({ open }) => {
       const [todos, setTodos] = useState(latestTodos)
       if (!open) return null
@@ -163,6 +178,8 @@ describe('TodoListForm unmount flush contract (owner responsibility)', () => {
     rerender(<Harness open={false} />)
     unmount()
 
-    expect(saves.at(-1)[0].text).toBe('Unsaved switch test')
+    const latestSave = saves.at(-1)
+    if (!latestSave) throw new Error('Expected the edited todos to be saved')
+    expect(latestSave[0].text).toBe('Unsaved switch test')
   })
 })

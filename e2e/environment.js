@@ -1,3 +1,7 @@
+/**
+ * @param {string} name
+ * @param {number} fallback
+ */
 const environmentPort = (name, fallback) => {
   const port = Number(process.env[name] ?? fallback)
   if (!Number.isInteger(port) || port < 1 || port > 65535) {

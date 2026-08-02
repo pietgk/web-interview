@@ -1,6 +1,9 @@
 import React from 'react'
 import { Button, Typography } from '@mui/material'
 
+/** @typedef {{message: string | null, tone: 'error' | 'secondary', showRetry: boolean}} SaveChrome */
+
+/** @param {{saveChrome: SaveChrome, onRetry: () => void}} props */
 export const SaveStatus = ({ saveChrome, onRetry }) => {
   const failed = saveChrome.tone === 'error'
 

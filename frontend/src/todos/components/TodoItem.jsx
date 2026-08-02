@@ -8,6 +8,10 @@ import { CompletionField } from './CompletionField'
 import { DueIn } from './DueIn'
 import { TodoRow } from './TodoRow'
 
+/** @typedef {import('@web-interview/todos/types').Todo} Todo */
+/** @typedef {Partial<Pick<Todo, 'text' | 'completed' | 'dueDate'>>} TodoPatch */
+
+/** @param {Todo} todo */
 const todoLabel = (todo) => {
   const text = String(todo?.text ?? '').trim()
   return text || 'untitled'
@@ -15,8 +19,8 @@ const todoLabel = (todo) => {
 
 /**
  * @param {{
- *   todo: {id: string, text: string, completed: boolean, dueDate: string | null},
- *   onChange: (patch: object) => void,
+ *   todo: Todo,
+ *   onChange: (patch: TodoPatch) => void,
  *   onRemove: () => void,
  *   now?: Date
  * }} props

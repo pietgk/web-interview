@@ -5,6 +5,10 @@ import { hasLocallyUndurableChanges } from '@web-interview/todos/selectors'
 import { createIndexedDbReplicaStorage } from './indexedDbReplicaStorage'
 import { CLIENT_ID_STORAGE_KEY } from './persistenceConfig'
 
+/** @typedef {import('@web-interview/todos/actor').TodoListActor} TodoListActor */
+/** @typedef {import('@web-interview/todos/types').TodoStorage} TodoStorage */
+/** @typedef {{actor: TodoListActor, clientId: string}} TodoRuntime */
+
 const clientId = () => {
   try {
     const existing = localStorage.getItem(CLIENT_ID_STORAGE_KEY)
@@ -19,16 +23,19 @@ const clientId = () => {
   }
 }
 
+/** @param {{createStorage?: () => TodoStorage}} [options] */
 export const useTodoLists = ({ createStorage = createIndexedDbReplicaStorage } = {}) => {
-  const runtime = useRef(null)
-  if (!runtime.current) {
-    runtime.current = {
+  const runtime = useRef(/** @type {TodoRuntime | null} */ (null))
+  let current = runtime.current
+  if (!current) {
+    current = {
       actor: createTodoListActor({ storage: createStorage() }),
       clientId: clientId(),
     }
+    runtime.current = current
   }
 
-  const { actor } = runtime.current
+  const { actor } = current
   const snapshot = useSyncExternalStore(
     (notify) => {
       const subscription = actor.subscribe(notify)
@@ -41,6 +48,7 @@ export const useTodoLists = ({ createStorage = createIndexedDbReplicaStorage } =
   useEffect(() => {
     actor.start()
 
+    /** @param {BeforeUnloadEvent} event */
     const onBeforeUnload = (event) => {
       if (!hasLocallyUndurableChanges(actor.getSnapshot())) return
       event.preventDefault()
@@ -62,7 +70,7 @@ export const useTodoLists = ({ createStorage = createIndexedDbReplicaStorage } =
 
   return {
     actor,
-    clientId: runtime.current.clientId,
+    clientId: current.clientId,
     snapshot,
   }
 }

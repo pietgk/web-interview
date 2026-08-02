@@ -10,6 +10,9 @@ import { TodoLists } from './TodoLists'
 import * as api from '../../api/todoLists'
 import { createTodo } from '../todoModel'
 
+/** @typedef {import('@web-interview/todos/types').TodoDatabase} TodoDatabase */
+/** @typedef {import('@web-interview/todos/types').TodoLists} TodoListReadModel */
+
 vi.mock('../../api/todoLists', () => ({
   fetchTodoReadModel: vi.fn(),
   syncTodoLists: vi.fn(),
@@ -31,8 +34,10 @@ const seedLists = {
   },
 }
 
+/** @type {TodoDatabase} */
 let serverDatabase
 
+/** @param {TodoListReadModel} [todoLists] */
 const installServer = (todoLists = seedLists) => {
   serverDatabase = databaseFromReadModel(todoLists, 1)
   fetchTodoReadModelMock.mockImplementation(async () => ({
@@ -179,9 +184,10 @@ describe('TodoLists shared replica actor', () => {
 
     await advanceAutosave()
     expect(syncTodoListsMock).toHaveBeenCalledTimes(1)
-    if (!resolveSync) throw new Error('Expected pending sync request')
+    const completeSync = resolveSync
+    if (!completeSync) throw new Error('Expected pending sync request')
     await act(async () => {
-      resolveSync({
+      completeSync({
         basis: 1,
         todoLists: seedLists,
         acceptedTransactionIds: [],

@@ -18,6 +18,7 @@ const dueInYearsLabel = new RegExp(
   `Due in \\d+ years: ${PRIMARY_TODO.text}`
 )
 
+/** @param {import('@playwright/test').APIRequestContext} request */
 async function resetFirstList(request) {
   const response = await request.put(`${E2E_API_BASE}${todoListPath(PRIMARY_LIST_ID)}`, {
     headers: {
@@ -32,6 +33,7 @@ async function resetFirstList(request) {
   }
 }
 
+/** @param {import('@playwright/test').Page} page */
 const waitForAutosave = (page) =>
   page.waitForResponse(
     (response) =>
@@ -39,6 +41,13 @@ const waitForAutosave = (page) =>
       response.url().endsWith(TODO_API_PATH.SYNC) &&
       response.ok()
   )
+
+/** @param {import('@playwright/test').Locator} locator */
+const elementHeight = async (locator) => {
+  const box = await locator.boundingBox()
+  if (!box) throw new Error('Expected the todo-list button to have a bounding box')
+  return box.height
+}
 
 test.beforeEach(async ({ request }) => {
   await resetFirstList(request)
@@ -91,13 +100,13 @@ test('marks a todo and its list as completed and persists after refresh', async 
   await page.goto('/')
   await page.getByText(PRIMARY_LIST_TITLE).click()
   const listButton = page.getByRole('button', { name: primaryListName })
-  const initialHeight = (await listButton.boundingBox()).height
+  const initialHeight = await elementHeight(listButton)
 
   const saved = waitForAutosave(page)
   await page.getByLabel(`Mark completed: ${PRIMARY_TODO.text}`).check()
   await saved
   await expect(page.getByText('1 of 1 completed')).toBeVisible()
-  const completedHeight = (await listButton.boundingBox()).height
+  const completedHeight = await elementHeight(listButton)
   expect(completedHeight).toBe(initialHeight)
   await expect(page.getByRole('button', { name: primaryListName })).toHaveAttribute(
     'aria-current',
@@ -194,6 +203,7 @@ test('keeps a durable outbox across reload and syncs after reconnecting', async 
   await page.getByLabel('What to do?').fill('Written while offline')
   await expect(page.getByText('Saved offline')).toBeVisible()
 
+  /** @type {string[]} */
   const reloadDialogs = []
   page.on('dialog', async (dialog) => {
     reloadDialogs.push(dialog.type())

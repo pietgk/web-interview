@@ -14,6 +14,8 @@ import {
   seedTransactionFromTodoLists,
 } from './transactions.js'
 
+/** @typedef {import('./types.js').Transaction} Transaction */
+
 const seedLists = {
   list: {
     id: 'list',
@@ -29,11 +31,25 @@ const seedLists = {
   },
 }
 
+/**
+ * @param {Transaction} transaction
+ * @param {number} serverSeq
+ * @returns {Transaction}
+ */
 const serverTransaction = (transaction, serverSeq) => ({
   ...transaction,
   serverSeq,
   serverAt: `2026-08-02T12:00:0${serverSeq}.000Z`,
 })
+
+/**
+ * @param {Transaction | null} transaction
+ * @returns {Transaction}
+ */
+const requiredTransaction = (transaction) => {
+  assert.ok(transaction)
+  return transaction
+}
 
 describe('todo datom database', () => {
   it('replays immutable transactions into the todo-list read model', () => {
@@ -42,13 +58,13 @@ describe('todo datom database', () => {
       1
     )
     const patch = serverTransaction(
-      patchTodoTransaction({
+      requiredTransaction(patchTodoTransaction({
         basis: 1,
         clientId: 'test',
         listId: 'list',
         todo: seedLists.list.todos[0],
         patch: { text: 'Updated', completed: true },
-      }),
+      })),
       2
     )
 
@@ -128,13 +144,13 @@ describe('todo datom database', () => {
       1
     )
     const patch = serverTransaction(
-      patchTodoTransaction({
+      requiredTransaction(patchTodoTransaction({
         basis: 1,
         clientId: 'test',
         listId: 'list',
         todo: seedLists.list.todos[0],
         patch: { text: 'Future' },
-      }),
+      })),
       2
     )
 

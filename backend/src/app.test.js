@@ -15,8 +15,11 @@ import { createApp } from './app.js'
 import { createServerTodoActor } from './todos/createServerTodoActor.js'
 
 describe('todo lists API', () => {
+  /** @type {import('express').Express} */
   let app
+  /** @type {import('@web-interview/todos/actor').TodoListActor} */
   let actor
+  /** @type {string} */
   let directory
 
   beforeEach(async () => {
@@ -76,6 +79,7 @@ describe('todo lists API', () => {
       todo,
       patch: { text: 'Synced datom' },
     })
+    assert.ok(transaction)
 
     const response = await request(app)
       .post(TODO_API_PATH.SYNC)
@@ -100,6 +104,7 @@ describe('todo lists API', () => {
       todo,
       patch: { completed: true },
     })
+    assert.ok(transaction)
 
     const first = await request(app)
       .post(TODO_API_PATH.SYNC)

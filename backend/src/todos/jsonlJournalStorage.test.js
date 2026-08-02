@@ -8,8 +8,12 @@ import { patchTodoTransaction } from '@web-interview/todos/transactions'
 import { createSeedTodoLists } from '../seed.js'
 import { JsonlJournalStorage } from './jsonlJournalStorage.js'
 
+/** @typedef {{stop: () => void | Promise<void>}} Stoppable */
+
+/** @type {Stoppable[]} */
 const resources = []
 
+/** @param {string} filePath */
 const createActorAt = async (filePath) => {
   const storage = new JsonlJournalStorage({
     filePath,
@@ -28,7 +32,10 @@ const temporaryJournal = async () => {
 }
 
 afterEach(async () => {
-  while (resources.length > 0) await resources.pop().stop()
+  while (resources.length > 0) {
+    const resource = resources.pop()
+    if (resource) await resource.stop()
+  }
 })
 
 describe('JSONL todo journal', () => {
@@ -37,15 +44,15 @@ describe('JSONL todo journal', () => {
     const first = await createActorAt(filePath)
     const snapshot = first.getSnapshot()
     const todo = snapshot.readModel['0000000001'].todos[0]
-    await first.transact(
-      patchTodoTransaction({
-        basis: snapshot.basis,
-        clientId: 'journal-test',
-        listId: '0000000001',
-        todo,
-        patch: { text: 'Survives restart' },
-      })
-    )
+    const transaction = patchTodoTransaction({
+      basis: snapshot.basis,
+      clientId: 'journal-test',
+      listId: '0000000001',
+      todo,
+      patch: { text: 'Survives restart' },
+    })
+    assert.ok(transaction)
+    await first.transact(transaction)
     await first.stop()
     resources.splice(resources.indexOf(first), 1)
 

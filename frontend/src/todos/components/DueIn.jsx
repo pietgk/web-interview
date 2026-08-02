@@ -2,6 +2,7 @@ import React from 'react'
 import { TextField } from '@mui/material'
 import { getDueStatus } from '../todoModel'
 
+/** @param {import('../todoModel').DueStatus | null} status */
 const dueInLabel = (status) => {
   return status?.label ?? 'Due date'
 }

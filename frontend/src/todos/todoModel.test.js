@@ -129,6 +129,7 @@ describe('todoModel', () => {
 
     it('does not describe a completed todo as overdue', () => {
       const status = getDueStatus('2026-07-30', { completed: true, now })
+      if (!status) throw new Error('Expected a completed due-date status')
       expect(status.kind).toBe('completed')
       expect(status.label).not.toMatch(/overdue/i)
     })

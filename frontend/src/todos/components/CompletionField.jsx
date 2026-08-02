@@ -2,6 +2,9 @@ import React from 'react'
 import { Checkbox, FormControl, InputLabel } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 
+/** @param {import('@mui/material/styles').Theme} theme */
+const fieldBorderColor = (theme) => alpha(theme.palette.text.primary, 0.23)
+
 const fieldSx = {
   width: '5rem',
   height: '56px',
@@ -9,7 +12,7 @@ const fieldSx = {
   alignItems: 'center',
   justifyContent: 'center',
   border: '1px solid',
-  borderColor: (theme) => alpha(theme.palette.text.primary, 0.23),
+  borderColor: fieldBorderColor,
   borderRadius: 1,
   cursor: 'pointer',
   '&:hover': {
@@ -24,6 +27,9 @@ const fieldSx = {
   },
 }
 
+/**
+ * @param {{completed: boolean, onChange: (completed: boolean) => void, todoLabel: string}} props
+ */
 export const CompletionField = ({ completed, onChange, todoLabel }) => (
   <FormControl component='label' variant='outlined' sx={fieldSx}>
     <InputLabel

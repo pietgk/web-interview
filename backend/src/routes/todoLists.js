@@ -8,8 +8,12 @@ import { syncTodoListsRequestSchema } from '@web-interview/todos/database'
 import { ERROR_CODE } from '@web-interview/todos/protocol'
 import { replaceTodoListTransaction } from '@web-interview/todos/transactions'
 
+/** @typedef {import('@web-interview/todos/actor').TodoListActor} TodoListActor */
+
+/** @param {TodoListActor} actor */
 const authoritativeSnapshot = (actor) => actor.getSnapshot()
 
+/** @param {TodoListActor} actor */
 const readModelResponse = (actor) => {
   const snapshot = authoritativeSnapshot(actor)
   return {
@@ -18,12 +22,25 @@ const readModelResponse = (actor) => {
   }
 }
 
-const transactionError = (error) => ({
-  error: error?.message || 'Transaction rejected',
-  code: error?.code || ERROR_CODE.TRANSACTION_REJECTED,
-  ...(error?.issues ? { issues: error.issues } : {}),
-})
+/** @param {unknown} error */
+const transactionError = (error) => {
+  const details = typeof error === 'object' && error !== null
+    ? /** @type {Record<string, unknown>} */ (error)
+    : {}
+  const message = typeof details.message === 'string' && details.message
+    ? details.message
+    : 'Transaction rejected'
+  const code = typeof details.code === 'string' && details.code
+    ? details.code
+    : ERROR_CODE.TRANSACTION_REJECTED
+  return {
+    error: message,
+    code,
+    ...(Array.isArray(details.issues) ? { issues: details.issues } : {}),
+  }
+}
 
+/** @param {TodoListActor} todoActor */
 export const createTodoListsRouter = (todoActor) => {
   const router = Router()
 

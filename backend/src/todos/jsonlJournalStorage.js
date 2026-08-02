@@ -6,14 +6,21 @@ import {
   createEmptyDatabase,
   projectTodoLists,
   replayTransactions,
+  transactionSchema,
 } from '@web-interview/todos/database'
 import { seedTransactionFromTodoLists } from '@web-interview/todos/transactions'
 
+/** @typedef {import('node:fs/promises').FileHandle} FileHandle */
+/** @typedef {import('@web-interview/todos/types').TodoLists} TodoLists */
+/** @typedef {import('@web-interview/todos/types').Transaction} Transaction */
+
 const RECORD_VERSION = 1
 
+/** @param {unknown} transaction */
 const checksum = (transaction) =>
   createHash('sha256').update(JSON.stringify(transaction)).digest('hex')
 
+/** @param {Transaction} transaction */
 const encodeRecord = (transaction) =>
   Buffer.from(
     `${JSON.stringify({
@@ -24,18 +31,30 @@ const encodeRecord = (transaction) =>
     'utf8'
   )
 
+/**
+ * @param {Buffer} buffer
+ * @returns {Transaction}
+ */
 const parseRecord = (buffer) => {
-  const record = JSON.parse(buffer.toString('utf8'))
+  const decoded = /** @type {unknown} */ (JSON.parse(buffer.toString('utf8')))
   if (
-    record?.version !== RECORD_VERSION ||
-    !record.transaction ||
-    record.checksum !== checksum(record.transaction)
+    typeof decoded !== 'object' ||
+    decoded === null ||
+    !('version' in decoded) ||
+    !('transaction' in decoded) ||
+    !('checksum' in decoded) ||
+    decoded.version !== RECORD_VERSION ||
+    typeof decoded.checksum !== 'string' ||
+    decoded.checksum !== checksum(decoded.transaction)
   ) {
     throw new Error('Invalid todo journal checksum or record version')
   }
-  return record.transaction
+  const parsed = transactionSchema.safeParse(decoded.transaction)
+  if (!parsed.success) throw new Error('Invalid todo journal transaction')
+  return parsed.data
 }
 
+/** @param {Buffer} buffer */
 const lineBuffers = (buffer) => {
   const lines = []
   let start = 0
@@ -50,13 +69,19 @@ const lineBuffers = (buffer) => {
 export class JsonlJournalStorage {
   authoritative = true
 
+  /**
+   * @param {{filePath: string, initialTodoLists: TodoLists, now?: () => Date}} options
+   */
   constructor({ filePath, initialTodoLists, now = () => new Date() }) {
     this.filePath = filePath
     this.initialTodoLists = initialTodoLists
     this.now = now
+    /** @type {FileHandle | null} */
     this.fileHandle = null
     this.database = createEmptyDatabase()
+    /** @type {Transaction[]} */
     this.transactions = []
+    /** @type {Map<string, Transaction>} */
     this.transactionsById = new Map()
   }
 
@@ -117,6 +142,7 @@ export class JsonlJournalStorage {
     }
   }
 
+  /** @param {Transaction} transaction */
   async append(transaction) {
     const previous = this.transactionsById.get(transaction.id)
     if (previous) {

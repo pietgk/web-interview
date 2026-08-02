@@ -25,6 +25,8 @@ const contentWrapperStyle = {
   maxWidth: '80rem',
   flexGrow: 1,
 }
+
+/** @param {{children: React.ReactNode}} props */
 const MainWrapper = ({ children }) => {
   return (
     <div style={mainWrapperStyle}>

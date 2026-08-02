@@ -6,6 +6,18 @@ import { TodoEditor } from './TodoEditor'
 import { TodoItem } from './TodoItem'
 import { TODO_UI_EVENT } from '../todoUiProtocol'
 
+/** @typedef {import('@web-interview/todos/types').TodoList} TodoList */
+/** @typedef {{message: string | null, tone: 'error' | 'secondary', showRetry: boolean}} SaveChrome */
+/** @typedef {import('../todoUiProtocol').TodoUiEvent} TodoUiEvent */
+
+/**
+ * @param {{
+ *   todoList: TodoList,
+ *   composerText?: string,
+ *   saveChrome?: SaveChrome,
+ *   send: (event: TodoUiEvent) => void
+ * }} props
+ */
 export const TodoListForm = ({
   todoList,
   composerText = '',

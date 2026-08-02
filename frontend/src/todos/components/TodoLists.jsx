@@ -31,11 +31,19 @@ import { useTodoLists } from '../useTodoLists'
 import { createTodo, isDematerializableTodo } from '../todoModel'
 import { TODO_UI_EVENT } from '../todoUiProtocol'
 
+/** @typedef {import('@web-interview/todos/selectors').TodoListSummary} TodoListSummary */
+/** @typedef {import('@web-interview/todos/types').TodoList} TodoList */
+/** @typedef {import('@web-interview/todos/types').Transaction} Transaction */
+/** @typedef {import('../todoUiProtocol').TodoUiEvent} TodoUiEvent */
+/** @typedef {{text: string, linkedId: string | null}} ComposerState */
+
+/** @param {Pick<TodoListSummary, 'completedCount' | 'totalCount'>} summary */
 const listRecap = ({ completedCount, totalCount }) =>
   totalCount === 0
     ? 'No todos yet'
     : `${completedCount} of ${totalCount} completed`
 
+/** @param {{todoList: TodoList, selected: boolean, onSelect: () => void}} props */
 const TodoListButton = ({ todoList, selected, onSelect }) => {
   const summary = selectListSummary(todoList)
 
@@ -61,13 +69,28 @@ const TodoListButton = ({ todoList, selected, onSelect }) => {
   )
 }
 
+/**
+ * @param {Record<string, ComposerState>} composers
+ * @param {string} listId
+ * @returns {ComposerState}
+ */
 const composerFor = (composers, listId) =>
   composers[listId] ?? { text: '', linkedId: null }
 
+/** @param {never} value */
+const assertNever = (value) => {
+  throw new Error(`Unknown todo-list UI event: ${JSON.stringify(value)}`)
+}
+
+/** @param {{style?: React.CSSProperties}} props */
 export const TodoLists = ({ style }) => {
   const { actor, clientId, snapshot } = useTodoLists()
-  const [activeListId, setActiveListId] = useState(null)
-  const [composers, setComposers] = useState({})
+  const [activeListId, setActiveListId] = useState(
+    /** @type {string | null} */ (null)
+  )
+  const [composers, setComposers] = useState(
+    /** @type {Record<string, ComposerState>} */ ({})
+  )
   const todoLists = useMemo(
     () => Object.values(snapshot.readModel),
     [snapshot.readModel]
@@ -78,12 +101,18 @@ export const TodoLists = ({ style }) => {
     if (activeListId && !snapshot.readModel[activeListId]) setActiveListId(null)
   }, [activeListId, snapshot.readModel])
 
+  /** @param {Transaction | null} transaction */
   const transact = (transaction) => {
     if (transaction) actor.send({ type: ACTOR_EVENT.TRANSACT, transaction })
   }
 
+  /**
+   * @param {TodoList} todoList
+   * @param {TodoUiEvent} event
+   */
   const sendToList = (todoList, event) => {
     const composer = composerFor(composers, todoList.id)
+    /** @param {ComposerState} next */
     const setComposer = (next) =>
       setComposers((current) => ({ ...current, [todoList.id]: next }))
 
@@ -177,7 +206,7 @@ export const TodoLists = ({ style }) => {
         actor.send({ type: ACTOR_EVENT.SYNC })
         return
       default:
-        throw new Error(`Unknown todo-list UI event: ${event.type}`)
+        return assertNever(event)
     }
   }
 

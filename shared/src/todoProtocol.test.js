@@ -16,6 +16,7 @@ import {
   createTransaction,
 } from './transactions.js'
 
+/** @param {number} index */
 const transactionAt = (index) =>
   createTransaction({
     basis: 0,

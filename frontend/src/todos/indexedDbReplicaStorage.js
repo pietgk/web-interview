@@ -1,5 +1,8 @@
 import { fetchTodoReadModel, syncTodoLists } from '../api/todoLists'
+import { todoListsSchema } from '@web-interview/todos/contract'
+import { transactionSchema } from '@web-interview/todos/database'
 import { SYNC_TRANSACTION_LIMIT } from '@web-interview/todos/protocol'
+import { z } from 'zod'
 import {
   LEGACY_REPLICA_DATABASE_NAMES,
   REPLICA_DATABASE_NAME,
@@ -8,6 +11,18 @@ import {
   REPLICA_STORE_NAME,
 } from './persistenceConfig'
 
+/** @typedef {import('@web-interview/todos/types').TodoStorageLoadResult} Replica */
+/** @typedef {import('@web-interview/todos/types').TodoStorageSyncInput} TodoStorageSyncInput */
+/** @typedef {import('@web-interview/todos/types').Transaction} Transaction */
+
+const replicaSchema = z.object({
+  hasReplica: z.boolean(),
+  basis: z.number().int().nonnegative(),
+  authoritativeReadModel: todoListsSchema,
+  pendingTransactions: z.array(transactionSchema),
+}).strict()
+
+/** @returns {Replica} */
 const emptyReplica = () => ({
   hasReplica: false,
   basis: 0,
@@ -29,6 +44,22 @@ const emptyReplica = () => ({
  * }} [api]
  */
 
+/**
+ * @param {unknown} value
+ * @returns {Replica | null}
+ */
+const parseReplica = (value) => {
+  const parsed = replicaSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
+/**
+ * @param {IDBFactory} indexedDb
+ * @param {string} databaseName
+ * @param {number} databaseVersion
+ * @param {string} storeName
+ * @returns {Promise<{database: IDBDatabase, created: boolean}>}
+ */
 const openDatabase = (indexedDb, databaseName, databaseVersion, storeName) =>
   new Promise((resolve, reject) => {
     const request = indexedDb.open(databaseName, databaseVersion)
@@ -43,6 +74,12 @@ const openDatabase = (indexedDb, databaseName, databaseVersion, storeName) =>
     request.onerror = () => reject(request.error)
   })
 
+/**
+ * @param {IDBDatabase} database
+ * @param {string} storeName
+ * @param {string} stateKey
+ * @returns {Promise<unknown | null>}
+ */
 const readState = (database, storeName, stateKey) =>
   new Promise((resolve, reject) => {
     const request = database
@@ -53,7 +90,13 @@ const readState = (database, storeName, stateKey) =>
     request.onerror = () => reject(request.error)
   })
 
-/** @returns {Promise<void>} */
+/**
+ * @param {IDBDatabase} database
+ * @param {string} storeName
+ * @param {string} stateKey
+ * @param {Replica} state
+ * @returns {Promise<void>}
+ */
 const writeState = (database, storeName, stateKey, state) =>
   new Promise((resolve, reject) => {
     const transaction = database.transaction(storeName, 'readwrite')
@@ -63,7 +106,11 @@ const writeState = (database, storeName, stateKey, state) =>
     transaction.onabort = () => reject(transaction.error)
   })
 
-/** @returns {Promise<void>} */
+/**
+ * @param {IDBFactory} indexedDb
+ * @param {string} databaseName
+ * @returns {Promise<void>}
+ */
 const deleteDatabase = (indexedDb, databaseName) =>
   new Promise((resolve, reject) => {
     const request = indexedDb.deleteDatabase(databaseName)
@@ -96,9 +143,13 @@ export class IndexedDbReplicaStorage {
     this.stateKey = stateKey
     this.storeName = storeName
     this.api = api
+    /** @type {IDBDatabase | null} */
     this.database = null
+    /** @type {Replica} */
     this.replica = emptyReplica()
+    /** @type {Promise<void>} */
     this.localWrites = Promise.resolve()
+    /** @type {AbortController | null} */
     this.controller = null
   }
 
@@ -111,7 +162,9 @@ export class IndexedDbReplicaStorage {
         this.storeName
       )
       this.database = opened.database
-      let state = await readState(this.database, this.storeName, this.stateKey)
+      let state = parseReplica(
+        await readState(this.database, this.storeName, this.stateKey)
+      )
       if (!state) state = await this.#readLegacyState()
       if (state) {
         this.replica = state
@@ -123,7 +176,9 @@ export class IndexedDbReplicaStorage {
     return structuredClone(this.replica)
   }
 
+  /** @returns {Promise<Replica | null>} */
   async #readLegacyState() {
+    if (!this.indexedDb) return null
     for (const databaseName of this.legacyDatabaseNames) {
       if (databaseName === this.databaseName) continue
       const opened = await openDatabase(
@@ -132,7 +187,9 @@ export class IndexedDbReplicaStorage {
         this.databaseVersion,
         this.storeName
       )
-      const state = await readState(opened.database, this.storeName, this.stateKey)
+      const state = parseReplica(
+        await readState(opened.database, this.storeName, this.stateKey)
+      )
       opened.database.close()
       if (state) return state
       if (opened.created) await deleteDatabase(this.indexedDb, databaseName)
@@ -140,6 +197,7 @@ export class IndexedDbReplicaStorage {
     return null
   }
 
+  /** @param {(replica: Replica) => Replica} update */
   #queueLocalWrite(update) {
     const operation = this.localWrites.then(async () => {
       this.replica = update(this.replica)
@@ -156,6 +214,7 @@ export class IndexedDbReplicaStorage {
     return operation
   }
 
+  /** @param {Transaction} transaction */
   async append(transaction) {
     await this.#queueLocalWrite((replica) => ({
       ...replica,
@@ -168,6 +227,7 @@ export class IndexedDbReplicaStorage {
     return { transaction, authoritative: false }
   }
 
+  /** @param {TodoStorageSyncInput} input */
   async sync({ basis, pendingTransactions }) {
     await this.localWrites
     this.controller?.abort()
@@ -212,5 +272,6 @@ export class IndexedDbReplicaStorage {
   }
 }
 
+/** @param {IndexedDbReplicaStorageOptions} [options] */
 export const createIndexedDbReplicaStorage = (options) =>
   new IndexedDbReplicaStorage(options)

@@ -65,6 +65,14 @@ const emptyTodoLists = () => ({})
 const errorMessage = (error, fallback) =>
   error instanceof Error && error.message ? error.message : fallback
 
+/** @param {unknown} error */
+const errorCode = (error) => {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return null
+  }
+  return typeof error.code === 'string' ? error.code : null
+}
+
 /**
  * @param {Transaction} transaction
  * @param {string} listId
@@ -429,7 +437,7 @@ export class TodoListActor {
     } catch (error) {
       this.syncRunning = false
       this.retryAttempt += 1
-      const offline = error?.code === ERROR_CODE.NETWORK || !this.online
+      const offline = errorCode(error) === ERROR_CODE.NETWORK || !this.online
       this.#publish({
         syncStatus: offline ? SYNC_STATUS.OFFLINE : SYNC_STATUS.FAILED,
         error: errorMessage(error, 'Failed to synchronize todo lists'),

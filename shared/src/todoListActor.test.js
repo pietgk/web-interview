@@ -4,6 +4,9 @@ import { createTodoListActor } from './todoListActor.js'
 import { ERROR_CODE, SYNC_STATUS } from './todoProtocol.js'
 import { patchTodoTransaction } from './transactions.js'
 
+/** @typedef {import('./types.js').TodoStorage} TodoStorage */
+/** @typedef {import('./types.js').Transaction} Transaction */
+
 const seedLists = {
   list: {
     id: 'list',
@@ -14,7 +17,9 @@ const seedLists = {
   },
 }
 
+/** @returns {TodoStorage & {appended: Transaction[]}} */
 const memoryStorage = ({ authoritative = false } = {}) => {
+  /** @type {Transaction[]} */
   const appended = []
   return {
     authoritative,
@@ -27,6 +32,7 @@ const memoryStorage = ({ authoritative = false } = {}) => {
         pendingTransactions: [],
       }
     },
+    /** @param {Transaction} transaction */
     async append(transaction) {
       const persisted = authoritative
         ? {
@@ -88,9 +94,14 @@ describe('shared todo-list actor', () => {
   })
 
   it('uses the injected retry-delay policy after synchronization fails', async () => {
+    /** @type {Array<{callback: () => void, delay: number}>} */
     const scheduled = []
     const clock = {
       clearTimeout: () => {},
+      /**
+       * @param {() => void} callback
+       * @param {number} delay
+       */
       setTimeout: (callback, delay) => {
         scheduled.push({ callback, delay })
         return scheduled.length
@@ -111,12 +122,15 @@ describe('shared todo-list actor', () => {
 
     await actor.start()
     const initialSync = scheduled.shift()
+    assert.ok(initialSync)
     assert.equal(initialSync.delay, 0)
     initialSync.callback()
     await new Promise((resolve) => setImmediate(resolve))
 
     assert.equal(actor.getSnapshot().syncStatus, SYNC_STATUS.OFFLINE)
-    assert.equal(scheduled.at(-1).delay, 123)
+    const retry = scheduled.at(-1)
+    assert.ok(retry)
+    assert.equal(retry.delay, 123)
     await actor.stop()
   })
 })

@@ -13,7 +13,7 @@ import { TodoRow } from './TodoRow'
  * }} props
  */
 export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
-  const inputRef = useRef(null)
+  const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
   const submit = () => {
     onSubmit?.()
