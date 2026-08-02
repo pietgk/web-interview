@@ -21,18 +21,14 @@ Persist the todo lists on the server. Persisting in a database is not required, 
 
 Completed **main task + all 4 additional tasks**, plus the follow-up correctness work from [`01-REVIEW.md`](./01-REVIEW.md):
 
-- Per-list draft ownership (no silent loss on list switch)
-- XState catalog + per-list actors for autosave + type-to-create ghost composer
-- Shared Zod runtime contract
+- Shared browser/server todo actor with immutable datom transactions
+- Crash-safe, append-only JSONL persistence across server restarts
+- Durable IndexedDB outbox for offline edits and reconnection
+- Shared Zod runtime contract and deterministic read-model projection
 - Completion-aware due-date status
 
-Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md).
-
-**Live statecharts (dev):** `npm start` in `frontend/` opens the Stately Inspector in a
-**new browser tab/window** (allow pop-ups for localhost if it does not appear). Check the
-console for the Inspector bootstrap message. Diagrams live in the Inspector — the ADR keeps
-a machine-derived state/event table instead of hand-drawn mermaid.
-Set `VITE_XSTATE_INSPECT=0` to disable.
+Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
+[`docs/adr/003-shared-datom-actor.md`](./docs/adr/003-shared-datom-actor.md).
 
 ### Running tests
 
@@ -62,7 +58,7 @@ NodeJS - if you don't already have it installed, check out [nvm](https://github.
 ## Getting started
 Fork the repository (see top-right button on GitHub) and clone the fork to your computer.
 
-Shared Zod contract (`shared/`) is pulled in via `file:` dependencies from backend and frontend — install those packages after a clean clone:
+The shared package is pulled in via `file:` dependencies from backend and frontend. Install those packages after a clean clone:
 
 ### To start the backend:
 
@@ -76,9 +72,7 @@ Shared Zod contract (`shared/`) is pulled in via `file:` dependencies from backe
  - Run `npm ci`
  - Run `npm start`
 
- A browser tab will automatically open and load the app. In development the Stately
- Inspector also opens in a **new tab/window** for the todo actor hierarchy — allow
- pop-ups if you do not see it (see ADR 002). Set `VITE_XSTATE_INSPECT=0` to disable.
+ A browser tab will automatically open and load the app.
 
 ### End-to-end tests
 

@@ -1,47 +1,69 @@
-import { useEffect } from 'react'
-import { useMachine } from '@xstate/react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import {
-  fetchTodoLists,
-  saveTodoList as persistTodoList,
-} from '../api/todoLists'
-import { getInspect } from './inspect'
-import {
-  createTodoListsMachine,
-  hasUnackedChanges,
-  selectCatalogView,
-} from './todoListsMachine'
+  createTodoListActor,
+  hasLocallyUndurableChanges,
+} from '@web-interview/todo-contract'
+import { createIndexedDbReplicaStorage } from './indexedDbReplicaStorage'
 
-const machine = createTodoListsMachine({
-  fetchTodoLists,
-  saveTodoList: persistTodoList,
-})
+const clientId = () => {
+  const key = 'web-interview-todo-client-id'
+  try {
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const generated =
+      globalThis.crypto?.randomUUID?.() ??
+      `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    localStorage.setItem(key, generated)
+    return generated
+  } catch {
+    return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  }
+}
 
-export const useTodoLists = () => {
-  const [snapshot, send, actorRef] = useMachine(machine, {
-    inspect: getInspect(),
-  })
+export const useTodoLists = ({ createStorage = createIndexedDbReplicaStorage } = {}) => {
+  const runtime = useRef(null)
+  if (!runtime.current) {
+    runtime.current = {
+      actor: createTodoListActor({ storage: createStorage() }),
+      clientId: clientId(),
+    }
+  }
+
+  const { actor } = runtime.current
+  const snapshot = useSyncExternalStore(
+    (notify) => {
+      const subscription = actor.subscribe(notify)
+      return () => subscription.unsubscribe()
+    },
+    actor.getSnapshot,
+    actor.getSnapshot
+  )
 
   useEffect(() => {
+    actor.start()
+
     const onBeforeUnload = (event) => {
-      if (!hasUnackedChanges(actorRef.getSnapshot())) return
+      if (!hasLocallyUndurableChanges(actor.getSnapshot())) return
       event.preventDefault()
       event.returnValue = ''
     }
-
-    const onPageHide = () => {
-      actorRef.send({ type: 'FLUSH_ALL' })
-    }
+    const onOnline = () => actor.send({ type: 'ONLINE' })
+    const onOffline = () => actor.send({ type: 'OFFLINE' })
 
     window.addEventListener('beforeunload', onBeforeUnload)
-    window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
     return () => {
       window.removeEventListener('beforeunload', onBeforeUnload)
-      window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+      actor.stop()
     }
-  }, [actorRef])
+  }, [actor])
 
   return {
-    ...selectCatalogView(snapshot),
-    send,
+    actor,
+    clientId: runtime.current.clientId,
+    snapshot,
   }
 }

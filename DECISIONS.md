@@ -1,121 +1,132 @@
 # Design decisions
 
-This document captures **why** we made key choices in the Sellpy web interview assignment.
-Tests encode the expected behaviour; this file explains the trade-offs behind the design.
+This document captures why the implementation makes its key choices. Tests encode the expected
+behavior; this file explains the trade-offs.
 
 ## How to verify
 
 ```bash
-# Unit + API integration (shared contract, backend, frontend)
 npm test
-
-# End-to-end (starts backend + frontend itself)
 npm run test:e2e
-
-# Lint + production build
 npm run lint
 npm run build --prefix frontend
 ```
 
-Or per package: `npm test` / `npm run lint` inside `shared/`, `backend/`, and `frontend/`.
-
-Playwright browsers (clean checkout): `npx playwright install chromium`
+Playwright browsers on a clean checkout: `npx playwright install chromium`.
 
 ## Scope completed
 
-- **Main:** Persist todo lists on the server (in-memory store)
-- **Autosave:** No Save button; debounced persist on change, flush on list switch / blur / page hide
+- **Main:** Persist todo lists across server restarts in an append-only JSONL journal
+- **Autosave:** No Save button; optimistic local transactions with debounced network sync
+- **Offline:** Durable IndexedDB outbox, reload recovery, and automatic reconnection
 - **Completed items:** Toggle per todo
-- **Completed lists:** Derived indicator when all items in a list are completed
-- **Due dates:** Per-item date with remaining / overdue labelling (completed items show `Completed`)
-- **Tests:** Shared contract, unit, API integration, and Playwright e2e including failure-path regressions
+- **Completed lists:** Derived indicator when every item is completed
+- **Due dates:** Remaining and overdue labels, with completed items shown as `Completed`
+- **Tests:** Shared core, API and journal integration, React components, and Playwright journeys
 
-## Persistence: in-memory store, not a database
+## Persistence: immutable transactions in a JSONL journal
 
-**Why:** The assignment explicitly allows a simple JS structure. An in-memory store keeps setup zero-friction for the interviewer (`npm start` in each package), keeps the demo focused on API design and frontend behaviour, and avoids drowning the PR in infra.
+One transaction record contains all datoms that become true or false together. The server
+serializes writes through one actor, appends one checksummed line, calls `datasync()`, and only
+then acknowledges the transaction. Startup replay deterministically rebuilds the read model
+without requiring an external database.
 
-**Trade-off:** Data resets on server restart. Acceptable for this assignment; a DB would be the next step if durability across restarts mattered.
+The journal is intentionally single-process and replay cost grows with history. Checkpoints or an
+external transaction store can be added later without changing the domain transaction format.
 
-## API: whole-list `PUT`, not fine-grained item endpoints
+## API: read-model and transaction synchronization
 
-**Why:** The existing UI already saved an entire list’s todos in one shot (`saveTodoList(id, { todos })`). One write path keeps autosave simple, avoids N endpoints for N actions, and matches a single source of truth for a list on the server.
+`GET /api/todo-lists/read-model` supplies the authoritative database value. `POST
+/api/todo-lists/sync` accepts idempotent transaction batches and returns the new basis, accepted
+ids, structured rejections, and authoritative read model. The client rebases any remaining local
+transactions over that response.
 
-**Trade-off:** Concurrent editors could overwrite each other. Fine for a single-user demo; `PATCH` per item (or ETags) would be a natural evolution. Same-tab overlapping saves for one list are serialized by that list actor’s `saving` invocation (see Autosave below).
+The original whole-list `PUT` remains as a compatibility endpoint. It diffs the submitted list
+against the actor read model and creates one datom transaction.
 
-## Runtime contract: shared Zod package
+## Shared runtime contract
 
-**Why:** Handwritten type checks accepted impossible dates and duplicate IDs. Zod makes the HTTP boundary executable and testable. `@web-interview/todo-contract` is consumed by both backend and frontend (CRA build verified without ejecting).
+The shared package contains strict Zod schemas for todos, datoms, transactions, read models, and
+sync responses. It also contains the atomic transactor, deterministic projector, replay and as-of
+helpers, transaction builders, selectors, and the shared actor implementation.
 
-**Shape enforced:** non-empty unique todo ids, boolean `completed`, `dueDate` null or real `YYYY-MM-DD`, strict objects, structured `{ error, code, issues }` validation errors.
+This implementation borrows the immutable-fact model. It does not contain Datomic code or depend
+on Datomic.
 
-## List “completed” is derived, never stored
+## One shared actor in the browser and server
 
-**Why:** Single source of truth. If both items and the list stored a completed flag, they could disagree. Deriving `every(todo => todo.completed)` (and requiring a non-empty list) makes the rule obvious and keeps the model small.
+Transaction validation, application, replay, and projection are domain behavior rather than
+browser behavior. One `TodoListActor` implementation prevents the browser and Node from
+developing different persistence semantics.
 
-**UI source of truth:** Visible list state (including the completed indicator) is derived from the current **draft**, not the last server acknowledgement. Acknowledgements are metadata for persistence, not a second render model.
+- One singleton actor runs in Node with `JsonlJournalStorage`
+- One actor runs in each browser app with `IndexedDbReplicaStorage`
+- React subscribes directly with `useSyncExternalStore`
+- Local persistence is serialized; remote synchronization is debounced and retryable
+- Transaction ids make uncertain HTTP retries idempotent
+- Server sequence is the authoritative order for concurrent cardinality-one writes
 
-## Todos are objects with stable ids
+Details: [`docs/adr/003-shared-datom-actor.md`](./docs/adr/003-shared-datom-actor.md).
 
-**Why:** Strings cannot carry `completed` or `dueDate`. Stable ids give React reliable keys (replacing index-as-key) and make future per-item APIs easier without rewriting the client model.
+## Browser read model and offline behavior
 
-Shape:
+The visible model is the latest authoritative server model plus locally pending transactions.
+Each local transaction is written to IndexedDB before it depends on network delivery. On sync,
+the browser removes accepted transactions and replays any remaining transactions over the server
+response. This makes page-exit network requests an optimization rather than a correctness
+requirement.
+
+The actor exposes local persistence, remote synchronization, pending work, and errors separately,
+so the UI can say `Saving`, `Saved offline`, or `All changes saved` accurately.
+
+## List completion is derived
+
+List completion is never stored. A non-empty list is completed when every visible todo is
+completed. Both the navigation summary and active editor use the optimistic actor read model, so
+they update before server acknowledgement.
+
+## Todos use stable entity ids
+
+The UI read model remains:
 
 ```js
 { id, text, completed, dueDate }
 ```
 
-`dueDate` is `YYYY-MM-DD` or `null`.
+Persistent attributes are stored as cardinality-one facts. Todo deletion is a `todo/deleted =
+true` assertion, which preserves history and permits a future compensating undo transaction.
 
-## Autosave: an XState actor per independent lifecycle
+## Ghost composer
 
-**Why:** Debounce must control network frequency, not the lifetime of user data. The
-protocols around flush-on-switch, in-flight coalesce, retry, and type-to-create are
-easier to prove and present as explicit states/events than as an ad-hoc queue.
+The focus and linked-id state are ephemeral React state. The first non-whitespace character
+creates a persistent todo transaction. Enter or the trailing Add button commits the row visually.
+Clearing a linked todo creates a deletion transaction unless another persistent attribute keeps
+it materialized.
 
-**Design:**
+## Due-date formatting
 
-- `todoListsMachine` loads the catalog, owns selection, and spawns one `todoListMachine` per list
-- Each list actor owns its draft and follows `clean` -> `dirty` -> `saving` -> `clean` | `error`
-- Debounce is a delayed transition in `dirty`; the `saving` invocation serializes that list
-- Navigation rows and the active editor subscribe directly to their actor refs with `useSelector`
-- Flush on list switch, blur, and `pagehide`; warn on `beforeunload` while unacknowledged
-- Failed saves stay dirty/error and expose an accessible **Retry** action
-- Details + state/event table: [`docs/adr/002-xstate-actors.md`](./docs/adr/002-xstate-actors.md)
-
-## Ghost composer (type to create)
-
-**Why:** An Add button is clumsy for a todo list. Users expect to start typing on an
-empty top row.
-
-**Design:** Local composer until the first non-whitespace character, then a linked draft
-todo for the rest of the typing session. Enter / trailing Add commits the row into the
-list. Clearing the linked composer dematerializes unless `completed` or `dueDate` is set.
-Existing rows keep empty text on clear so clear-then-type still works. See ADR 002.
-
-## Due-date formatting uses structured status + injectable “now”
-
-**Why:** Remaining/overdue labels must be deterministic in unit tests. `getDueStatus` returns `{ kind, label, days }` so colour is based on `kind`, not string matching. Completed todos are labelled `Completed`, never overdue.
+`getDueStatus` returns structured `{ kind, label, days }` data and accepts an injectable current
+date. Tests remain deterministic, colors depend on `kind` rather than string matching, and
+completed todos are never described as overdue.
 
 ## Test pyramid
 
 | Layer | Role |
-|-------|------|
-| Shared contract (`shared/`) | Zod schema rules once |
-| Unit (model, XState actors, components) | Fast spec for pure rules and failure paths |
-| Integration (supertest + Express app) | HTTP contract and persistence |
-| E2E (Playwright) | A few complete user journeys across refresh and list switching |
+|---|---|
+| Shared core | Schemas, atomic transactor, replay, actor, and selectors |
+| Unit and component | Domain rules, optimistic rendering, batching, retry, and accessibility |
+| Node integration | Journal recovery, restart durability, API contract, and idempotency |
+| Playwright | Online and offline journeys across real browser reloads |
 
-**Backend runner:** Node’s built-in `node:test` - no extra test-runner dependency on the server.
+Failure paths such as torn writes, duplicate delivery, offline reload, invalid transactions, and
+completed due dates are first-class tests.
 
-**Story for the interview:** Tests are the living spec. Red → green → refactor. Failure-path regressions (list switch, ordering, retry, validation, completed-due) are first-class.
+## Knowingly deferred
 
-## Knowingly out of scope / deferred
-
-- Authentication / multi-user / server ETags
+- Authentication and authorization
 - Creating or deleting whole lists
-- Real database
-- Multi-tab sync / conflict resolution
-- Selected active list is not persisted across refresh (session UX gap)
-- Global Redux-style stores
-- React 19 / Suspense modernization (separate change; does not fix mutation ordering)
-- Immutable.js (plain objects + functional updates are enough here)
+- Horizontal multi-process writers for one JSONL journal
+- Multi-tab coordination beyond server-sequence convergence
+- Selected-list persistence across refresh
+- Journal checkpoints and compaction
+- Undo and redo UI; transaction history and as-of replay primitives already exist

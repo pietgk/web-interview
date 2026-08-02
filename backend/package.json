@@ -2,7 +2,7 @@
   "type": "module",
   "scripts": {
     "lint": "eslint src",
-    "start": "node --watch src/index.js",
+    "start": "node src/index.js",
     "test": "node --test",
     "test:watch": "node --test --watch"
   },

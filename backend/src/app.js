@@ -1,17 +1,17 @@
 import express from 'express'
 import cors from 'cors'
 import { constants as HTTP } from 'node:http2'
-import { createStore } from './store.js'
 import { createTodoListsRouter } from './routes/todoLists.js'
 
-export const createApp = (store = createStore()) => {
+export const createApp = (todoActor) => {
+  if (!todoActor) throw new Error('createApp requires the server todo-list actor')
   const app = express()
 
   app.use(cors())
   app.use(express.json())
 
   app.get('/', (_req, res) => res.send('Hi'))
-  app.use('/api/todo-lists', createTodoListsRouter(store))
+  app.use('/api/todo-lists', createTodoListsRouter(todoActor))
 
   // Four-argument signature is required for Express error middleware.
   // eslint-disable-next-line no-unused-vars

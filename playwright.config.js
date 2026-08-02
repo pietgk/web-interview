@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Playwright sets FORCE_COLOR=1 for its web servers and workers. Remove the
+// conflicting inherited flag before those child processes are created.
+delete process.env.NO_COLOR
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,

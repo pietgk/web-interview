@@ -55,6 +55,28 @@ export const todoListSchema = z
 
 export const todoListsSchema = z.record(z.string(), todoListSchema)
 
+export const todoReadModelResponseSchema = z
+  .object({
+    basis: z.number().int().nonnegative(),
+    todoLists: todoListsSchema,
+  })
+  .strict()
+
+export const todoSyncResponseSchema = todoReadModelResponseSchema.extend({
+  acceptedTransactionIds: z.array(z.string().min(1)),
+  rejectedTransactions: z.array(
+    z
+      .object({
+        id: z.string().min(1),
+        listId: z.string().min(1).optional(),
+        error: z.string(),
+        code: z.string(),
+        issues: z.array(z.unknown()).optional(),
+      })
+      .strict()
+  ),
+})
+
 export const updateTodosRequestSchema = z
   .object({
     todos: todosSchema,
@@ -96,3 +118,62 @@ export const parseTodoList = (data) => {
   }
   return { ok: true, data: result.data }
 }
+
+export const parseTodoReadModelResponse = (data) => {
+  const result = todoReadModelResponseSchema.safeParse(data)
+  if (!result.success) {
+    return {
+      ok: false,
+      body: validationErrorBody(result.error, 'Invalid todo read-model response'),
+    }
+  }
+  return { ok: true, data: result.data }
+}
+
+export const parseTodoSyncResponse = (data) => {
+  const result = todoSyncResponseSchema.safeParse(data)
+  if (!result.success) {
+    return {
+      ok: false,
+      body: validationErrorBody(result.error, 'Invalid todo sync response'),
+    }
+  }
+  return { ok: true, data: result.data }
+}
+
+export {
+  ATTRIBUTE,
+  applyTransaction,
+  createEmptyDatabase,
+  databaseFromReadModel,
+  datomSchema,
+  projectTodoLists,
+  readModelAsOf,
+  replayTransactions,
+  syncTodoListsRequestSchema,
+  transactionSchema,
+} from './src/todoDatabase.js'
+
+export {
+  createTodoTransaction,
+  createTransaction,
+  deleteTodoTransaction,
+  newTodoId,
+  patchTodoTransaction,
+  replaceTodoListTransaction,
+  seedTransactionFromTodoLists,
+} from './src/transactions.js'
+
+export {
+  createTodoListActor,
+  SYNC_DEBOUNCE_MS,
+  TodoListActor,
+} from './src/todoListActor.js'
+
+export {
+  hasLocallyUndurableChanges,
+  isListCompleted,
+  selectListSaveChrome,
+  selectListSummary,
+  selectTodoLists,
+} from './src/selectors.js'

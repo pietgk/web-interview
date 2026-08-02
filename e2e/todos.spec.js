@@ -13,14 +13,16 @@ async function resetFirstList(request) {
       todos: [firstListTodo],
     },
   })
-  expect(response.ok()).toBeTruthy()
+  if (!response.ok()) {
+    throw new Error(`Failed to reset first list: ${response.status()} ${await response.text()}`)
+  }
 }
 
 const waitForAutosave = (page) =>
   page.waitForResponse(
     (response) =>
-      response.request().method() === 'PUT' &&
-      response.url().includes('/api/todo-lists/') &&
+      response.request().method() === 'POST' &&
+      response.url().endsWith('/api/todo-lists/sync') &&
       response.ok()
   )
 
@@ -141,4 +143,33 @@ test('commits composer text with Enter', async ({ page }) => {
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Enter to commit')
   await expect(composer).toHaveValue('')
   await expect(page.getByText('All changes saved')).toBeVisible()
+})
+
+test('keeps a durable outbox across reload and syncs after reconnecting', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('First List').click()
+  await page.route('http://localhost:3001/**', (route) => route.abort('internetdisconnected'))
+
+  await page.getByLabel('What to do?').fill('Written while offline')
+  await expect(page.getByText('Saved offline')).toBeVisible()
+
+  const reloadDialogs = []
+  page.on('dialog', async (dialog) => {
+    reloadDialogs.push(dialog.type())
+    await dialog.accept()
+  })
+  await page.reload()
+  expect(reloadDialogs).toEqual([])
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('What to do?')).toHaveValue('Written while offline')
+
+  await page.unroute('http://localhost:3001/**')
+  const synced = waitForAutosave(page)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await synced
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  await page.reload()
+  await page.getByText('First List').click()
+  await expect(page.getByLabel('What to do?')).toHaveValue('Written while offline')
 })
