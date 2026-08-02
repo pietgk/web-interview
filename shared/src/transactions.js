@@ -6,15 +6,13 @@ import {
   TRANSACTION_VERSION,
 } from './todoProtocol.js'
 
-/**
- * @typedef {object} Todo
- * @property {string} id
- * @property {string} text
- * @property {boolean} completed
- * @property {string | null} dueDate
- */
-
-/** @typedef {[string, string, string | number | boolean, boolean?]} DatomInput */
+/** @typedef {import('./types.js').Attribute} Attribute */
+/** @typedef {import('./types.js').FactValue} FactValue */
+/** @typedef {import('./types.js').Todo} Todo */
+/** @typedef {import('./types.js').TodoList} TodoList */
+/** @typedef {import('./types.js').TodoLists} TodoLists */
+/** @typedef {import('./types.js').Transaction} Transaction */
+/** @typedef {[entity: string, attribute: Attribute, value: FactValue, added?: boolean]} DatomInput */
 
 /**
  * @typedef {object} TransactionOptions
@@ -36,10 +34,39 @@ import {
  * @property {number} [order]
  */
 
+/**
+ * @typedef {object} PatchTodoTransactionOptions
+ * @property {number} basis
+ * @property {string} clientId
+ * @property {string} listId
+ * @property {Todo} todo
+ * @property {Partial<Pick<Todo, 'text' | 'completed' | 'dueDate'>>} patch
+ */
+
+/**
+ * @typedef {object} SeedTransactionOptions
+ * @property {TodoLists} todoLists
+ * @property {string} [clientId]
+ * @property {string} [id]
+ * @property {string} [occurredAt]
+ */
+
+/**
+ * @typedef {object} ReplaceTodoListTransactionOptions
+ * @property {number} basis
+ * @property {string} clientId
+ * @property {TodoList} todoList
+ * @property {Todo[]} todos
+ */
+
+/** @returns {string} */
 const fallbackId = () =>
   `tx-${Date.now()}-${Math.random().toString(16).slice(2)}`
 
-/** @returns {string} */
+/**
+ * @param {string} prefix
+ * @returns {string}
+ */
 const randomId = (prefix) => {
   const cryptoApi = typeof crypto !== 'undefined' ? crypto : undefined
   return `${prefix}-${cryptoApi?.randomUUID?.() ?? fallbackId()}`
@@ -47,7 +74,10 @@ const randomId = (prefix) => {
 
 export const newTodoId = () => randomId('todo')
 
-/** @param {TransactionOptions} options */
+/**
+ * @param {TransactionOptions} options
+ * @returns {Transaction}
+ */
 export const createTransaction = ({
   basis = 0,
   clientId,
@@ -75,7 +105,10 @@ export const createTransaction = ({
   ]),
 })
 
-/** @param {TodoTransactionOptions} options */
+/**
+ * @param {TodoTransactionOptions} options
+ * @returns {Transaction}
+ */
 export const createTodoTransaction = ({
   basis,
   clientId,
@@ -100,13 +133,20 @@ export const createTodoTransaction = ({
     ]),
   })
 
-/** @param {TodoTransactionOptions & {now?: () => number}} options */
+/**
+ * @param {TodoTransactionOptions & {now?: () => number}} options
+ * @returns {Transaction}
+ */
 export const createTodoAtTopTransaction = ({ now = Date.now, ...input }) =>
   createTodoTransaction({
     ...input,
     order: -now(),
   })
 
+/**
+ * @param {PatchTodoTransactionOptions} options
+ * @returns {Transaction | null}
+ */
 export const patchTodoTransaction = ({
   basis,
   clientId,
@@ -116,13 +156,21 @@ export const patchTodoTransaction = ({
 }) => {
   /** @type {DatomInput[]} */
   const datoms = []
-  if ('text' in patch && patch.text !== todo.text) {
+  if ('text' in patch && patch.text !== undefined && patch.text !== todo.text) {
     datoms.push([todo.id, ATTRIBUTE.TODO_TEXT, patch.text])
   }
-  if ('completed' in patch && patch.completed !== todo.completed) {
+  if (
+    'completed' in patch &&
+    patch.completed !== undefined &&
+    patch.completed !== todo.completed
+  ) {
     datoms.push([todo.id, ATTRIBUTE.TODO_COMPLETED, patch.completed])
   }
-  if ('dueDate' in patch && patch.dueDate !== todo.dueDate) {
+  if (
+    'dueDate' in patch &&
+    patch.dueDate !== undefined &&
+    patch.dueDate !== todo.dueDate
+  ) {
     if (patch.dueDate == null) {
       if (todo.dueDate != null) {
         datoms.push([todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate, false])
@@ -142,6 +190,10 @@ export const patchTodoTransaction = ({
   })
 }
 
+/**
+ * @param {Omit<TodoTransactionOptions, 'order'>} options
+ * @returns {Transaction}
+ */
 export const deleteTodoTransaction = ({ basis, clientId, listId, todo }) =>
   createTransaction({
     basis,
@@ -151,6 +203,10 @@ export const deleteTodoTransaction = ({ basis, clientId, listId, todo }) =>
     datoms: [[todo.id, ATTRIBUTE.TODO_DELETED, true]],
   })
 
+/**
+ * @param {SeedTransactionOptions} options
+ * @returns {Transaction}
+ */
 export const seedTransactionFromTodoLists = ({
   todoLists,
   clientId = SEED_CLIENT_ID,
@@ -189,6 +245,10 @@ export const seedTransactionFromTodoLists = ({
   })
 }
 
+/**
+ * @param {ReplaceTodoListTransactionOptions} options
+ * @returns {Transaction | null}
+ */
 export const replaceTodoListTransaction = ({
   basis,
   clientId,

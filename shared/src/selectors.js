@@ -1,11 +1,27 @@
 import { transactionAffectsList } from './todoListActor.js'
 import { PERSISTENCE_STATUS, SYNC_STATUS } from './todoProtocol.js'
 
+/** @typedef {import('./types.js').Todo} Todo */
+/** @typedef {import('./types.js').TodoList} TodoList */
+/** @typedef {import('./types.js').TodoLists} TodoLists */
+/** @typedef {import('./types.js').TodoListSnapshot} TodoListSnapshot */
+/** @typedef {{id: string, title: string, completed: boolean, completedCount: number, totalCount: number}} TodoListSummary */
+/** @typedef {{message: string, tone: 'error' | 'secondary', showRetry: boolean, saveError: string | null}} TodoListSaveChrome */
+
+/** @param {Todo[]} [todos] */
 export const isListCompleted = (todos = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
 
+/**
+ * @param {TodoListSnapshot} snapshot
+ * @returns {TodoLists}
+ */
 export const selectTodoLists = (snapshot) => snapshot.readModel
 
+/**
+ * @param {TodoList} todoList
+ * @returns {TodoListSummary}
+ */
 export const selectListSummary = (todoList) => ({
   id: todoList.id,
   title: todoList.title,
@@ -14,10 +30,16 @@ export const selectListSummary = (todoList) => ({
   totalCount: todoList.todos.length,
 })
 
+/** @param {Pick<TodoListSnapshot, 'persistenceStatus'>} snapshot */
 export const hasLocallyUndurableChanges = (snapshot) =>
   snapshot.persistenceStatus === PERSISTENCE_STATUS.WRITING ||
   snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED
 
+/**
+ * @param {TodoListSnapshot} snapshot
+ * @param {string} listId
+ * @returns {TodoListSaveChrome}
+ */
 export const selectListSaveChrome = (snapshot, listId) => {
   const hasPending = snapshot.pendingTransactions.some((transaction) =>
     transactionAffectsList(transaction, listId)

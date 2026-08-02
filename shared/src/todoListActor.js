@@ -11,9 +11,15 @@ import {
   SYNC_STATUS,
 } from './todoProtocol.js'
 
-/** @typedef {typeof ACTOR_STATUS[keyof typeof ACTOR_STATUS]} ActorStatus */
-/** @typedef {typeof PERSISTENCE_STATUS[keyof typeof PERSISTENCE_STATUS]} PersistenceStatus */
-/** @typedef {typeof SYNC_STATUS[keyof typeof SYNC_STATUS]} SyncStatus */
+/** @typedef {import('./types.js').ActorStatus} ActorStatus */
+/** @typedef {import('./types.js').PersistenceStatus} PersistenceStatus */
+/** @typedef {import('./types.js').RejectedTransaction} RejectedTransaction */
+/** @typedef {import('./types.js').SyncStatus} SyncStatus */
+/** @typedef {import('./types.js').TodoDatabase} TodoDatabase */
+/** @typedef {import('./types.js').TodoListSnapshot} TodoListSnapshot */
+/** @typedef {import('./types.js').TodoStorage} TodoStorage */
+/** @typedef {import('./types.js').Transaction} Transaction */
+/** @typedef {import('./types.js').TransactionResult} TransactionResult */
 /**
  * @typedef {object} SnapshotOverrides
  * @property {ActorStatus} [status]
@@ -21,12 +27,25 @@ import {
  * @property {SyncStatus} [syncStatus]
  * @property {string | null} [error]
  */
+/** @typedef {{setTimeout: (callback: () => void, delay: number) => unknown, clearTimeout: (handle: unknown) => void}} ActorClock */
+/** @typedef {(snapshot: TodoListSnapshot) => void} SnapshotListener */
+/** @typedef {{resolve: (value: TransactionResult) => void, reject: (reason?: unknown) => void}} TransactionWaiter */
+/** @typedef {{transaction: Transaction}} VolatileTransaction */
+/** @typedef {{type: 'TRANSACT', transaction: Transaction} | {type: 'SYNC' | 'RETRY_PERSISTENCE' | 'RETRY_SYNC' | 'ONLINE' | 'OFFLINE' | 'RELOAD'}} TodoListActorEvent */
+/**
+ * @typedef {object} TodoListActorOptions
+ * @property {TodoStorage} storage
+ * @property {ActorClock} [clock]
+ * @property {(attempt: number) => number} [retryDelay]
+ * @property {number} [syncDebounceMs]
+ */
 
 export const SYNC_DEBOUNCE_MS = 400
 const SYNC_RETRY_BASE_MS = 1_000
 const SYNC_RETRY_MAX_MS = 30_000
 const SYNC_RETRY_JITTER_RATIO = 0.2
 
+/** @param {number} attempt */
 export const defaultSyncRetryDelay = (attempt) => {
   const exponentialDelay = Math.min(
     SYNC_RETRY_MAX_MS,
@@ -36,18 +55,28 @@ export const defaultSyncRetryDelay = (attempt) => {
   return Math.round(exponentialDelay * jitter)
 }
 
+/** @returns {import('./types.js').TodoLists} */
 const emptyTodoLists = () => ({})
 
+/**
+ * @param {unknown} error
+ * @param {string} fallback
+ */
 const errorMessage = (error, fallback) =>
   error instanceof Error && error.message ? error.message : fallback
 
+/**
+ * @param {Transaction} transaction
+ * @param {string} listId
+ */
 const transactionTouchesList = (transaction, listId) =>
   transaction.origin.listId === listId
 
 export class TodoListActor {
+  /** @param {TodoListActorOptions} options */
   constructor({
     storage,
-    clock = globalThis,
+    clock = /** @type {ActorClock} */ (globalThis),
     retryDelay = defaultSyncRetryDelay,
     syncDebounceMs = SYNC_DEBOUNCE_MS,
   }) {
@@ -56,27 +85,41 @@ export class TodoListActor {
     this.clock = clock
     this.retryDelay = retryDelay
     this.syncDebounceMs = syncDebounceMs
+    /** @type {Set<SnapshotListener>} */
     this.listeners = new Set()
+    /** @type {Map<string, TransactionWaiter[]>} */
     this.waiters = new Map()
+    /** @type {VolatileTransaction[]} */
     this.volatile = []
+    /** @type {Transaction[]} */
     this.pending = []
+    /** @type {RejectedTransaction[]} */
     this.rejected = []
+    /** @type {Set<string>} */
     this.knownTransactionIds = new Set()
+    /** @type {TodoDatabase} */
     this.authoritativeDatabase = databaseFromReadModel(emptyTodoLists())
+    /** @type {TodoDatabase} */
     this.optimisticDatabase = this.authoritativeDatabase
     this.writeRunning = false
     this.syncRunning = false
+    /** @type {unknown | null} */
     this.syncTimer = null
     this.retryAttempt = 0
     this.flushRequested = false
     this.online = true
     this.started = false
     this.stopped = false
+    /** @type {Promise<TodoListSnapshot> | null} */
     this.startPromise = null
+    /** @type {TodoListSnapshot} */
     this.snapshot = this.#createSnapshot({ status: ACTOR_STATUS.IDLE })
   }
 
-  /** @param {SnapshotOverrides} overrides */
+  /**
+   * @param {SnapshotOverrides} overrides
+   * @returns {TodoListSnapshot}
+   */
   #createSnapshot(overrides = {}) {
     const readModel = projectTodoLists(this.optimisticDatabase)
     const authoritativeReadModel = projectTodoLists(this.authoritativeDatabase)
@@ -113,11 +156,17 @@ export class TodoListActor {
 
   getSnapshot = () => this.snapshot
 
+  /** @param {SnapshotListener} listener */
   subscribe = (listener) => {
     this.listeners.add(listener)
-    return { unsubscribe: () => this.listeners.delete(listener) }
+    return {
+      unsubscribe: () => {
+        this.listeners.delete(listener)
+      },
+    }
   }
 
+  /** @returns {Promise<TodoListSnapshot>} */
   start = () => {
     if (this.startPromise) return this.startPromise
     this.started = true
@@ -127,6 +176,7 @@ export class TodoListActor {
     return this.startPromise
   }
 
+  /** @returns {Promise<TodoListSnapshot>} */
   async #hydrate() {
     try {
       const loaded = await this.storage.load()
@@ -169,6 +219,7 @@ export class TodoListActor {
     this.listeners.clear()
   }
 
+  /** @param {TodoListActorEvent} event */
   send = (event) => {
     switch (event.type) {
       case ACTOR_EVENT.TRANSACT:
@@ -205,14 +256,18 @@ export class TodoListActor {
         }
         break
       default:
-        throw new Error(`Unknown TodoListActor event: ${event.type}`)
+        throw new Error('Unknown TodoListActor event')
     }
   }
 
+  /**
+   * @param {Transaction} transaction
+   * @returns {Promise<TransactionResult>}
+   */
   transact = (transaction) =>
     new Promise((resolve, reject) => {
       const waiting = this.waiters.get(transaction.id) ?? []
-      waiting.push({ resolve, reject })
+      waiting.push({ resolve, reject: (reason) => reject(reason) })
       this.waiters.set(transaction.id, waiting)
       try {
         this.send({ type: ACTOR_EVENT.TRANSACT, transaction })
@@ -221,16 +276,25 @@ export class TodoListActor {
       }
     })
 
+  /**
+   * @param {string} id
+   * @param {TransactionResult} value
+   */
   #resolveWaiters(id, value) {
     for (const waiter of this.waiters.get(id) ?? []) waiter.resolve(value)
     this.waiters.delete(id)
   }
 
+  /**
+   * @param {string} id
+   * @param {unknown} error
+   */
   #rejectWaiters(id, error) {
     for (const waiter of this.waiters.get(id) ?? []) waiter.reject(error)
     this.waiters.delete(id)
   }
 
+  /** @param {Transaction} transaction */
   #acceptTransaction(transaction) {
     if (this.snapshot.status !== ACTOR_STATUS.READY) {
       throw new Error('TodoListActor is not ready')
@@ -320,6 +384,7 @@ export class TodoListActor {
     this.optimisticDatabase = database
   }
 
+  /** @param {number} delay */
   #scheduleSync(delay) {
     if (!this.storage.sync || this.stopped || !this.online) return
     if (this.syncTimer != null) this.clock.clearTimeout(this.syncTimer)
@@ -329,6 +394,7 @@ export class TodoListActor {
     }, delay)
   }
 
+  /** @param {{initial?: boolean}} [options] */
   async #syncOnce({ initial = false } = {}) {
     if (!this.storage.sync || this.syncRunning || this.stopped || !this.online) return
     this.syncRunning = true
@@ -377,6 +443,7 @@ export class TodoListActor {
   }
 }
 
+/** @param {TodoListActorOptions} options */
 export const createTodoListActor = (options) => new TodoListActor(options)
 
 export const transactionAffectsList = transactionTouchesList

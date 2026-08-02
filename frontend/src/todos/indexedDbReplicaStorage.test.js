@@ -7,6 +7,7 @@ const emptyReadModel = {
   todoLists: {},
 }
 
+/** @returns {Promise<void>} */
 const deleteDatabase = (indexedDb, databaseName) =>
   new Promise((resolve, reject) => {
     const request = indexedDb.deleteDatabase(databaseName)

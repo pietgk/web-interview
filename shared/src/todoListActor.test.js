@@ -54,6 +54,7 @@ describe('shared todo-list actor', () => {
       todo,
       patch: { text: 'Persisted' },
     })
+    assert.ok(transaction)
 
     await actor.transact(transaction)
 
@@ -75,6 +76,7 @@ describe('shared todo-list actor', () => {
       todo,
       patch: { text: 'Offline edit' },
     })
+    assert.ok(transaction)
 
     const persisted = actor.transact(transaction)
     assert.equal(actor.getSnapshot().readModel.list.todos[0].text, 'Offline edit')

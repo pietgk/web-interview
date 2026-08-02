@@ -3,18 +3,58 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "files": [
+    "dist/types",
+    "src/calendarDate.js",
+    "src/selectors.js",
+    "src/todoContract.js",
+    "src/todoDatabase.js",
+    "src/todoListActor.js",
+    "src/todoProtocol.js",
+    "src/transactions.js",
+    "src/types.js"
+  ],
   "exports": {
-    "./actor": "./src/todoListActor.js",
-    "./contract": "./src/todoContract.js",
-    "./database": "./src/todoDatabase.js",
-    "./protocol": "./src/todoProtocol.js",
-    "./selectors": "./src/selectors.js",
-    "./transactions": "./src/transactions.js"
+    "./actor": {
+      "types": "./dist/types/todoListActor.d.ts",
+      "default": "./src/todoListActor.js"
+    },
+    "./contract": {
+      "types": "./dist/types/todoContract.d.ts",
+      "default": "./src/todoContract.js"
+    },
+    "./database": {
+      "types": "./dist/types/todoDatabase.d.ts",
+      "default": "./src/todoDatabase.js"
+    },
+    "./protocol": {
+      "types": "./dist/types/todoProtocol.d.ts",
+      "default": "./src/todoProtocol.js"
+    },
+    "./selectors": {
+      "types": "./dist/types/selectors.d.ts",
+      "default": "./src/selectors.js"
+    },
+    "./transactions": {
+      "types": "./dist/types/transactions.d.ts",
+      "default": "./src/transactions.js"
+    },
+    "./types": {
+      "types": "./dist/types/types.d.ts",
+      "default": "./src/types.js"
+    }
   },
   "scripts": {
-    "test": "node --test"
+    "build:types": "tsc -p tsconfig.types.json",
+    "prepack": "npm run build:types",
+    "test": "node --test",
+    "typecheck": "tsc -p jsconfig.json"
   },
   "dependencies": {
     "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "7.0.2"
   }
 }

@@ -3,9 +3,11 @@
     "allowJs": true,
     "checkJs": true,
     "forceConsistentCasingInFileNames": true,
+    "maxNodeModuleJsDepth": 0,
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "strict": false,
     "target": "ES2022"
   }
 }

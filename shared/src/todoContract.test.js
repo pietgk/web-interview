@@ -22,6 +22,7 @@ describe('todo contract', () => {
       })
 
       assert.equal(result.ok, false, `${dueDate} should be rejected`)
+      assert.ok(result.body)
       assert.equal(result.body.code, ERROR_CODE.VALIDATION)
       assert.ok(
         result.body.issues.some((issue) =>
@@ -97,6 +98,7 @@ describe('todo contract', () => {
       ],
     })
     assert.equal(result.ok, true)
+    assert.ok(result.data)
     assert.equal(result.data.todos[0].dueDate, '2026-07-31')
   })
 })

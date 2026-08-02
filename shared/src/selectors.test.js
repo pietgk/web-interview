@@ -4,12 +4,13 @@ import { hasLocallyUndurableChanges } from './selectors.js'
 
 describe('todo-list selectors', () => {
   it('does not treat server-pending transactions as locally undurable', () => {
+    const snapshot = {
+      pendingTransactions: [{ id: 'saved-offline' }],
+      persistenceStatus: /** @type {const} */ ('idle'),
+      syncStatus: 'offline',
+    }
     assert.equal(
-      hasLocallyUndurableChanges({
-        pendingTransactions: [{ id: 'saved-offline' }],
-        persistenceStatus: 'idle',
-        syncStatus: 'offline',
-      }),
+      hasLocallyUndurableChanges(snapshot),
       false
     )
   })

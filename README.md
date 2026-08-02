@@ -36,6 +36,7 @@ Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
 # from repo root (after npm ci in shared/, backend/, frontend/, and root)
 npm test          # shared contract + backend + frontend unit
 npm run test:e2e  # Playwright (starts both servers)
+npm run typecheck # check JavaScript and generated shared-package declarations
 npm run lint
 npm run build --prefix frontend
 ```
@@ -84,6 +85,8 @@ From the repo root:
 
 ### Development set-up
 If you don't have a favorite editor we highly recommend [VSCode](https://code.visualstudio.com). We've also had some ESLint rules set up which will help you catch bugs etc. If you're using VSCode, install the regular [ESLint plugin](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) and you should be good to go!
+
+Run `npm ci` from the repository root before opening the workspace. This installs the pinned TypeScript version and generates the shared package declarations used by editor tooling. Run `npm run build:types` whenever you want to regenerate them explicitly.
 
 You can open the root folder in one workspace, or `/frontend` and `/backend` in seperate workspaces - both should work fine.
 

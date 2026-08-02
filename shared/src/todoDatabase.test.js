@@ -80,6 +80,7 @@ describe('todo datom database', () => {
       todo: seedLists.list.todos[0],
       patch: { text: 'Updated' },
     })
+    assert.ok(transaction)
 
     const result = applyTransaction(database, transaction)
 

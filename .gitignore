@@ -10,6 +10,7 @@ backend/data/todos.jsonl
 
 # Shared contract
 shared/node_modules
+shared/dist
 
 # Root / e2e
 node_modules

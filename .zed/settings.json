@@ -2,6 +2,9 @@
   "lsp": {
     "vtsls": {
       "settings": {
+        "vtsls": {
+          "autoUseWorkspaceTsdk": true
+        },
         "typescript": {
           "tsdk": "node_modules/typescript/lib"
         }

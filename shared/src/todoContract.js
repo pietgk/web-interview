@@ -2,6 +2,17 @@ import { z } from 'zod'
 import { isRealCalendarDate } from './calendarDate.js'
 import { ERROR_CODE, TODO_TEXT_MAX_LENGTH } from './todoProtocol.js'
 
+/** @typedef {import('./types.js').Todo} Todo */
+/** @typedef {import('./types.js').TodoList} TodoList */
+/** @typedef {import('./types.js').TodoLists} TodoLists */
+/** @typedef {import('./types.js').RejectedTransaction} RejectedTransaction */
+/** @typedef {{path: (string | number)[], message: string}} ValidationIssue */
+/** @typedef {{error: string, code: typeof ERROR_CODE.VALIDATION, issues: ValidationIssue[]}} ValidationErrorBody */
+/** @template T @typedef {{ok: true, data: T, body?: never} | {ok: false, body: ValidationErrorBody, data?: never}} ParseResult */
+/** @typedef {{todos: Todo[]}} UpdateTodosRequest */
+/** @typedef {{basis: number, todoLists: TodoLists}} TodoReadModelResponse */
+/** @typedef {TodoReadModelResponse & {acceptedTransactionIds: string[], rejectedTransactions: RejectedTransaction[]}} TodoSyncResponse */
+
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
 
 export const dueDateSchema = z.union([
@@ -77,18 +88,31 @@ export const updateTodosRequestSchema = z
   })
   .strict()
 
+/**
+ * @param {z.ZodError<unknown>} error
+ * @returns {ValidationIssue[]}
+ */
 export const formatZodIssues = (error) =>
   error.issues.map((issue) => ({
     path: issue.path,
     message: issue.message,
   }))
 
+/**
+ * @param {z.ZodError<unknown>} error
+ * @param {string} [message]
+ * @returns {ValidationErrorBody}
+ */
 export const validationErrorBody = (error, message = 'Validation failed') => ({
   error: message,
   code: ERROR_CODE.VALIDATION,
   issues: formatZodIssues(error),
 })
 
+/**
+ * @param {unknown} body
+ * @returns {ParseResult<UpdateTodosRequest>}
+ */
 export const parseUpdateTodosRequest = (body) => {
   const result = updateTodosRequestSchema.safeParse(body ?? {})
   if (!result.success) {
@@ -97,6 +121,10 @@ export const parseUpdateTodosRequest = (body) => {
   return { ok: true, data: result.data }
 }
 
+/**
+ * @param {unknown} data
+ * @returns {ParseResult<TodoLists>}
+ */
 export const parseTodoLists = (data) => {
   const result = todoListsSchema.safeParse(data)
   if (!result.success) {
@@ -105,6 +133,10 @@ export const parseTodoLists = (data) => {
   return { ok: true, data: result.data }
 }
 
+/**
+ * @param {unknown} data
+ * @returns {ParseResult<TodoList>}
+ */
 export const parseTodoList = (data) => {
   const result = todoListSchema.safeParse(data)
   if (!result.success) {
@@ -113,6 +145,10 @@ export const parseTodoList = (data) => {
   return { ok: true, data: result.data }
 }
 
+/**
+ * @param {unknown} data
+ * @returns {ParseResult<TodoReadModelResponse>}
+ */
 export const parseTodoReadModelResponse = (data) => {
   const result = todoReadModelResponseSchema.safeParse(data)
   if (!result.success) {
@@ -124,6 +160,10 @@ export const parseTodoReadModelResponse = (data) => {
   return { ok: true, data: result.data }
 }
 
+/**
+ * @param {unknown} data
+ * @returns {ParseResult<TodoSyncResponse>}
+ */
 export const parseTodoSyncResponse = (data) => {
   const result = todoSyncResponseSchema.safeParse(data)
   if (!result.success) {

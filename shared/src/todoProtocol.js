@@ -8,6 +8,7 @@ export const TODO_API_PATH = Object.freeze({
   SYNC: '/api/todo-lists/sync',
 })
 
+/** @param {string} listId */
 export const todoListPath = (listId) =>
   `${TODO_API_PATH.ROOT}/${encodeURIComponent(listId)}`
 

@@ -9,13 +9,17 @@
     "test:backend": "npm test --prefix backend",
     "test:frontend": "npm test --prefix frontend",
     "test:e2e": "playwright test",
-    "typecheck": "tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json",
+    "build:types": "npm run build:types --prefix shared",
+    "check:declarations": "node scripts/check-declarations.mjs",
+    "postinstall": "npm run build:types",
+    "typecheck": "npm run build:types && npm run check:declarations && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
     "lint": "npm run lint --prefix backend && npm run lint --prefix frontend"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
+    "@types/punycode": "^2.1.4",
     "@web-interview/todos": "file:shared",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   }
 }

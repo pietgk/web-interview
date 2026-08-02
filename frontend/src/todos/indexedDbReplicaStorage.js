@@ -53,6 +53,7 @@ const readState = (database, storeName, stateKey) =>
     request.onerror = () => reject(request.error)
   })
 
+/** @returns {Promise<void>} */
 const writeState = (database, storeName, stateKey, state) =>
   new Promise((resolve, reject) => {
     const transaction = database.transaction(storeName, 'readwrite')
@@ -62,6 +63,7 @@ const writeState = (database, storeName, stateKey, state) =>
     transaction.onabort = () => reject(transaction.error)
   })
 
+/** @returns {Promise<void>} */
 const deleteDatabase = (indexedDb, databaseName) =>
   new Promise((resolve, reject) => {
     const request = indexedDb.deleteDatabase(databaseName)

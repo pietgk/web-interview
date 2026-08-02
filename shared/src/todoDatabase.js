@@ -7,13 +7,17 @@ import {
   TRANSACTION_VERSION,
 } from './todoProtocol.js'
 
-/**
- * @typedef {Record<string, {
- *   id: string,
- *   title: string,
- *   todos: Array<{id: string, text: string, completed: boolean, dueDate: string | null}>
- * }>} TodoLists
- */
+/** @typedef {import('./types.js').Attribute} Attribute */
+/** @typedef {import('./types.js').Datom} Datom */
+/** @typedef {import('./types.js').FactValue} FactValue */
+/** @typedef {import('./types.js').Facts} Facts */
+/** @typedef {import('./types.js').Todo} Todo */
+/** @typedef {import('./types.js').TodoList} TodoList */
+/** @typedef {import('./types.js').TodoLists} TodoLists */
+/** @typedef {import('./types.js').TodoDatabase} TodoDatabase */
+/** @typedef {import('./types.js').Transaction} Transaction */
+/** @typedef {{id: string, title: string, order: number, todos: Array<Todo & {order: number}>}} OrderedTodoList */
+/** @typedef {{database: TodoDatabase, transaction: Transaction, duplicate: boolean, noOp?: boolean}} TransactionApplication */
 
 const ATTRIBUTE_VALUES = /** @type {const} */ ([
   'list/title',
@@ -38,6 +42,7 @@ export const ATTRIBUTE = Object.freeze({
 })
 
 class TransactionValidationError extends Error {
+  /** @param {z.ZodIssue[]} issues */
   constructor(issues) {
     super('Invalid transaction')
     this.name = 'TransactionValidationError'
@@ -46,6 +51,10 @@ class TransactionValidationError extends Error {
   }
 }
 
+/**
+ * @param {Attribute} attribute
+ * @param {unknown} value
+ */
 const valueMatchesAttribute = (attribute, value) => {
   switch (attribute) {
     case ATTRIBUTE.LIST_TITLE:
@@ -142,6 +151,10 @@ export const syncTodoListsRequestSchema = z
     })
   })
 
+/**
+ * @param {Facts} facts
+ * @returns {Facts}
+ */
 const cloneFacts = (facts) => {
   const clone = new Map()
   for (const [entity, attributes] of facts) {
@@ -150,16 +163,38 @@ const cloneFacts = (facts) => {
   return clone
 }
 
+/**
+ * @param {Facts} facts
+ * @param {string} entity
+ * @param {Attribute} attribute
+ */
 const factValue = (facts, entity, attribute) => facts.get(entity)?.get(attribute)
 
+/**
+ * @param {Facts} facts
+ * @param {string} entity
+ * @param {Attribute} attribute
+ */
 const hasFact = (facts, entity, attribute) => facts.get(entity)?.has(attribute) ?? false
 
+/**
+ * @param {Facts} facts
+ * @param {string} entity
+ * @param {Attribute} attribute
+ * @param {FactValue} value
+ */
 const setFact = (facts, entity, attribute, value) => {
   const attributes = facts.get(entity) ?? new Map()
   attributes.set(attribute, value)
   facts.set(entity, attributes)
 }
 
+/**
+ * @param {Facts} facts
+ * @param {string} entity
+ * @param {Attribute} attribute
+ * @param {FactValue} value
+ */
 const deleteFact = (facts, entity, attribute, value) => {
   const attributes = facts.get(entity)
   if (!attributes || !attributes.has(attribute)) return
@@ -168,12 +203,14 @@ const deleteFact = (facts, entity, attribute, value) => {
   if (attributes.size === 0) facts.delete(entity)
 }
 
+/** @returns {TodoDatabase} */
 export const createEmptyDatabase = () => ({
   basis: 0,
   facts: new Map(),
   transactionIds: new Set(),
 })
 
+/** @param {Facts} facts */
 const validateDatabase = (facts) => {
   const listIds = new Set()
 
@@ -206,9 +243,15 @@ const validateDatabase = (facts) => {
   }
 }
 
+/** @param {Datom} datom */
 const datomKey = ([entity, attribute, value, , added]) =>
   JSON.stringify([entity, attribute, value, added])
 
+/**
+ * @param {TodoDatabase} database
+ * @param {unknown} input
+ * @returns {TransactionApplication}
+ */
 export const applyTransaction = (database, input) => {
   const parsed = transactionSchema.safeParse(input)
   if (!parsed.success) {
@@ -221,9 +264,12 @@ export const applyTransaction = (database, input) => {
   }
 
   const facts = cloneFacts(database.facts)
+  /** @type {Datom[]} */
   const normalized = []
+  /** @type {Set<string>} */
   const seen = new Set()
 
+  /** @param {Datom} datom */
   const appendDatom = (datom) => {
     const key = datomKey(datom)
     if (seen.has(key)) return
@@ -243,7 +289,13 @@ export const applyTransaction = (database, input) => {
     if (hasFact(database.facts, entity, attribute)) {
       const previous = factValue(database.facts, entity, attribute)
       if (!Object.is(previous, value)) {
-        appendDatom([entity, attribute, previous, transactionId, false])
+        appendDatom([
+          entity,
+          attribute,
+          /** @type {FactValue} */ (previous),
+          transactionId,
+          false,
+        ])
       }
     }
     if (!Object.is(factValue(database.facts, entity, attribute), value)) {
@@ -260,6 +312,7 @@ export const applyTransaction = (database, input) => {
 
   validateDatabase(facts)
 
+  /** @type {Transaction} */
   const normalizedTransaction = { ...transaction, datoms: normalized }
   return {
     database: {
@@ -273,16 +326,20 @@ export const applyTransaction = (database, input) => {
   }
 }
 
-/** @returns {TodoLists} */
+/**
+ * @param {TodoDatabase} database
+ * @returns {TodoLists}
+ */
 export const projectTodoLists = (database) => {
+  /** @type {OrderedTodoList[]} */
   const lists = []
 
   for (const [id, attributes] of database.facts) {
     if (!attributes.has(ATTRIBUTE.LIST_TITLE)) continue
     lists.push({
       id,
-      title: attributes.get(ATTRIBUTE.LIST_TITLE),
-      order: attributes.get(ATTRIBUTE.LIST_ORDER),
+      title: /** @type {string} */ (attributes.get(ATTRIBUTE.LIST_TITLE)),
+      order: /** @type {number} */ (attributes.get(ATTRIBUTE.LIST_ORDER)),
       todos: [],
     })
   }
@@ -291,14 +348,18 @@ export const projectTodoLists = (database) => {
   for (const [id, attributes] of database.facts) {
     if (!attributes.has(ATTRIBUTE.TODO_LIST)) continue
     if (attributes.get(ATTRIBUTE.TODO_DELETED)) continue
-    const list = byId.get(attributes.get(ATTRIBUTE.TODO_LIST))
+    const list = byId.get(
+      /** @type {string} */ (attributes.get(ATTRIBUTE.TODO_LIST))
+    )
     if (!list) continue
     list.todos.push({
       id,
-      text: attributes.get(ATTRIBUTE.TODO_TEXT),
-      completed: attributes.get(ATTRIBUTE.TODO_COMPLETED),
-      dueDate: attributes.get(ATTRIBUTE.TODO_DUE_DATE) ?? null,
-      order: attributes.get(ATTRIBUTE.TODO_ORDER),
+      text: /** @type {string} */ (attributes.get(ATTRIBUTE.TODO_TEXT)),
+      completed: /** @type {boolean} */ (attributes.get(ATTRIBUTE.TODO_COMPLETED)),
+      dueDate: /** @type {string | null} */ (
+        attributes.get(ATTRIBUTE.TODO_DUE_DATE) ?? null
+      ),
+      order: /** @type {number} */ (attributes.get(ATTRIBUTE.TODO_ORDER)),
     })
   }
 
@@ -318,6 +379,11 @@ export const projectTodoLists = (database) => {
   return result
 }
 
+/**
+ * @param {TodoLists} todoLists
+ * @param {number} [basis]
+ * @returns {TodoDatabase}
+ */
 export const databaseFromReadModel = (todoLists, basis = 0) => {
   const facts = new Map()
   let listOrder = 0
@@ -342,6 +408,10 @@ export const databaseFromReadModel = (todoLists, basis = 0) => {
   return { basis, facts, transactionIds: new Set() }
 }
 
+/**
+ * @param {Transaction[]} transactions
+ * @returns {TodoDatabase}
+ */
 export const replayTransactions = (transactions) => {
   let database = createEmptyDatabase()
   for (const transaction of transactions) {
@@ -350,6 +420,11 @@ export const replayTransactions = (transactions) => {
   return database
 }
 
+/**
+ * @param {Transaction[]} transactions
+ * @param {number} basis
+ * @returns {TodoLists}
+ */
 export const readModelAsOf = (transactions, basis) =>
   projectTodoLists(
     replayTransactions(
