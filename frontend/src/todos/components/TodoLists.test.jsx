@@ -3,7 +3,6 @@ import {
   render,
   screen,
   waitFor,
-  waitForElementToBeRemoved,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { within } from '@testing-library/react'
@@ -256,11 +255,11 @@ describe('TodoLists shared replica actor', () => {
     await user.click(screen.getByRole('button', {
       name: 'Delete Todo List: First List',
     }))
-    expect(screen.getByRole('dialog', { name: 'Delete First List?' })).toHaveTextContent(
+    expect(await screen.findByRole('dialog', { name: 'Delete First List?' })).toHaveTextContent(
       '1 Todo will also disappear.'
     )
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('First List')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', {

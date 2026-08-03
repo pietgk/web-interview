@@ -50,3 +50,5 @@ export const StatusDetailsDialog = ({
     </DialogActions>
   </Dialog>
 )
+
+export default StatusDetailsDialog

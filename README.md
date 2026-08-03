@@ -39,9 +39,21 @@ npm run test:e2e  # Playwright (starts both servers)
 npm run typecheck # check JavaScript and generated shared-package declarations
 npm run lint
 npm run build --prefix frontend
+npm run quality:lighthouse # production desktop audit, scores, diagnostics, and budgets
 ```
 
 Playwright (clean checkout): `npx playwright install chromium`
+
+### Lighthouse quality
+
+`npm run quality:lighthouse` builds the frontend with source maps, starts isolated seeded backend
+and production-preview servers, and runs three desktop Lighthouse audits. The check requires
+Performance, Accessibility, Best Practices, and SEO to remain at 100. It also guards the initial
+JavaScript transfer and estimated unused JavaScript against explicit budgets.
+
+The command writes a Markdown summary plus complete HTML and JSON reports to
+`lighthouse-reports/`. CI publishes the summary on the workflow run and retains the reports as a
+downloadable artifact for 14 days.
 
 ## Submission
 Before submitting, read through all changes one last time - **code quality matters**!

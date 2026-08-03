@@ -49,5 +49,17 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Lighthouse quality
+        run: npm run quality:lighthouse
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: lighthouse-reports
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: End-to-end tests
         run: npm run test:e2e

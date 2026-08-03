@@ -1,4 +1,13 @@
-import React, { Fragment, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import React, {
+  Fragment,
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
 import {
   createTodoAtTopTransaction,
   createTodoListAtBottomTransaction,
@@ -13,14 +22,8 @@ import { ACTOR_EVENT, ACTOR_STATUS } from '@web-interview/todos/protocol'
 import { selectTodoListSummaries } from '@web-interview/todos/selectors'
 import {
   Box,
-  Button,
   Card,
   CardContent,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   IconButton,
   List,
   ListItem,
@@ -37,6 +40,8 @@ import { TodoListForm } from './TodoListForm'
 import { createTodo, getDueStatus, isDematerializableTodo } from '../todoModel'
 import { TODO_UI_EVENT } from '../todoUiProtocol'
 import { todoListsUiReducer } from '../todoListsUiState'
+
+const DeleteTodoListDialog = lazy(() => import('./DeleteTodoListDialog'))
 
 /** @typedef {import('@web-interview/todos/types').TodoList} TodoList */
 /** @typedef {import('@web-interview/todos/types').Transaction} Transaction */
@@ -119,6 +124,9 @@ export const TodoLists = ({ runtime, style }) => {
     () => selectTodoListSummaries(snapshot.readModel),
     [snapshot.readModel]
   )
+  const hydrationFinished =
+    snapshot.status === ACTOR_STATUS.READY ||
+    snapshot.status === ACTOR_STATUS.ERROR
 
   useEffect(() => {
     if (
@@ -293,22 +301,24 @@ export const TodoLists = ({ runtime, style }) => {
               )
             })}
           </List>
-          <IconButton
-            ref={addButtonRef}
-            color='secondary'
-            aria-label='Add Todo List'
-            disabled={snapshot.status !== ACTOR_STATUS.READY}
-            onClick={() => {
-              if (uiState.mode === 'drafting') {
-                titleInputRef.current?.focus()
-                return
-              }
-              dispatch({ type: 'ADD_LIST', reservedListId: newTodoListId() })
-            }}
-            sx={{ marginLeft: 1 }}
-          >
-            <AddIcon aria-hidden />
-          </IconButton>
+          {hydrationFinished && (
+            <IconButton
+              ref={addButtonRef}
+              color='secondary'
+              aria-label='Add Todo List'
+              disabled={snapshot.status !== ACTOR_STATUS.READY}
+              onClick={() => {
+                if (uiState.mode === 'drafting') {
+                  titleInputRef.current?.focus()
+                  return
+                }
+                dispatch({ type: 'ADD_LIST', reservedListId: newTodoListId() })
+              }}
+              sx={{ marginLeft: 1 }}
+            >
+              <AddIcon aria-hidden />
+            </IconButton>
+          )}
         </CardContent>
       </Card>
 
@@ -344,26 +354,15 @@ export const TodoLists = ({ runtime, style }) => {
         />
       )}
 
-      <Dialog
-        open={Boolean(confirmingList)}
-        onClose={() => dispatch({ type: 'CANCEL_DELETE' })}
-        aria-labelledby='delete-todo-list-title'
-      >
-        <DialogTitle id='delete-todo-list-title'>Delete {confirmingList?.title}?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {confirmingList
-              ? `${confirmingList.todos.length} ${confirmingList.todos.length === 1 ? 'Todo' : 'Todos'} will also disappear.`
-              : ''}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => dispatch({ type: 'CANCEL_DELETE' })}>Cancel</Button>
-          <Button color='error' onClick={() => confirmingList && removeList(confirmingList)}>
-            Delete Todo List
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {confirmingList && (
+        <Suspense fallback={null}>
+          <DeleteTodoListDialog
+            todoList={confirmingList}
+            onCancel={() => dispatch({ type: 'CANCEL_DELETE' })}
+            onConfirm={() => removeList(confirmingList)}
+          />
+        </Suspense>
+      )}
     </Fragment>
   )
 }

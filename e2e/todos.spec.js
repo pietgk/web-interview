@@ -93,6 +93,37 @@ test('rejects a due date that does not exist in its month', async ({ request }) 
   expect(lists[PRIMARY_LIST_ID].todos).toEqual([PRIMARY_TODO])
 })
 
+test('does not shift Todo List controls while hydrating', async ({ page }) => {
+  const layoutShiftLabelsKey = 'todo-list-layout-shift-labels'
+  await page.addInitScript((key) => {
+    /** @type {string[]} */
+    const shiftedLabels = []
+    Reflect.set(globalThis, key, shiftedLabels)
+    const observer = new PerformanceObserver((list) => {
+      for (const observedEntry of list.getEntries()) {
+        const entry = /** @type {PerformanceEntry & {hadRecentInput?: boolean, sources?: Array<{node?: Node | null}>}} */ (observedEntry)
+        if (entry.hadRecentInput) continue
+        for (const source of entry.sources ?? []) {
+          if (!(source.node instanceof Element)) continue
+          const label = source.node.getAttribute('aria-label')
+          if (label) shiftedLabels.push(label)
+        }
+      }
+    })
+    observer.observe({ type: 'layout-shift', buffered: true })
+  }, layoutShiftLabelsKey)
+
+  await page.goto('/')
+  await expect(page.getByText(PRIMARY_LIST_TITLE, { exact: true })).toBeVisible()
+  await page.waitForTimeout(50)
+
+  const shiftedLabels = await page.evaluate(
+    (key) => Reflect.get(globalThis, key),
+    layoutShiftLabelsKey
+  )
+  expect(shiftedLabels).not.toContain('Add Todo List')
+})
+
 test('autosaves todos and persists them across refresh', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('My Todo Lists')).toBeVisible()

@@ -1,4 +1,4 @@
-import { render, screen, waitForElementToBeRemoved } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StatusBar } from './StatusBar'
 
@@ -39,13 +39,13 @@ describe('StatusBar', () => {
       /Saved on this device.*Server sync failed/
     )
     await user.click(screen.getByRole('button', { name: 'Details' }))
-    expect(screen.getByRole('dialog', { name: 'Status details' })).toHaveTextContent(
+    expect(await screen.findByRole('dialog', { name: 'Status details' })).toHaveTextContent(
       'Gateway unavailable'
     )
     await user.click(screen.getByRole('button', { name: 'Close' }))
-    await waitForElementToBeRemoved(() => screen.queryByRole('dialog', {
+    expect(screen.queryByRole('dialog', {
       name: 'Status details',
-    }))
+    })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', {
       name: 'Retry server synchronization',
     }))
@@ -66,14 +66,14 @@ describe('StatusBar', () => {
     render(<StatusBar runtime={value} />)
 
     await user.click(screen.getByRole('button', { name: 'Review' }))
-    expect(screen.getByRole('dialog', { name: 'Status details' })).toHaveTextContent('Release')
+    expect(await screen.findByRole('dialog', { name: 'Status details' })).toHaveTextContent('Release')
     expect(screen.getByRole('dialog', { name: 'Status details' })).toHaveTextContent(
       'optimistic change was rolled back'
     )
     await user.click(screen.getByRole('button', { name: 'Close' }))
-    await waitForElementToBeRemoved(() => screen.queryByRole('dialog', {
+    expect(screen.queryByRole('dialog', {
       name: 'Status details',
-    }))
+    })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', {
       name: 'Dismiss rejected change notification',
     }))

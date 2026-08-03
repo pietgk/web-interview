@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { lazy, Suspense, useState } from 'react'
 import {
   Alert,
   Box,
@@ -9,7 +9,8 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import { ACTOR_EVENT } from '@web-interview/todos/protocol'
 import { selectStatusBar } from '@web-interview/todos/selectors'
-import { StatusDetailsDialog } from './StatusDetailsDialog'
+
+const StatusDetailsDialog = lazy(() => import('./StatusDetailsDialog'))
 
 /** @typedef {{actor: import('@web-interview/todos/actor').TodoListActor, clientId: string, snapshot: import('@web-interview/todos/types').TodoListSnapshot}} TodoRuntime */
 
@@ -100,18 +101,22 @@ export const StatusBar = ({ runtime, onOpenList }) => {
           ))}
         </Box>
       </Alert>
-      <StatusDetailsDialog
-        open={detailsOpen}
-        details={status.details}
-        listTitle={detailsList?.title ?? null}
-        onClose={() => setDetailsOpen(false)}
-        onOpenList={detailsListId && onOpenList
-          ? () => {
-              onOpenList(detailsListId)
-              setDetailsOpen(false)
-            }
-          : null}
-      />
+      {detailsOpen && (
+        <Suspense fallback={null}>
+          <StatusDetailsDialog
+            open
+            details={status.details}
+            listTitle={detailsList?.title ?? null}
+            onClose={() => setDetailsOpen(false)}
+            onOpenList={detailsListId && onOpenList
+              ? () => {
+                  onOpenList(detailsListId)
+                  setDetailsOpen(false)
+                }
+              : null}
+          />
+        </Suspense>
+      )}
     </>
   )
 }

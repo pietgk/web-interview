@@ -4,11 +4,13 @@
   "private": true,
   "description": "Sellpy web interview assignment",
   "scripts": {
-    "test": "npm test --prefix shared && npm test --prefix backend && npm test --prefix frontend",
+    "test": "npm test --prefix shared && npm test --prefix backend && npm test --prefix frontend && npm run test:quality",
     "test:shared": "npm test --prefix shared",
     "test:backend": "npm test --prefix backend",
     "test:frontend": "npm test --prefix frontend",
+    "test:quality": "node --test scripts/*.test.mjs",
     "test:e2e": "playwright test",
+    "quality:lighthouse": "npm run build --prefix frontend -- --sourcemap && node scripts/run-lighthouse.mjs",
     "build:types": "npm run build:types --prefix shared",
     "check:declarations": "node scripts/check-declarations.mjs",
     "postinstall": "npm run build:types",
@@ -20,6 +22,7 @@
     "@types/node": "^24.13.3",
     "@types/punycode": "^2.1.4",
     "@web-interview/todos": "file:shared",
+    "lighthouse": "13.4.1",
     "typescript": "7.0.2"
   }
 }

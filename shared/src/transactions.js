@@ -313,6 +313,21 @@ export const seedTransactionFromTodoLists = ({
 }
 
 /**
+ * Translates a whole-list replacement into the app's immutable transaction format.
+ *
+ * The current `todoList` is the authoritative snapshot and `todos` is the complete
+ * desired contents of that list. The generated datoms create new todos, update the
+ * attributes of existing todos, assign list order from the incoming array, and
+ * tombstone existing todos omitted from that array. A removed due date is expressed
+ * as a retraction rather than a null value. The list itself, including its title, is
+ * not replaced.
+ *
+ * This builder exists for the legacy `PUT /api/todo-lists/:id` compatibility route.
+ * It lets that whole-document API feed the same `TodoListActor`, validation,
+ * projection, and append-only journal as the transaction-based sync path used by
+ * the browser. Returning `null` means the replacement produced no datoms, so the
+ * caller does not need to submit a transaction.
+ *
  * @param {ReplaceTodoListTransactionOptions} options
  * @returns {Transaction | null}
  */
