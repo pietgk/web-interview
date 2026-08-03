@@ -8,13 +8,12 @@ const declarationFiles = (await readdir(declarationDirectory)).filter((file) =>
 
 const problems = []
 const expectedDeclarations = [
-  'todoContract.d.ts',
-  'todoDatabase.d.ts',
-  'todoListActor.d.ts',
+  'datom.d.ts',
+  'datomStore.d.ts',
   'todoProtocol.d.ts',
   'selectors.d.ts',
-  'transactions.d.ts',
   'types.d.ts',
+  'ulid.d.ts',
 ]
 
 for (const expected of expectedDeclarations) {

@@ -1,33 +1,71 @@
+import { z } from 'zod'
+import { ATTRIBUTE } from '@web-interview/todos/datom'
+import {
+  TODO_LIST_TITLE_MAX_LENGTH,
+  TODO_TEXT_MAX_LENGTH,
+} from '@web-interview/todos/protocol'
+import { listId, todoId, ulid } from '@web-interview/todos/ulid'
+
+/** @typedef {import('@web-interview/todos/types').Datom} Datom */
+/** @typedef {z.infer<typeof seedTodoListsSchema>} SeedTodoLists */
+
 /**
- * @returns {Record<string, {
- *   id: string,
- *   title: string,
- *   todos: Array<{id: string, text: string, completed: boolean, dueDate: string | null}>
- * }>}
+ * The seed carries no ids. Entity ids are ULIDs minted by the server, so seeded
+ * Todo Lists and Todos order themselves exactly like the ones users create.
  */
-export const createSeedTodoLists = () => ({
-  '0000000001': {
-    id: '0000000001',
+export const seedTodoListsSchema = z.array(
+  z
+    .object({
+      title: z.string().trim().min(1).max(TODO_LIST_TITLE_MAX_LENGTH),
+      todos: z
+        .array(
+          z
+            .object({
+              text: z.string().max(TODO_TEXT_MAX_LENGTH),
+              completed: z.boolean().default(false),
+              dueDate: z.string().nullable().default(null),
+            })
+            .strict()
+        )
+        .default([]),
+    })
+    .strict()
+)
+
+/** @returns {SeedTodoLists} */
+export const createSeedTodoLists = () => [
+  {
     title: 'First List',
-    todos: [
-      {
-        id: '0000000001-todo-1',
-        text: 'First todo of first list!',
-        completed: false,
-        dueDate: null,
-      },
-    ],
+    todos: [{ text: 'First todo of first list!', completed: false, dueDate: null }],
   },
-  '0000000002': {
-    id: '0000000002',
+  {
     title: 'Second List',
-    todos: [
-      {
-        id: '0000000002-todo-1',
-        text: 'First todo of second list!',
-        completed: false,
-        dueDate: null,
-      },
-    ],
+    todos: [{ text: 'First todo of second list!', completed: false, dueDate: null }],
   },
-})
+]
+
+/**
+ * @param {SeedTodoLists} todoLists
+ * @param {number} seededAt
+ * @returns {Datom[]}
+ */
+export const seedDatoms = (todoLists, seededAt) => {
+  /** @type {Datom[]} */
+  const datoms = []
+  for (const todoList of todoLists) {
+    const list = listId(seededAt)
+    datoms.push([list, ATTRIBUTE.TITLE, todoList.title.trim(), ulid(seededAt), true])
+    // Todos project newest first, so the seed order is minted back to front.
+    for (const todo of [...todoList.todos].reverse()) {
+      const entity = todoId(list, seededAt)
+      datoms.push([entity, ATTRIBUTE.TEXT, todo.text, ulid(seededAt), true])
+      if (todo.completed) {
+        datoms.push([entity, ATTRIBUTE.COMPLETED, true, ulid(seededAt), true])
+      }
+      if (todo.dueDate) {
+        datoms.push([entity, ATTRIBUTE.DUE_DATE, todo.dueDate, ulid(seededAt), true])
+      }
+    }
+  }
+  return datoms
+}

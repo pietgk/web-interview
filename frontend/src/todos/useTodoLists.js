@@ -1,76 +1,32 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react'
-import { createTodoListActor } from '@web-interview/todos/actor'
-import { ACTOR_EVENT } from '@web-interview/todos/protocol'
-import { hasLocallyUndurableChanges } from '@web-interview/todos/selectors'
-import { createIndexedDbReplicaStorage } from './indexedDbReplicaStorage'
-import { CLIENT_ID_STORAGE_KEY } from './persistenceConfig'
+import { deleteLegacyReplica } from './legacyReplica'
+import { createTodoClient } from './todoClient'
 
-/** @typedef {import('@web-interview/todos/actor').TodoListActor} TodoListActor */
-/** @typedef {import('@web-interview/todos/types').TodoStorage} TodoStorage */
-/** @typedef {{actor: TodoListActor, clientId: string}} TodoRuntime */
+/** @typedef {ReturnType<typeof createTodoClient>} TodoClient */
+/** @typedef {{client: TodoClient, readModel: import('@web-interview/todos/types').TodoLists, status: import('@web-interview/todos/types').TodoClientStatus}} TodoRuntime */
 
-const clientId = () => {
-  try {
-    const existing = localStorage.getItem(CLIENT_ID_STORAGE_KEY)
-    if (existing) return existing
-    const generated =
-      globalThis.crypto?.randomUUID?.() ??
-      `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
-    localStorage.setItem(CLIENT_ID_STORAGE_KEY, generated)
-    return generated
-  } catch {
-    return `client-${Date.now()}-${Math.random().toString(16).slice(2)}`
-  }
-}
+/** @param {{createClient?: () => TodoClient}} [options] */
+export const useTodoLists = ({ createClient = createTodoClient } = {}) => {
+  const clientRef = useRef(/** @type {TodoClient | null} */ (null))
+  if (!clientRef.current) clientRef.current = createClient()
+  const client = clientRef.current
 
-/** @param {{createStorage?: () => TodoStorage}} [options] */
-export const useTodoLists = ({ createStorage = createIndexedDbReplicaStorage } = {}) => {
-  const runtime = useRef(/** @type {TodoRuntime | null} */ (null))
-  let current = runtime.current
-  if (!current) {
-    current = {
-      actor: createTodoListActor({ storage: createStorage() }),
-      clientId: clientId(),
-    }
-    runtime.current = current
-  }
-
-  const { actor } = current
-  const snapshot = useSyncExternalStore(
-    (notify) => {
-      const subscription = actor.subscribe(notify)
-      return () => subscription.unsubscribe()
-    },
-    actor.getSnapshot,
-    actor.getSnapshot
+  const readModel = useSyncExternalStore(
+    client.subscribe,
+    client.getReadModel,
+    client.getReadModel
+  )
+  const status = useSyncExternalStore(
+    client.subscribe,
+    client.getStatus,
+    client.getStatus
   )
 
   useEffect(() => {
-    actor.start()
+    deleteLegacyReplica()
+    client.start()
+    return () => client.stop()
+  }, [client])
 
-    /** @param {BeforeUnloadEvent} event */
-    const onBeforeUnload = (event) => {
-      if (!hasLocallyUndurableChanges(actor.getSnapshot())) return
-      event.preventDefault()
-      event.returnValue = ''
-    }
-    const onOnline = () => actor.send({ type: ACTOR_EVENT.ONLINE })
-    const onOffline = () => actor.send({ type: ACTOR_EVENT.OFFLINE })
-
-    window.addEventListener('beforeunload', onBeforeUnload)
-    window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload)
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
-      actor.stop()
-    }
-  }, [actor])
-
-  return {
-    actor,
-    clientId: current.clientId,
-    snapshot,
-  }
+  return { client, readModel, status }
 }

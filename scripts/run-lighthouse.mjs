@@ -14,29 +14,19 @@ const REPORT_DIRECTORY = resolve(ROOT, 'lighthouse-reports')
 const WEB_PORT = 3200
 const API_PORT = 3201
 const WEB_URL = `http://127.0.0.1:${WEB_PORT}/`
-const API_URL = `http://127.0.0.1:${API_PORT}/api/todo-lists/read-model`
+const API_URL = `http://127.0.0.1:${API_PORT}/`
 const NUMBER_OF_RUNS = 3
 const BUDGETS = Object.freeze({
   maxScriptTransferBytes: 140 * 1024,
   maxUnusedJavaScriptBytes: 52 * 1024,
 })
-const LIGHTHOUSE_SEED_TODO_LISTS = Object.freeze({
-  'lighthouse-primary-list': {
-    id: 'lighthouse-primary-list',
+const LIGHTHOUSE_SEED_TODO_LISTS = Object.freeze([
+  {
     title: 'Lighthouse Primary List',
-    todos: [{
-      id: 'lighthouse-primary-todo',
-      text: 'First Lighthouse todo',
-      completed: false,
-      dueDate: null,
-    }],
+    todos: [{ text: 'First Lighthouse todo', completed: false, dueDate: null }],
   },
-  'lighthouse-secondary-list': {
-    id: 'lighthouse-secondary-list',
-    title: 'Lighthouse Secondary List',
-    todos: [],
-  },
-})
+  { title: 'Lighthouse Secondary List', todos: [] },
+])
 
 const LIGHTHOUSE_ENV = {
   ...process.env,
@@ -137,7 +127,7 @@ const main = async () => {
         APP_ENV: 'lighthouse',
         CORS_ORIGINS: WEB_URL.slice(0, -1),
         PORT: String(API_PORT),
-        TODO_LOG_PATH: resolve(dataDirectory, 'todos.jsonl'),
+        DATOM_LOG_PATH: resolve(dataDirectory, 'datoms.jsonl'),
         TODO_SEED_JSON: JSON.stringify(LIGHTHOUSE_SEED_TODO_LISTS),
       },
     }))

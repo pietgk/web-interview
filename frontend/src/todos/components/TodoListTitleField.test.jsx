@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { TodoListTitleField } from './TodoListTitleField'
 
 describe('TodoListTitleField', () => {
-  it('materializes a blank draft on the first non-whitespace character', async () => {
+  it('materializes a blank draft once, when the title settles', async () => {
     const user = userEvent.setup()
     const onMaterialize = vi.fn()
     render(
@@ -17,9 +17,12 @@ describe('TodoListTitleField', () => {
     )
 
     const field = screen.getByLabelText('Todo List name')
-    await user.type(field, '  R')
+    await user.type(field, '  Release')
+    expect(onMaterialize).not.toHaveBeenCalled()
+
+    await user.tab()
     expect(onMaterialize).toHaveBeenCalledTimes(1)
-    expect(onMaterialize).toHaveBeenCalledWith('R')
+    expect(onMaterialize).toHaveBeenCalledWith('Release')
   })
 
   it('keeps a blank rename local and restores the saved title on blur', async () => {

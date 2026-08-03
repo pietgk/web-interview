@@ -48,7 +48,7 @@ export default defineConfig({
         CORS_ORIGINS: E2E_WEB_BASE,
         PORT: String(E2E_API_PORT),
         TODO_SEED_JSON: JSON.stringify(E2E_SEED_TODO_LISTS),
-        TODO_LOG_PATH: join(e2eDataDirectory, 'todos.jsonl'),
+        DATOM_LOG_PATH: join(e2eDataDirectory, 'datoms.jsonl'),
       },
     },
     {

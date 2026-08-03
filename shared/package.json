@@ -6,26 +6,21 @@
   "files": [
     "dist/types",
     "src/calendarDate.js",
+    "src/datom.js",
+    "src/datomStore.js",
     "src/selectors.js",
-    "src/todoContract.js",
-    "src/todoDatabase.js",
-    "src/todoListActor.js",
     "src/todoProtocol.js",
-    "src/transactions.js",
-    "src/types.js"
+    "src/types.js",
+    "src/ulid.js"
   ],
   "exports": {
-    "./actor": {
-      "types": "./dist/types/todoListActor.d.ts",
-      "default": "./src/todoListActor.js"
+    "./datom": {
+      "types": "./dist/types/datom.d.ts",
+      "default": "./src/datom.js"
     },
-    "./contract": {
-      "types": "./dist/types/todoContract.d.ts",
-      "default": "./src/todoContract.js"
-    },
-    "./database": {
-      "types": "./dist/types/todoDatabase.d.ts",
-      "default": "./src/todoDatabase.js"
+    "./datom-store": {
+      "types": "./dist/types/datomStore.d.ts",
+      "default": "./src/datomStore.js"
     },
     "./protocol": {
       "types": "./dist/types/todoProtocol.d.ts",
@@ -35,13 +30,13 @@
       "types": "./dist/types/selectors.d.ts",
       "default": "./src/selectors.js"
     },
-    "./transactions": {
-      "types": "./dist/types/transactions.d.ts",
-      "default": "./src/transactions.js"
-    },
     "./types": {
       "types": "./dist/types/types.d.ts",
       "default": "./src/types.js"
+    },
+    "./ulid": {
+      "types": "./dist/types/ulid.d.ts",
+      "default": "./src/ulid.js"
     }
   },
   "scripts": {

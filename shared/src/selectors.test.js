@@ -1,39 +1,12 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  hasLocallyUndurableChanges,
   selectListSummary,
   selectStatusBar,
   selectTodoListSummaries,
 } from './selectors.js'
 
 describe('todo-list selectors', () => {
-  it('does not treat server-pending transactions as locally undurable', () => {
-    const snapshot = {
-      pendingTransactions: [{ id: 'saved-offline' }],
-      persistenceStatus: /** @type {const} */ ('idle'),
-      syncStatus: 'offline',
-    }
-    assert.equal(
-      hasLocallyUndurableChanges(snapshot),
-      false
-    )
-  })
-
-  it('detects transactions that are still being written locally', () => {
-    assert.equal(
-      hasLocallyUndurableChanges({ persistenceStatus: 'writing' }),
-      true
-    )
-  })
-
-  it('detects a failed local write', () => {
-    assert.equal(
-      hasLocallyUndurableChanges({ persistenceStatus: 'failed' }),
-      true
-    )
-  })
-
   it('derives Next Due Date from the earliest incomplete Todo only', () => {
     const summary = selectListSummary({
       id: 'release',
@@ -74,82 +47,70 @@ describe('todo-list selectors', () => {
   })
 
   it('projects every StatusBar priority without contradictory parts', () => {
-    /**
-     * @param {Partial<import('./types.js').TodoListSnapshot>} [overrides]
-     * @returns {Pick<import('./types.js').TodoListSnapshot, 'status' | 'persistenceStatus' | 'syncStatus' | 'pendingTransactions' | 'rejectedTransactions' | 'error'>}
-     */
-    const snapshot = (overrides = {}) => ({
-      status: /** @type {const} */ ('ready'),
-      persistenceStatus: /** @type {const} */ ('idle'),
-      syncStatus: /** @type {const} */ ('idle'),
-      pendingTransactions: [],
-      rejectedTransactions: [],
-      error: null,
-      ...overrides,
-    })
+    /** @param {Partial<import('./types.js').TodoClientStatus>} [overrides] */
     const visible = (overrides = {}) => {
-      const status = selectStatusBar(snapshot(overrides))
+      const status = selectStatusBar({
+        connection: 'live',
+        pendingCount: 0,
+        saving: false,
+        canEdit: true,
+        error: null,
+        ...overrides,
+      })
       return {
         severity: status.severity,
         text: status.parts.map((part) => part.text).join(' | '),
         action: status.action,
-        dismissible: status.dismissible,
       }
     }
 
-    assert.deepEqual(visible({ status: 'loading' }), {
+    assert.deepEqual(visible({ connection: 'connecting' }), {
       severity: 'info',
-      text: 'Things to do | Loading Todo Lists…',
+      text: 'Things to do | Connecting…',
       action: null,
-      dismissible: false,
     })
-    assert.deepEqual(visible({ status: 'error', error: 'boot failed' }), {
+    assert.deepEqual(visible({ connection: 'failed', error: 'Stream closed' }), {
       severity: 'error',
-      text: 'Things to do | Todo Lists could not be loaded',
-      action: { label: 'Retry loading', event: 'RELOAD' },
-      dismissible: false,
+      text: 'Things to do | Connection lost',
+      action: { label: 'Reconnect', event: 'RECONNECT' },
     })
-    assert.deepEqual(visible({
-      persistenceStatus: 'failed',
-      syncStatus: 'failed',
-      rejectedTransactions: [{ id: 'rejected', error: 'nope', code: 'bad' }],
-      error: 'disk full',
-    }), {
-      severity: 'error',
-      text: 'Things to do | Changes are not safely saved',
-      action: { label: 'Retry local save', event: 'RETRY_PERSISTENCE' },
-      dismissible: false,
-    })
-    assert.deepEqual(visible({
-      rejectedTransactions: [{ id: 'rejected', listId: 'list', error: 'Invalid title', code: 'VALIDATION_ERROR' }],
-    }), {
-      severity: 'error',
-      text: 'Things to do | A change could not be applied',
-      action: { label: 'Review', event: 'REVIEW_REJECTION' },
-      dismissible: true,
-    })
-    assert.deepEqual(visible({ syncStatus: 'failed', error: 'server down' }), {
+    assert.deepEqual(visible({ connection: 'reconnecting' }), {
       severity: 'warning',
-      text: 'Things to do | Saved on this device | Server sync failed',
-      action: { label: 'Retry server synchronization', event: 'RETRY_SYNC' },
-      dismissible: false,
+      text: 'Things to do | Connection lost | Reconnecting…',
+      action: null,
     })
-    assert.equal(visible({
-      syncStatus: 'offline',
-      pendingTransactions: [{ id: 'pending' }],
-    }).text, 'Things to do | Saved on this device | Waiting for connection')
     assert.equal(
-      visible({ syncStatus: 'offline' }).text,
-      'Things to do | Offline | No unsynchronized changes'
+      visible({ connection: 'reconnecting', pendingCount: 2, saving: true }).text,
+      'Things to do | Connection lost | Waiting for connection'
+    )
+    assert.deepEqual(visible({ pendingCount: 1, saving: true }), {
+      severity: 'info',
+      text: 'Things to do | Saving…',
+      action: null,
+    })
+    assert.deepEqual(
+      visible({ pendingCount: 1, saving: true, error: 'Could not reach the server' }),
+      {
+        severity: 'warning',
+        text: 'Things to do | Waiting for connection',
+        action: null,
+      },
+      'an outbox that cannot drain is not "saving", even while the stream is up'
     )
     assert.equal(
-      visible({ persistenceStatus: 'writing' }).text,
-      'Things to do | Saving on this device…'
+      visible({ pendingCount: 0, error: 'The server rejected a change (400)' }).text,
+      'Things to do | All changes saved',
+      'a drained outbox has nothing left to wait for'
     )
     assert.equal(
-      visible({ pendingTransactions: [{ id: 'pending' }] }).text,
-      'Things to do | Saved on this device | Synchronizing…'
+      visible({ pendingCount: 1, saving: false }).text,
+      'Things to do | All changes saved',
+      'a pending outbox stays silent until it has been pending long enough to matter'
     )
-    assert.equal(visible().text, 'Things to do | All changes saved')
+    assert.deepEqual(visible(), {
+      severity: 'success',
+      text: 'Things to do | All changes saved',
+      action: null,
+    })
   })
 })

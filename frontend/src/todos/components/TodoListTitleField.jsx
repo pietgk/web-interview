@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import { TextField } from '@mui/material'
 import { TODO_LIST_TITLE_MAX_LENGTH } from '@web-interview/todos/protocol'
+import { useSettledText } from '../useSettledText'
 
 /** @param {{title: string, draft?: boolean, autoFocus?: boolean, focusRef?: React.MutableRefObject<HTMLInputElement | null>, onMaterialize: (title: string) => void, onTitleChange: (title: string) => void, onCancelDraft: () => void, onAccept?: () => void}} props */
 export const TodoListTitleField = ({
@@ -13,28 +14,20 @@ export const TodoListTitleField = ({
   onCancelDraft,
   onAccept,
 }) => {
-  const [value, setValue] = useState(title)
   const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const materializedRef = useRef(!draft)
-  const blank = value.trim().length === 0
-
-  useEffect(() => {
-    if (document.activeElement !== inputRef.current) setValue(title)
-  }, [title])
-
-  /** @param {{focusComposer?: boolean}} [options] */
-  const accept = ({ focusComposer = false } = {}) => {
-    const trimmed = value.trim()
+  const { text, change, settle, reset } = useSettledText(title, (next) => {
+    const trimmed = next.trim()
+    // A Todo List exists while it has a title, so a blank one asserts nothing.
     if (!trimmed) return
-    setValue(trimmed)
-    if (draft && !materializedRef.current) {
+    if (!materializedRef.current) {
       materializedRef.current = true
       onMaterialize(trimmed)
-    } else {
-      onTitleChange(trimmed)
+      return
     }
-    if (focusComposer) onAccept?.()
-  }
+    onTitleChange(trimmed)
+  })
+  const blank = text.trim().length === 0
 
   return (
     <TextField
@@ -45,38 +38,26 @@ export const TodoListTitleField = ({
         if (focusRef) focusRef.current = node
       }}
       label='Todo List name'
-      value={value}
+      value={text}
       error={!draft && blank}
       helperText={!draft && blank ? 'Todo List name is required' : ' '}
       inputProps={{ maxLength: TODO_LIST_TITLE_MAX_LENGTH }}
-      onChange={(event) => {
-        const next = event.target.value
-        const trimmed = next.trim()
-        setValue(next)
-        if (!trimmed) return
-        if (draft && !materializedRef.current) {
-          materializedRef.current = true
-          onMaterialize(trimmed)
-          return
-        }
-        if (!draft) onTitleChange(trimmed)
-      }}
+      onChange={(event) => change(event.target.value)}
       onBlur={() => {
-        if (blank) {
-          if (!draft) setValue(title)
-          return
-        }
-        accept()
+        if (blank) reset()
+        else settle()
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
           event.preventDefault()
-          accept({ focusComposer: true })
+          if (blank) return
+          settle()
+          onAccept?.()
         }
         if (event.key === 'Escape') {
           event.preventDefault()
           if (draft && !materializedRef.current) onCancelDraft()
-          else setValue(title)
+          else reset()
         }
       }}
     />

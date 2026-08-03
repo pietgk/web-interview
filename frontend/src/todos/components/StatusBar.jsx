@@ -3,42 +3,19 @@ import {
   Alert,
   Box,
   Button,
-  IconButton,
   Typography,
 } from '@mui/material'
-import CloseIcon from '@mui/icons-material/Close'
-import { ACTOR_EVENT } from '@web-interview/todos/protocol'
 import { selectStatusBar } from '@web-interview/todos/selectors'
 
 const StatusDetailsDialog = lazy(() => import('./StatusDetailsDialog'))
 
-/** @typedef {{actor: import('@web-interview/todos/actor').TodoListActor, clientId: string, snapshot: import('@web-interview/todos/types').TodoListSnapshot}} TodoRuntime */
+/** @typedef {import('../useTodoLists').TodoRuntime} TodoRuntime */
 
-/** @param {{runtime: TodoRuntime, onOpenList?: (listId: string) => void}} props */
-export const StatusBar = ({ runtime, onOpenList }) => {
-  const { actor, snapshot } = runtime
-  const status = selectStatusBar(snapshot)
+/** @param {{runtime: TodoRuntime}} props */
+export const StatusBar = ({ runtime }) => {
+  const { client, status: clientStatus } = runtime
+  const status = selectStatusBar(clientStatus)
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const detailsListId = status.details?.listId ?? null
-  const detailsList = detailsListId ? snapshot.readModel[detailsListId] : null
-
-  const runAction = () => {
-    if (!status.action) return
-    if (status.action.event === 'REVIEW_REJECTION') {
-      setDetailsOpen(true)
-      return
-    }
-    actor.send({ type: status.action.event })
-  }
-
-  const dismiss = () => {
-    const transactionId = status.details?.rejectionId
-    if (!transactionId) return
-    actor.send({
-      type: ACTOR_EVENT.DISMISS_REJECTION,
-      transactionId,
-    })
-  }
 
   return (
     <>
@@ -53,27 +30,17 @@ export const StatusBar = ({ runtime, onOpenList }) => {
           '& .MuiAlert-action': { alignItems: 'center', flexWrap: 'wrap' },
         }}
         action={
-          status.action || status.details || status.dismissible ? (
+          status.action || status.details ? (
             <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
-              {status.details && status.action?.event !== 'REVIEW_REJECTION' && (
+              {status.details && (
                 <Button color='inherit' size='small' onClick={() => setDetailsOpen(true)}>
                   Details
                 </Button>
               )}
               {status.action && (
-                <Button color='inherit' size='small' onClick={runAction}>
+                <Button color='inherit' size='small' onClick={() => client.reconnect()}>
                   {status.action.label}
                 </Button>
-              )}
-              {status.dismissible && (
-                <IconButton
-                  color='inherit'
-                  size='small'
-                  aria-label='Dismiss rejected change notification'
-                  onClick={dismiss}
-                >
-                  <CloseIcon fontSize='small' aria-hidden />
-                </IconButton>
               )}
             </Box>
           ) : undefined
@@ -106,14 +73,7 @@ export const StatusBar = ({ runtime, onOpenList }) => {
           <StatusDetailsDialog
             open
             details={status.details}
-            listTitle={detailsList?.title ?? null}
             onClose={() => setDetailsOpen(false)}
-            onOpenList={detailsListId && onOpenList
-              ? () => {
-                  onOpenList(detailsListId)
-                  setDetailsOpen(false)
-                }
-              : null}
           />
         </Suspense>
       )}

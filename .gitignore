@@ -6,7 +6,7 @@ frontend/dist
 # Backend
 backend/node_modules
 backend/npm-debug.log
-backend/data/todos.jsonl
+backend/data/datoms.jsonl
 
 # Shared contract
 shared/node_modules

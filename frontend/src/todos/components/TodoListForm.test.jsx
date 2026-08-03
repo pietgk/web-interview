@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodoListForm } from './TodoListForm'
-import { createTodo } from '../todoModel'
 
 const renderForm = (overrides = {}) => {
   const send = vi.fn()
@@ -9,7 +8,7 @@ const renderForm = (overrides = {}) => {
     todoList: {
       id: 'list',
       title: 'Release',
-      todos: [createTodo({ id: 'todo', text: 'Original' })],
+      todos: [{ id: 'todo', text: 'Original', completed: false, dueDate: null }],
     },
     composerText: '',
     onMaterialize: vi.fn(),
@@ -30,10 +29,12 @@ describe('TodoListForm', () => {
     expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument()
     await user.clear(screen.getByLabelText('What to do?'))
     await user.type(screen.getByLabelText('What to do?'), 'Updated')
-    expect(send).toHaveBeenCalledWith(expect.objectContaining({
+    await user.tab()
+    expect(send).toHaveBeenCalledWith({
       type: 'TODO_PATCH',
       id: 'todo',
-    }))
+      patch: { text: 'Updated' },
+    })
   })
 
   it('renders only the focused title field for an unmaterialized draft', () => {

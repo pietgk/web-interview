@@ -8,17 +8,8 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import {
-  createTodoAtTopTransaction,
-  createTodoListAtBottomTransaction,
-  deleteTodoListTransaction,
-  deleteTodoTransaction,
-  newTodoId,
-  newTodoListId,
-  patchTodoListTitleTransaction,
-  patchTodoTransaction,
-} from '@web-interview/todos/transactions'
-import { ACTOR_EVENT, ACTOR_STATUS } from '@web-interview/todos/protocol'
+import { ATTRIBUTE } from '@web-interview/todos/datom'
+import { CONNECTION, TEXT_SETTLE_MS } from '@web-interview/todos/protocol'
 import { selectTodoListSummaries } from '@web-interview/todos/selectors'
 import {
   Box,
@@ -37,17 +28,19 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ReceiptIcon from '@mui/icons-material/Receipt'
 import { TodoListForm } from './TodoListForm'
-import { createTodo, getDueStatus, isDematerializableTodo } from '../todoModel'
+import { getDueStatus, isDematerializableTodo } from '../todoModel'
 import { TODO_UI_EVENT } from '../todoUiProtocol'
 import { todoListsUiReducer } from '../todoListsUiState'
 
 const DeleteTodoListDialog = lazy(() => import('./DeleteTodoListDialog'))
 
+/** @typedef {import('@web-interview/todos/types').Todo} Todo */
 /** @typedef {import('@web-interview/todos/types').TodoList} TodoList */
-/** @typedef {import('@web-interview/todos/types').Transaction} Transaction */
 /** @typedef {import('../todoUiProtocol').TodoUiEvent} TodoUiEvent */
+/** @typedef {import('../useTodoLists').TodoRuntime} TodoRuntime */
 /** @typedef {{text: string, linkedId: string | null}} ComposerState */
-/** @typedef {{actor: import('@web-interview/todos/actor').TodoListActor, clientId: string, snapshot: import('@web-interview/todos/types').TodoListSnapshot}} TodoRuntime */
+
+const emptyComposer = /** @type {ComposerState} */ ({ text: '', linkedId: null })
 
 /** @param {import('@web-interview/todos/selectors').TodoListSummary} summary */
 const ListRecap = (summary) => {
@@ -102,13 +95,9 @@ const TodoListRow = ({ todoList, summary, selected, onSelect, onDelete }) => (
   </ListItem>
 )
 
-/** @param {Record<string, ComposerState>} composers @param {string} listId */
-const composerFor = (composers, listId) =>
-  composers[listId] ?? { text: '', linkedId: null }
-
 /** @param {{runtime: TodoRuntime, style?: React.CSSProperties}} props */
 export const TodoLists = ({ runtime, style }) => {
-  const { actor, clientId, snapshot } = runtime
+  const { client, readModel, status } = runtime
   const [uiState, dispatch] = useReducer(todoListsUiReducer, {
     mode: 'browsing',
     activeListId: null,
@@ -120,23 +109,28 @@ export const TodoLists = ({ runtime, style }) => {
   const addButtonRef = useRef(/** @type {HTMLButtonElement | null} */ (null))
   const initialSelectionMade = useRef(false)
   const focusAddWhenEmpty = useRef(false)
-  const summaries = useMemo(
-    () => selectTodoListSummaries(snapshot.readModel),
-    [snapshot.readModel]
+
+  // The composer's in-flight text is ephemeral React state that settles into one
+  // datom. These refs let a settle timer read the newest text and read model
+  // without depending on when React last rendered.
+  const composersRef = useRef(composers)
+  const readModelRef = useRef(readModel)
+  readModelRef.current = readModel
+  const settleTimers = useRef(
+    /** @type {Map<string, ReturnType<typeof setTimeout>>} */ (new Map())
   )
-  const hydrationFinished =
-    snapshot.status === ACTOR_STATUS.READY ||
-    snapshot.status === ACTOR_STATUS.ERROR
+
+  const summaries = useMemo(() => selectTodoListSummaries(readModel), [readModel])
+  // The stream sends the compacted set before it sends server time, so `canEdit`
+  // also means "the Todo Lists have arrived".
+  const hydrated = status.canEdit || status.connection !== CONNECTION.CONNECTING
 
   useEffect(() => {
-    if (
-      snapshot.status === ACTOR_STATUS.READY &&
-      !initialSelectionMade.current
-    ) {
+    if (status.canEdit && !initialSelectionMade.current) {
       initialSelectionMade.current = true
       dispatch({ type: 'SET_ACTIVE', listId: summaries[0]?.id ?? null })
     }
-  }, [snapshot.status, summaries])
+  }, [status.canEdit, summaries])
 
   useEffect(() => {
     if (focusAddWhenEmpty.current && summaries.length === 0) {
@@ -145,98 +139,123 @@ export const TodoLists = ({ runtime, style }) => {
     }
   }, [summaries.length])
 
+  const timers = settleTimers.current
+  useEffect(() => () => {
+    for (const timer of timers.values()) clearTimeout(timer)
+    timers.clear()
+  }, [timers])
+
+  /** @param {string} listId */
+  const composerFor = (listId) => composersRef.current[listId] ?? emptyComposer
+
+  /** @param {string} listId @param {ComposerState} next */
+  const setComposer = (listId, next) => {
+    composersRef.current = { ...composersRef.current, [listId]: next }
+    setComposers(composersRef.current)
+  }
+
+  /** @param {string} listId */
+  const clearComposerTimer = (listId) => {
+    const timer = settleTimers.current.get(listId)
+    if (timer) clearTimeout(timer)
+    settleTimers.current.delete(listId)
+  }
+
+  /**
+   * The ghost composer materializes its Todo on the first settle rather than on
+   * the first character, and dematerializes it when the settled text is blank.
+   *
+   * @param {string} listId
+   */
+  const settleComposer = (listId) => {
+    clearComposerTimer(listId)
+    const todoList = readModelRef.current[listId]
+    const { text, linkedId } = composerFor(listId)
+
+    if (!linkedId) {
+      if (!todoList || isDematerializableTodo({ text })) return
+      const id = client.newTodoId(listId)
+      if (client.assert(id, ATTRIBUTE.TEXT, text)) setComposer(listId, { text, linkedId: id })
+      return
+    }
+
+    const todo = todoList?.todos.find((entry) => entry.id === linkedId)
+    if (!todo) {
+      setComposer(listId, { text, linkedId: null })
+      return
+    }
+    if (todo.text === text) return
+    if (isDematerializableTodo({ text })) {
+      client.retract(todo.id, ATTRIBUTE.TEXT, todo.text)
+      setComposer(listId, emptyComposer)
+      return
+    }
+    client.assert(todo.id, ATTRIBUTE.TEXT, text)
+  }
+
+  const settleComposerRef = useRef(settleComposer)
+  settleComposerRef.current = settleComposer
+
+  /** @param {string} listId */
+  const scheduleComposerSettle = (listId) => {
+    clearComposerTimer(listId)
+    settleTimers.current.set(
+      listId,
+      setTimeout(() => {
+        settleTimers.current.delete(listId)
+        settleComposerRef.current(listId)
+      }, TEXT_SETTLE_MS)
+    )
+  }
+
   /** @type {TodoList | null} */
   const activeList = uiState.mode === 'drafting'
     ? { id: uiState.reservedListId, title: '', todos: [] }
     : uiState.activeListId
-      ? snapshot.readModel[uiState.activeListId] ?? null
+      ? readModel[uiState.activeListId] ?? null
       : null
-
-  /** @param {Transaction | null} transaction */
-  const transact = (transaction) => {
-    if (transaction) actor.send({ type: ACTOR_EVENT.TRANSACT, transaction })
-  }
 
   /** @param {TodoList} todoList @param {TodoUiEvent} event */
   const sendToList = (todoList, event) => {
-    const composer = composerFor(composers, todoList.id)
-    /** @param {ComposerState} next */
-    const setComposer = (next) =>
-      setComposers((current) => ({ ...current, [todoList.id]: next }))
-
     switch (event.type) {
       case TODO_UI_EVENT.COMPOSER_CHANGE: {
-        const text = event.text ?? ''
-        if (!composer.linkedId) {
-          if (!text.trim()) {
-            setComposer({ text, linkedId: null })
-            return
-          }
-          const todo = createTodo({ id: newTodoId(), text })
-          transact(createTodoAtTopTransaction({
-            basis: snapshot.basis,
-            clientId,
-            listId: todoList.id,
-            todo,
-          }))
-          setComposer({ text, linkedId: todo.id })
-          return
-        }
-        const todo = todoList.todos.find((entry) => entry.id === composer.linkedId)
-        if (!todo) {
-          setComposer({ text, linkedId: null })
-          return
-        }
-        if (isDematerializableTodo({ ...todo, text })) {
-          transact(deleteTodoTransaction({
-            basis: snapshot.basis,
-            clientId,
-            listId: todoList.id,
-            todo,
-          }))
-          setComposer({ text: '', linkedId: null })
-          return
-        }
-        transact(patchTodoTransaction({
-          basis: snapshot.basis,
-          clientId,
-          listId: todoList.id,
-          todo,
-          patch: { text },
-        }))
-        setComposer({ text, linkedId: composer.linkedId })
+        setComposer(todoList.id, {
+          ...composerFor(todoList.id),
+          text: event.text ?? '',
+        })
+        scheduleComposerSettle(todoList.id)
         return
       }
       case TODO_UI_EVENT.COMPOSER_COMMIT:
       case TODO_UI_EVENT.COMPOSER_SUBMIT:
-        setComposer({ text: '', linkedId: null })
+        settleComposer(todoList.id)
+        setComposer(todoList.id, emptyComposer)
         return
       case TODO_UI_EVENT.TODO_PATCH: {
         const todo = todoList.todos.find((entry) => entry.id === event.id)
         if (!todo) return
-        transact(patchTodoTransaction({
-          basis: snapshot.basis,
-          clientId,
-          listId: todoList.id,
-          todo,
-          patch: event.patch,
-        }))
+        if ('text' in event.patch) {
+          client.assert(todo.id, ATTRIBUTE.TEXT, /** @type {string} */ (event.patch.text))
+        }
+        if ('completed' in event.patch) {
+          client.assert(
+            todo.id,
+            ATTRIBUTE.COMPLETED,
+            /** @type {boolean} */ (event.patch.completed)
+          )
+        }
+        if ('dueDate' in event.patch) {
+          if (event.patch.dueDate) client.assert(todo.id, ATTRIBUTE.DUE_DATE, event.patch.dueDate)
+          else if (todo.dueDate) client.retract(todo.id, ATTRIBUTE.DUE_DATE, todo.dueDate)
+        }
         return
       }
       case TODO_UI_EVENT.TODO_REMOVE: {
         const todo = todoList.todos.find((entry) => entry.id === event.id)
         if (!todo) return
-        transact(deleteTodoTransaction({
-          basis: snapshot.basis,
-          clientId,
-          listId: todoList.id,
-          todo,
-        }))
+        client.retract(todo.id, ATTRIBUTE.TEXT, todo.text)
         return
       }
-      case TODO_UI_EVENT.FLUSH:
-        actor.send({ type: ACTOR_EVENT.SYNC })
-        return
       default:
         return
     }
@@ -249,24 +268,25 @@ export const TodoLists = ({ runtime, style }) => {
     return summaries[index + 1]?.id ?? summaries[index - 1]?.id ?? null
   }
 
-  /** @param {TodoList} todoList */
+  /**
+   * One datom deletes a Todo List holding any number of Todos: they stop
+   * projecting because the Todo List named by their ids no longer exists.
+   *
+   * @param {TodoList} todoList
+   */
   const removeList = (todoList) => {
     const nextListId = nearestAfterDeletion(todoList)
     focusAddWhenEmpty.current = summaries.length === 1
-    transact(deleteTodoListTransaction({
-      basis: snapshot.basis,
-      clientId,
-      todoList,
-    }))
+    clearComposerTimer(todoList.id)
+    setComposer(todoList.id, emptyComposer)
+    client.retract(todoList.id, ATTRIBUTE.TITLE, todoList.title)
     dispatch({ type: 'CONFIRM_DELETE', nextListId })
   }
 
   const confirmingList = uiState.mode === 'confirmingDelete'
-    ? snapshot.readModel[uiState.targetListId] ?? null
+    ? readModel[uiState.targetListId] ?? null
     : null
-  const composer = activeList
-    ? composerFor(composers, activeList.id)
-    : { text: '', linkedId: null }
+  const composer = activeList ? composerFor(activeList.id) : emptyComposer
   const visibleTodos = activeList
     ? activeList.todos.filter((todo) => todo.id !== composer.linkedId)
     : []
@@ -278,14 +298,14 @@ export const TodoLists = ({ runtime, style }) => {
           <Typography id='todo-lists-heading' component='h2' variant='h6'>
             My Todo Lists
           </Typography>
-          {summaries.length === 0 && snapshot.status === ACTOR_STATUS.READY && (
+          {summaries.length === 0 && status.canEdit && (
             <Typography color='text.secondary' sx={{ marginTop: 1 }}>
               No Todo Lists yet.
             </Typography>
           )}
           <List aria-label='Todo lists'>
             {summaries.map((summary) => {
-              const todoList = snapshot.readModel[summary.id]
+              const todoList = readModel[summary.id]
               return (
                 <TodoListRow
                   key={summary.id}
@@ -301,18 +321,20 @@ export const TodoLists = ({ runtime, style }) => {
               )
             })}
           </List>
-          {hydrationFinished && (
+          {/* Held back until the stream has spoken once, so the control appears
+              in its final position instead of shifting under the Todo Lists. */}
+          {hydrated && (
             <IconButton
               ref={addButtonRef}
               color='secondary'
               aria-label='Add Todo List'
-              disabled={snapshot.status !== ACTOR_STATUS.READY}
+              disabled={!status.canEdit}
               onClick={() => {
                 if (uiState.mode === 'drafting') {
                   titleInputRef.current?.focus()
                   return
                 }
-                dispatch({ type: 'ADD_LIST', reservedListId: newTodoListId() })
+                dispatch({ type: 'ADD_LIST', reservedListId: client.newListId() })
               }}
               sx={{ marginLeft: 1 }}
             >
@@ -331,23 +353,12 @@ export const TodoLists = ({ runtime, style }) => {
           autoFocusTitle={uiState.mode === 'drafting'}
           titleFocusRef={titleInputRef}
           onMaterialize={(title) => {
-            transact(createTodoListAtBottomTransaction({
-              basis: snapshot.basis,
-              clientId,
-              listId: activeList.id,
-              title,
-            }))
+            client.assert(activeList.id, ATTRIBUTE.TITLE, title)
             dispatch({ type: 'MATERIALIZE', listId: activeList.id })
           }}
           onTitleChange={(title) => {
-            const current = snapshot.readModel[activeList.id]
-            if (!current) return
-            transact(patchTodoListTitleTransaction({
-              basis: snapshot.basis,
-              clientId,
-              todoList: current,
-              title,
-            }))
+            if (!readModel[activeList.id]) return
+            client.assert(activeList.id, ATTRIBUTE.TITLE, title)
           }}
           onCancelDraft={() => dispatch({ type: 'ESCAPE_DRAFT' })}
           send={(event) => sendToList(activeList, event)}

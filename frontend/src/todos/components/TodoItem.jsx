@@ -7,6 +7,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import { CompletionField } from './CompletionField'
 import { DueIn } from './DueIn'
 import { TodoRow } from './TodoRow'
+import { useSettledText } from '../useSettledText'
 
 /** @typedef {import('@web-interview/todos/types').Todo} Todo */
 /** @typedef {Partial<Pick<Todo, 'text' | 'completed' | 'dueDate'>>} TodoPatch */
@@ -27,6 +28,9 @@ const todoLabel = (todo) => {
  */
 export const TodoItem = ({ todo, onChange, onRemove, now }) => {
   const label = todoLabel(todo)
+  const { text, change, settle } = useSettledText(todo.text, (next) =>
+    onChange({ text: next })
+  )
 
   return (
     <TodoRow ariaLabel={`Todo: ${label}`}>
@@ -45,8 +49,12 @@ export const TodoItem = ({ todo, onChange, onRemove, now }) => {
       <TextField
         sx={{ flexGrow: 1, minWidth: '12rem' }}
         label='What to do?'
-        value={todo.text}
-        onChange={(event) => onChange({ text: event.target.value })}
+        value={text}
+        onChange={(event) => change(event.target.value)}
+        onBlur={settle}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') settle()
+        }}
       />
       <IconButton
         color='secondary'

@@ -2,23 +2,21 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StatusBar } from './StatusBar'
 
-/** @typedef {{actor: import('@web-interview/todos/actor').TodoListActor, clientId: string, snapshot: import('@web-interview/todos/types').TodoListSnapshot}} TodoRuntime */
-
-/** @param {Partial<import('@web-interview/todos/types').TodoListSnapshot>} [overrides] @returns {TodoRuntime} */
-const runtime = (overrides = {}) => /** @type {TodoRuntime} */ (/** @type {unknown} */ ({
-  clientId: 'status-test',
-  actor: { send: vi.fn() },
-  snapshot: {
-    status: 'ready',
-    readModel: {},
-    pendingTransactions: [],
-    rejectedTransactions: [],
-    persistenceStatus: 'idle',
-    syncStatus: 'idle',
+/** @param {Partial<import('@web-interview/todos/types').TodoClientStatus>} [overrides] */
+const runtime = (overrides = {}) => ({
+  client: /** @type {import('../useTodoLists').TodoRuntime['client']} */ (
+    /** @type {unknown} */ ({ reconnect: vi.fn() })
+  ),
+  readModel: {},
+  status: {
+    connection: /** @type {const} */ ('live'),
+    pendingCount: 0,
+    saving: false,
+    canEdit: true,
     error: null,
     ...overrides,
   },
-}))
+})
 
 describe('StatusBar', () => {
   it('renders the permanent h1 and a polite success live region', () => {
@@ -30,14 +28,27 @@ describe('StatusBar', () => {
     )
   })
 
-  it('targets synchronization recovery and exposes meaningful Details', async () => {
-    const user = userEvent.setup()
-    const value = runtime({ syncStatus: 'failed', error: 'Gateway unavailable' })
-    render(<StatusBar runtime={value} />)
+  it('announces a saving outbox without an action to take', () => {
+    render(<StatusBar runtime={runtime({ pendingCount: 1, saving: true })} />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Saving…')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('warns while the stream is retrying and names the unsent work', () => {
+    render(<StatusBar runtime={runtime({ connection: 'reconnecting', pendingCount: 2 })} />)
 
     expect(screen.getByRole('alert', { name: 'Application status' })).toHaveTextContent(
-      /Saved on this device.*Server sync failed/
+      /Connection lost.*Waiting for connection/
     )
+  })
+
+  it('offers reconnection and meaningful Details when the stream has closed', async () => {
+    const user = userEvent.setup()
+    const value = runtime({ connection: 'failed', error: 'Gateway unavailable' })
+    render(<StatusBar runtime={value} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Connection lost')
     await user.click(screen.getByRole('button', { name: 'Details' }))
     expect(await screen.findByRole('dialog', { name: 'Status details' })).toHaveTextContent(
       'Gateway unavailable'
@@ -46,40 +57,8 @@ describe('StatusBar', () => {
     expect(screen.queryByRole('dialog', {
       name: 'Status details',
     })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', {
-      name: 'Retry server synchronization',
-    }))
-    expect(value.actor.send).toHaveBeenCalledWith({ type: 'RETRY_SYNC' })
-  })
 
-  it('reviews and dismisses a rejected transaction without combining controls', async () => {
-    const user = userEvent.setup()
-    const value = runtime({
-      readModel: { list: { id: 'list', title: 'Release', todos: [] } },
-      rejectedTransactions: [{
-        id: 'tx-rejected',
-        listId: 'list',
-        error: 'Title was rejected',
-        code: 'VALIDATION_ERROR',
-      }],
-    })
-    render(<StatusBar runtime={value} />)
-
-    await user.click(screen.getByRole('button', { name: 'Review' }))
-    expect(await screen.findByRole('dialog', { name: 'Status details' })).toHaveTextContent('Release')
-    expect(screen.getByRole('dialog', { name: 'Status details' })).toHaveTextContent(
-      'optimistic change was rolled back'
-    )
-    await user.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('dialog', {
-      name: 'Status details',
-    })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', {
-      name: 'Dismiss rejected change notification',
-    }))
-    expect(value.actor.send).toHaveBeenCalledWith({
-      type: 'DISMISS_REJECTION',
-      transactionId: 'tx-rejected',
-    })
+    await user.click(screen.getByRole('button', { name: 'Reconnect' }))
+    expect(value.client.reconnect).toHaveBeenCalledTimes(1)
   })
 })

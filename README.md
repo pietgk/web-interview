@@ -21,14 +21,15 @@ Persist the todo lists on the server. Persisting in a database is not required, 
 
 Completed **main task + all 4 additional tasks**, plus the follow-up correctness work from [`01-REVIEW.md`](./01-REVIEW.md):
 
-- Shared browser/server todo actor with immutable datom transactions
+- Shared browser/server datom store folding an append-only log by last-write-wins
 - Crash-safe, append-only JSONL persistence across server restarts
-- Durable IndexedDB outbox for offline edits and reconnection
+- Real-time convergence across clients and browser tabs over Server-Sent Events
+- In-memory outbox that drains on reconnect within a session (edits do not survive a reload)
 - Shared Zod runtime contract and deterministic read-model projection
 - Completion-aware due-date status
 
 Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
-[`docs/adr/003-shared-datom-actor.md`](./docs/adr/003-shared-datom-actor.md).
+[`docs/adr/004-single-datom-log.md`](./docs/adr/004-single-datom-log.md).
 
 ### Running tests
 

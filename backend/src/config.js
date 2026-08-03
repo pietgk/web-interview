@@ -1,6 +1,6 @@
-import { parseTodoLists } from '@web-interview/todos/contract'
+import { seedTodoListsSchema } from './seed.js'
 
-/** @typedef {import('@web-interview/todos/types').TodoLists} TodoLists */
+/** @typedef {import('./seed.js').SeedTodoLists} SeedTodoLists */
 
 const DEFAULT_BACKEND_PORT = 3001
 const DEFAULT_DEVELOPMENT_ORIGIN = 'http://localhost:3000'
@@ -16,7 +16,7 @@ const parsePort = (value) => {
 
 /**
  * @param {string | undefined} value
- * @returns {TodoLists | undefined}
+ * @returns {SeedTodoLists | undefined}
  */
 const parseInitialTodoLists = (value) => {
   if (!value) return undefined
@@ -28,11 +28,11 @@ const parseInitialTodoLists = (value) => {
     throw new Error('TODO_SEED_JSON must contain valid JSON', { cause: error })
   }
 
-  const parsed = parseTodoLists(decoded)
-  if (!parsed.ok) {
-    throw new Error('TODO_SEED_JSON must contain valid todo lists')
+  const parsed = seedTodoListsSchema.safeParse(decoded)
+  if (!parsed.success) {
+    throw new Error('TODO_SEED_JSON must contain valid Todo Lists')
   }
-  return /** @type {TodoLists} */ (parsed.data)
+  return parsed.data
 }
 
 /**
@@ -52,16 +52,16 @@ const parseCorsOrigins = (value, appEnvironment) => {
 /** @param {NodeJS.ProcessEnv} environment */
 export const readBackendConfig = (environment = process.env) => {
   const appEnvironment = environment.APP_ENV ?? 'development'
-  const todoLogPath = environment.TODO_LOG_PATH || undefined
-  if (appEnvironment === 'e2e' && !todoLogPath) {
-    throw new Error('E2E mode requires an explicit TODO_LOG_PATH')
+  const datomLogPath = environment.DATOM_LOG_PATH || undefined
+  if (appEnvironment === 'e2e' && !datomLogPath) {
+    throw new Error('E2E mode requires an explicit DATOM_LOG_PATH')
   }
 
   return Object.freeze({
     appEnvironment,
     corsOrigins: parseCorsOrigins(environment.CORS_ORIGINS, appEnvironment),
+    datomLogPath,
     initialTodoLists: parseInitialTodoLists(environment.TODO_SEED_JSON),
     port: parsePort(environment.PORT),
-    todoLogPath,
   })
 }

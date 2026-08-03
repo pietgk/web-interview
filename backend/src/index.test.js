@@ -8,18 +8,12 @@ const backendDirectory = fileURLToPath(new URL('..', import.meta.url))
 
 describe('backend startup', () => {
   it('parses runtime ports, CORS origins, storage, and seed data', () => {
-    const seed = {
-      list: {
-        id: 'list',
-        title: 'Configured list',
-        todos: [],
-      },
-    }
+    const seed = [{ title: 'Configured list', todos: [] }]
     const config = readBackendConfig({
       APP_ENV: 'e2e',
       CORS_ORIGINS: 'http://127.0.0.1:3100, https://example.test',
       PORT: '3101',
-      TODO_LOG_PATH: '/tmp/configured-todos.jsonl',
+      DATOM_LOG_PATH: '/tmp/configured-datoms.jsonl',
       TODO_SEED_JSON: JSON.stringify(seed),
     })
 
@@ -28,22 +22,31 @@ describe('backend startup', () => {
       'http://127.0.0.1:3100',
       'https://example.test',
     ])
-    assert.equal(config.todoLogPath, '/tmp/configured-todos.jsonl')
+    assert.equal(config.datomLogPath, '/tmp/configured-datoms.jsonl')
     assert.deepEqual(config.initialTodoLists, seed)
+  })
+
+  it('rejects a seed that carries entity ids the server has not minted', () => {
+    assert.throws(
+      () => readBackendConfig({
+        TODO_SEED_JSON: JSON.stringify([{ id: 'list', title: 'Configured list', todos: [] }]),
+      }),
+      /TODO_SEED_JSON must contain valid Todo Lists/
+    )
   })
 
   it('does not enable cross-origin access by default in production', () => {
     assert.deepEqual(readBackendConfig({ APP_ENV: 'production' }).corsOrigins, [])
   })
 
-  it('refuses to run in E2E mode without an isolated todo journal', () => {
+  it('refuses to run in E2E mode without an isolated datom journal', () => {
     /** @type {NodeJS.ProcessEnv} */
     const environment = {
       ...process.env,
       APP_ENV: 'e2e',
       PORT: '3101',
     }
-    delete environment.TODO_LOG_PATH
+    delete environment.DATOM_LOG_PATH
 
     const result = spawnSync(process.execPath, ['src/index.js'], {
       cwd: backendDirectory,
@@ -52,6 +55,6 @@ describe('backend startup', () => {
     })
 
     assert.notEqual(result.status, 0)
-    assert.match(result.stderr, /E2E mode requires an explicit TODO_LOG_PATH/)
+    assert.match(result.stderr, /E2E mode requires an explicit DATOM_LOG_PATH/)
   })
 })

@@ -1,167 +1,200 @@
-import {
-  act,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { within } from '@testing-library/react'
+import { ATTRIBUTE } from '@web-interview/todos/datom'
 import {
-  applyTransaction,
-  databaseFromReadModel,
-  projectTodoLists,
-} from '@web-interview/todos/database'
-import { SYNC_DEBOUNCE_MS } from '@web-interview/todos/actor'
+  SAVING_INDICATOR_DELAY_MS,
+  TEXT_SETTLE_MS,
+} from '@web-interview/todos/protocol'
+import { listId, todoId, ulid } from '@web-interview/todos/ulid'
+import { createFakeDatomServer } from '../../testing/fakeDatomServer'
+import { StatusBar } from './StatusBar'
 import { TodoLists } from './TodoLists'
+import { createTodoClient } from '../todoClient'
 import { useTodoLists } from '../useTodoLists'
-import * as api from '../../api/todoLists'
-import { createTodo } from '../todoModel'
 
-/** @typedef {import('@web-interview/todos/types').TodoDatabase} TodoDatabase */
-/** @typedef {import('@web-interview/todos/types').TodoLists} TodoListReadModel */
+/** @typedef {import('@web-interview/todos/types').Datom} Datom */
 
-vi.mock('../../api/todoLists', () => ({
-  fetchTodoReadModel: vi.fn(),
-  syncTodoLists: vi.fn(),
-}))
+/** @type {ReturnType<typeof createFakeDatomServer>} */
+let server
+let clock = 1_760_000_000_000
 
-const fetchTodoReadModelMock = vi.mocked(api.fetchTodoReadModel)
-const syncTodoListsMock = vi.mocked(api.syncTodoLists)
+const at = () => (clock += 1)
 
-const seedLists = {
-  '0000000001': {
-    id: '0000000001',
-    title: 'First List',
-    todos: [createTodo({ id: 't1', text: 'First todo of first list!' })],
-  },
-  '0000000002': {
-    id: '0000000002',
-    title: 'Second List',
-    todos: [createTodo({ id: 't2', text: 'First todo of second list!' })],
-  },
-}
+const FIRST_LIST = listId(at())
+const FIRST_TODO = todoId(FIRST_LIST, at())
+const SECOND_LIST = listId(at())
+const SECOND_TODO = todoId(SECOND_LIST, at())
 
-/** @type {TodoDatabase} */
-let serverDatabase
+/** @returns {Datom[]} */
+const seedDatoms = () => [
+  [FIRST_LIST, ATTRIBUTE.TITLE, 'First List', ulid(at()), true],
+  [FIRST_TODO, ATTRIBUTE.TEXT, 'First todo of first list!', ulid(at()), true],
+  [SECOND_LIST, ATTRIBUTE.TITLE, 'Second List', ulid(at()), true],
+  [SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), true],
+]
 
-/** @param {TodoListReadModel} [todoLists] */
-const installServer = (todoLists = seedLists) => {
-  serverDatabase = databaseFromReadModel(todoLists, 1)
-  fetchTodoReadModelMock.mockImplementation(async () => ({
-    basis: serverDatabase.basis,
-    todoLists: projectTodoLists(serverDatabase),
-  }))
-  syncTodoListsMock.mockImplementation(async ({ transactions }) => {
-    const acceptedTransactionIds = []
-    for (const transaction of transactions) {
-      const canonical = {
-        ...transaction,
-        serverSeq: serverDatabase.basis + 1,
-        serverAt: new Date().toISOString(),
-      }
-      serverDatabase = applyTransaction(serverDatabase, canonical).database
-      acceptedTransactionIds.push(transaction.id)
-    }
-    return {
-      basis: serverDatabase.basis,
-      todoLists: projectTodoLists(serverDatabase),
-      acceptedTransactionIds,
-      rejectedTransactions: [],
-    }
+const Harness = () => {
+  const runtime = useTodoLists({
+    createClient: () =>
+      createTodoClient({
+        apiBase: '',
+        EventSourceImpl: /** @type {typeof EventSource} */ (
+          /** @type {unknown} */ (server.FakeEventSource)
+        ),
+        fetchImpl: server.fetchImpl,
+      }),
   })
+  return (
+    <>
+      <StatusBar runtime={runtime} />
+      <TodoLists runtime={runtime} style={{}} />
+    </>
+  )
 }
 
-const loadLists = async () => {
+/** Lets the stream open, deliver the compacted set, and hand over server time. */
+const connect = async () => {
   await act(async () => {
     await Promise.resolve()
     await Promise.resolve()
     await Promise.resolve()
   })
-  await screen.findByText('My Todo Lists')
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
+  )
 }
 
-const advanceAutosave = async () => {
+const settle = async () => {
   await act(async () => {
-    vi.advanceTimersByTime(SYNC_DEBOUNCE_MS)
-    await Promise.resolve()
+    vi.advanceTimersByTime(TEXT_SETTLE_MS)
     await Promise.resolve()
     await Promise.resolve()
   })
 }
 
-const TodoListsHarness = () => {
-  const runtime = useTodoLists()
-  return <TodoLists runtime={runtime} style={{}} />
-}
-
-describe('TodoLists shared replica actor', () => {
+describe('TodoLists over the datom log', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    vi.stubGlobal('indexedDB', undefined)
-    installServer()
+    server = createFakeDatomServer()
+    server.seed(seedDatoms())
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    vi.unstubAllGlobals()
-    vi.clearAllMocks()
+    vi.restoreAllMocks()
   })
 
-  it('summarizes incomplete and empty lists from the actor read model', async () => {
-    installServer({
-      ...seedLists,
-      '0000000002': { ...seedLists['0000000002'], todos: [] },
-    })
-
-    render(<TodoListsHarness />)
-    await loadLists()
+  it('summarizes incomplete and empty Todo Lists from the projected read model', async () => {
+    server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
+    render(<Harness />)
+    await connect()
 
     expect(screen.getByText('0 of 1 completed')).toBeInTheDocument()
     expect(screen.getByText('No todos yet')).toBeInTheDocument()
   })
 
-  it('applies edits optimistically and synchronizes a transaction batch', async () => {
+  it('disables editing until the first server time arrives', async () => {
+    server.disconnect()
+    render(<Harness />)
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(screen.getByRole('button', { name: 'Add Todo List' })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Connection lost')
+  })
+
+  it('keeps editing enabled after the stream drops', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoListsHarness />)
-    await loadLists()
+    render(<Harness />)
+    await connect()
+    await user.click(screen.getByText('First List'))
+
+    act(() => server.disconnect())
+
+    expect(screen.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
+    const field = screen.getByLabelText('What to do?')
+    await user.clear(field)
+    await user.type(field, 'Written while offline')
+    await settle()
+
+    expect(field).toHaveValue('Written while offline')
+    expect(screen.getByRole('alert')).toHaveTextContent('Waiting for connection')
+  })
+
+  it('mints one datom when a text edit settles, not one per keystroke', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const posted = vi.spyOn(server, 'fetchImpl')
+    render(<Harness />)
+    await connect()
     await user.click(screen.getByText('First List'))
 
     const field = screen.getByLabelText('What to do?')
     await user.clear(field)
-    await user.type(field, 'Synced edit')
+    await user.type(field, 'Settled once')
+    expect(posted).not.toHaveBeenCalled()
 
-    expect(field).toHaveValue('Synced edit')
-    expect(api.syncTodoLists).not.toHaveBeenCalled()
-    await advanceAutosave()
+    await settle()
 
-    await waitFor(() => expect(api.syncTodoLists).toHaveBeenCalledTimes(1))
-    expect(field).toHaveValue('Synced edit')
+    await waitFor(() => expect(posted).toHaveBeenCalledTimes(1))
+    const { datoms } = JSON.parse(String(posted.mock.calls[0][1]?.body))
+    expect(datoms).toEqual([[FIRST_TODO, ATTRIBUTE.TEXT, 'Settled once', expect.any(String), true]])
+    expect(server.store.readModel()[FIRST_LIST].todos[0].text).toBe('Settled once')
   })
 
-  it('flushes pending transactions when focus leaves the editor', async () => {
+  it('does not say Saving before the outbox has been busy for 300ms', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoListsHarness />)
-    await loadLists()
-    await user.click(screen.getByText('First List'))
-    await user.clear(screen.getByLabelText('What to do?'))
-    await user.type(screen.getByLabelText('What to do?'), 'Switch now')
-
-    await user.click(screen.getByText('Second List'))
-
-    await waitFor(() => expect(api.syncTodoLists).toHaveBeenCalledTimes(1))
-    await user.click(screen.getByText('First List'))
-    expect(screen.getByLabelText('What to do?')).toHaveValue('Switch now')
-  })
-
-  it('updates list completion before server acknowledgement', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    /** @type {((value: Awaited<ReturnType<typeof api.syncTodoLists>>) => void) | undefined} */
-    let resolveSync
-    syncTodoListsMock.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveSync = resolve })
+    /** @type {(() => void) | undefined} */
+    let releasePost
+    vi.spyOn(server, 'fetchImpl').mockImplementation(
+      () => new Promise((resolve) => {
+        releasePost = () => resolve(/** @type {Response} */ (/** @type {unknown} */ ({
+          ok: true,
+          status: 200,
+          json: async () => ({ serverTime: server.serverTime() }),
+        })))
+      })
     )
-    render(<TodoListsHarness />)
-    await loadLists()
+    render(<Harness />)
+    await connect()
+    await user.click(screen.getByText('First List'))
+    await user.type(screen.getByLabelText('What to do?'), '!')
+    await settle()
+
+    expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+
+    await act(async () => {
+      vi.advanceTimersByTime(SAVING_INDICATOR_DELAY_MS)
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Saving…')
+
+    await act(async () => {
+      releasePost?.()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+    )
+  })
+
+  it('shows a Todo written by another client without any interaction', async () => {
+    render(<Harness />)
+    await connect()
+
+    act(() => {
+      server.push([[todoId(FIRST_LIST, at()), ATTRIBUTE.TEXT, 'From another tab', ulid(at()), true]])
+    })
+
+    expect(await screen.findByText('0 of 2 completed')).toBeInTheDocument()
+  })
+
+  it('updates list completion straight from the local projection', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<Harness />)
+    await connect()
     await user.click(screen.getByText('First List'))
 
     await user.click(screen.getByLabelText('Mark completed: First todo of first list!'))
@@ -171,30 +204,18 @@ describe('TodoLists shared replica actor', () => {
       'aria-current',
       'true'
     )
-
-    await advanceAutosave()
-    expect(syncTodoListsMock).toHaveBeenCalledTimes(1)
-    const completeSync = resolveSync
-    if (!completeSync) throw new Error('Expected pending sync request')
-    await act(async () => {
-      completeSync({
-        basis: 1,
-        todoLists: seedLists,
-        acceptedTransactionIds: [],
-        rejectedTransactions: [],
-      })
-      await Promise.resolve()
-    })
   })
 
   it('materializes, commits, and dematerializes the ghost composer', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoListsHarness />)
-    await loadLists()
+    render(<Harness />)
+    await connect()
     await user.click(screen.getByText('First List'))
 
     const composer = screen.getByLabelText('Add a todo')
     await user.type(composer, 'Ghost born')
+    expect(screen.getAllByLabelText('What to do?')).toHaveLength(1)
+    await settle()
     expect(screen.getAllByLabelText('What to do?')).toHaveLength(1)
 
     await user.keyboard('{Enter}')
@@ -202,24 +223,26 @@ describe('TodoLists shared replica actor', () => {
     expect(screen.getAllByLabelText('What to do?')[0]).toHaveValue('Ghost born')
 
     await user.type(composer, 'Temporary')
+    await settle()
     await user.clear(composer)
+    await settle()
     expect(screen.queryByDisplayValue('Temporary')).not.toBeInTheDocument()
   })
 
   it('exposes named regions for the editor and composer', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoListsHarness />)
-    await loadLists()
+    render(<Harness />)
+    await connect()
     await user.click(screen.getByText('First List'))
 
     expect(screen.getByRole('region', { name: 'Todo editor' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'New todo' })).toBeInTheDocument()
   })
 
-  it('creates one focused blank draft and materializes it on first text', async () => {
+  it('creates one focused blank draft and materializes it when the title settles', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoListsHarness />)
-    await loadLists()
+    render(<Harness />)
+    await connect()
 
     const add = screen.getByRole('button', { name: 'Add Todo List' })
     await user.click(add)
@@ -230,6 +253,9 @@ describe('TodoLists shared replica actor', () => {
     expect(screen.getAllByLabelText('Todo List name')).toHaveLength(1)
 
     await user.type(screen.getByLabelText('Todo List name'), 'Release')
+    expect(screen.queryByLabelText('Add a todo')).not.toBeInTheDocument()
+    await settle()
+
     expect(screen.getByLabelText('Add a todo')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Release No todos yet$/ })).toHaveAttribute(
       'aria-current',
@@ -237,14 +263,11 @@ describe('TodoLists shared replica actor', () => {
     )
   })
 
-  it('deletes empty lists immediately and confirms a non-empty final list', async () => {
+  it('deletes an empty Todo List immediately and confirms a populated one', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    installServer({
-      '0000000001': seedLists['0000000001'],
-      '0000000002': { ...seedLists['0000000002'], todos: [] },
-    })
-    render(<TodoListsHarness />)
-    await loadLists()
+    server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
+    render(<Harness />)
+    await connect()
 
     await user.click(screen.getByRole('button', {
       name: 'Delete Todo List: Second List',
@@ -272,20 +295,14 @@ describe('TodoLists shared replica actor', () => {
     })).toHaveFocus())
   })
 
-  it('re-sorts from optimistic due dates without losing active selection', async () => {
+  it('re-sorts on a due date without losing the active selection', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    installServer({
-      '0000000001': {
-        ...seedLists['0000000001'],
-        todos: [{ ...seedLists['0000000001'].todos[0], dueDate: '2099-02-01' }],
-      },
-      '0000000002': {
-        ...seedLists['0000000002'],
-        todos: [{ ...seedLists['0000000002'].todos[0], dueDate: '2099-01-01' }],
-      },
-    })
-    render(<TodoListsHarness />)
-    await loadLists()
+    server.push([
+      [FIRST_TODO, ATTRIBUTE.DUE_DATE, '2099-02-01', ulid(at()), true],
+      [SECOND_TODO, ATTRIBUTE.DUE_DATE, '2099-01-01', ulid(at()), true],
+    ])
+    render(<Harness />)
+    await connect()
 
     const list = screen.getByRole('list', { name: 'Todo lists' })
     expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Second List')

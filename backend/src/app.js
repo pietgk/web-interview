@@ -1,10 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import { constants as HTTP } from 'node:http2'
-import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
-import { createTodoListsRouter } from './routes/todoLists.js'
+import { DATOM_API_PATH, ERROR_CODE } from '@web-interview/todos/protocol'
+import { createDatomsRouter } from './routes/datoms.js'
 
-/** @typedef {import('@web-interview/todos/actor').TodoListActor} TodoListActor */
+/** @typedef {Awaited<ReturnType<typeof import('./todos/datomService.js').createDatomService>>} DatomService */
 
 /**
  * @param {string[]} allowedOrigins
@@ -20,18 +20,18 @@ const corsOriginPolicy = (allowedOrigins) =>
   }
 
 /**
- * @param {TodoListActor} todoActor
- * @param {{corsOrigins?: string[]}} [options]
+ * @param {DatomService} datomService
+ * @param {{corsOrigins?: string[], heartbeatMs?: number}} [options]
  */
-export const createApp = (todoActor, { corsOrigins = [] } = {}) => {
-  if (!todoActor) throw new Error('createApp requires the server todo-list actor')
+export const createApp = (datomService, { corsOrigins = [], heartbeatMs } = {}) => {
+  if (!datomService) throw new Error('createApp requires the datom service')
   const app = express()
 
   app.use(cors({ origin: corsOriginPolicy(corsOrigins) }))
   app.use(express.json())
 
   app.get('/', (_req, res) => res.send('Hi'))
-  app.use(TODO_API_PATH.ROOT, createTodoListsRouter(todoActor))
+  app.use(DATOM_API_PATH.ROOT, createDatomsRouter(datomService, { heartbeatMs }))
 
   /** @type {import('express').ErrorRequestHandler} */
   // eslint-disable-next-line no-unused-vars

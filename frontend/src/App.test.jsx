@@ -4,18 +4,18 @@ import { useTodoLists } from './todos/useTodoLists'
 
 vi.mock('./todos/useTodoLists', () => ({ useTodoLists: vi.fn() }))
 vi.mock('./todos/components/StatusBar', () => ({
-  /** @param {{runtime: {clientId: string}}} props */
-  StatusBar: ({ runtime }) => <div data-testid='status-runtime'>{runtime.clientId}</div>,
+  /** @param {{runtime: {status: {connection: string}}}} props */
+  StatusBar: ({ runtime }) => <div data-testid='status-runtime'>{runtime.status.connection}</div>,
 }))
 vi.mock('./todos/components/TodoLists', () => ({
-  /** @param {{runtime: {clientId: string}}} props */
-  TodoLists: ({ runtime }) => <div data-testid='lists-runtime'>{runtime.clientId}</div>,
+  /** @param {{runtime: {status: {connection: string}}}} props */
+  TodoLists: ({ runtime }) => <div data-testid='lists-runtime'>{runtime.status.connection}</div>,
 }))
 
 it('creates one Todo runtime and shares it with StatusBar and TodoLists', () => {
-  vi.mocked(useTodoLists).mockReturnValue(/** @type {ReturnType<typeof useTodoLists>} */ ({
-    clientId: 'one-runtime',
-  }))
+  vi.mocked(useTodoLists).mockReturnValue(/** @type {ReturnType<typeof useTodoLists>} */ (
+    /** @type {unknown} */ ({ status: { connection: 'one-runtime' } })
+  ))
 
   render(<App />)
 

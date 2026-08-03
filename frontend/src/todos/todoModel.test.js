@@ -1,37 +1,27 @@
-import {
-  createTodo,
-  getDueStatus,
-  isDematerializableTodo,
-  isListCompleted,
-  removeTodoAt,
-  updateTodoAt,
-} from './todoModel'
+import { getDueStatus, isDematerializableTodo, isListCompleted } from './todoModel'
+
+/** @param {Partial<import('@web-interview/todos/types').Todo>} [overrides] */
+const todo = (overrides = {}) => ({
+  id: 'todo',
+  text: '',
+  completed: false,
+  dueDate: null,
+  ...overrides,
+})
 
 describe('todoModel', () => {
-  describe('createTodo', () => {
-    it('creates a todo with defaults', () => {
-      const todo = createTodo({ id: 'fixed-id' })
-      expect(todo).toEqual({
-        id: 'fixed-id',
-        text: '',
-        completed: false,
-        dueDate: null,
-      })
-    })
-  })
-
   describe('isDematerializableTodo', () => {
-    it('is true for blank text without completed or dueDate', () => {
-      expect(isDematerializableTodo(createTodo({ id: '1', text: '   ' }))).toBe(true)
+    it('is true for blank text', () => {
+      expect(isDematerializableTodo(todo({ text: '   ' }))).toBe(true)
     })
 
-    it('is false when completed or dueDate is set', () => {
-      expect(
-        isDematerializableTodo(createTodo({ id: '1', text: '', completed: true }))
-      ).toBe(false)
-      expect(
-        isDematerializableTodo(createTodo({ id: '1', text: '', dueDate: '2099-01-01' }))
-      ).toBe(false)
+    it('is false as soon as there is text to keep', () => {
+      expect(isDematerializableTodo(todo({ text: 'Ship it' }))).toBe(false)
+    })
+
+    it('ignores completed and dueDate, which cannot keep a Todo alive on their own', () => {
+      expect(isDematerializableTodo(todo({ completed: true }))).toBe(true)
+      expect(isDematerializableTodo(todo({ dueDate: '2099-01-01' }))).toBe(true)
     })
   })
 
@@ -43,8 +33,8 @@ describe('todoModel', () => {
     it('is true when every todo is completed', () => {
       expect(
         isListCompleted([
-          createTodo({ id: '1', completed: true }),
-          createTodo({ id: '2', completed: true }),
+          todo({ id: '1', completed: true }),
+          todo({ id: '2', completed: true }),
         ])
       ).toBe(true)
     })
@@ -52,33 +42,10 @@ describe('todoModel', () => {
     it('is false when any todo is incomplete', () => {
       expect(
         isListCompleted([
-          createTodo({ id: '1', completed: true }),
-          createTodo({ id: '2', completed: false }),
+          todo({ id: '1', completed: true }),
+          todo({ id: '2', completed: false }),
         ])
       ).toBe(false)
-    })
-  })
-
-  describe('updateTodoAt / removeTodoAt', () => {
-    const todos = [
-      createTodo({ id: 'a', text: 'A' }),
-      createTodo({ id: 'b', text: 'B' }),
-    ]
-
-    it('updates a todo immutably', () => {
-      const next = updateTodoAt(todos, 0, { text: 'Updated', completed: true })
-      expect(next[0]).toEqual({
-        id: 'a',
-        text: 'Updated',
-        completed: true,
-        dueDate: null,
-      })
-      expect(todos[0].text).toBe('A')
-    })
-
-    it('removes a todo immutably', () => {
-      expect(removeTodoAt(todos, 0).map((t) => t.id)).toEqual(['b'])
-      expect(todos).toHaveLength(2)
     })
   })
 

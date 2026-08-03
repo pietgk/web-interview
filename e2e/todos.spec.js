@@ -1,31 +1,26 @@
 import { test, expect } from '@playwright/test'
 import { constants as HTTP } from 'node:http2'
-import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
-import {
-  createTodoListAtBottomTransaction,
-  createTodoTransaction,
-  deleteTodoListTransaction,
-  deleteTodoTransaction,
-  patchTodoTransaction,
-} from '@web-interview/todos/transactions'
+import { ATTRIBUTE } from '@web-interview/todos/datom'
+import { DATOM_API_PATH, ERROR_CODE } from '@web-interview/todos/protocol'
+import { listId, todoId, ulid } from '@web-interview/todos/ulid'
 import { E2E_API_BASE } from './environment.js'
-import {
-  PRIMARY_LIST_ID,
-  PRIMARY_LIST_TITLE,
-  PRIMARY_TODO,
-  SECONDARY_LIST_TITLE,
-} from './fixture.js'
-
-const E2E_RESET_CLIENT_ID = 'playwright-e2e-reset'
+import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
 
 const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)
-const dueInYearsLabel = new RegExp(
-  `Due in \\d+ years: ${PRIMARY_TODO.text}`
-)
 
-/** @param {string} prefix */
+/**
+ * Every journey works inside a Todo List it created, so the tests never contend
+ * over the seeded ones and need no reset between runs.
+ *
+ * @param {string} prefix
+ */
 const uniqueListTitle = (prefix) =>
   `${prefix} ${Date.now()} ${Math.random().toString(16).slice(2)}`
+
+/** @param {import('@playwright/test').Page} page */
+const waitForApp = async (page) => {
+  await expect(page.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
+}
 
 /** @param {import('@playwright/test').Page} page @param {string} title */
 async function startTodoList(page, title) {
@@ -33,108 +28,24 @@ async function startTodoList(page, title) {
   const titleField = page.getByLabel('Todo List name')
   await expect(titleField).toBeFocused()
   await titleField.fill(title)
+  await titleField.press('Enter')
   await expect(page.getByLabel('Add a todo')).toBeVisible()
 }
 
-/**
- * @param {import('@playwright/test').APIRequestContext} request
- * @returns {Promise<{basis: number, todoLists: import('@web-interview/todos/types').TodoLists}>}
- */
-async function fetchReadModel(request) {
-  const response = await request.get(`${E2E_API_BASE}${TODO_API_PATH.READ_MODEL}`)
-  if (!response.ok()) {
-    throw new Error(
-      `Failed to load read model: ${response.status()} ${await response.text()}`
-    )
-  }
-  return response.json()
-}
-
-/**
- * Soft-delete the seeded primary list (UI-style) and recreate it from the e2e
- * fixture via POST /sync. Todos are tombstoned first so resurrecting the same
- * list id does not bring dirty todos back. Journal history is retained.
- *
- * @param {import('@playwright/test').APIRequestContext} request
- */
-async function resetFirstList(request) {
-  const { basis, todoLists } = await fetchReadModel(request)
-  const primary = todoLists[PRIMARY_LIST_ID]
-  const alreadySeeded =
-    primary?.title === PRIMARY_LIST_TITLE &&
-    primary.todos.length === 1 &&
-    primary.todos[0].id === PRIMARY_TODO.id &&
-    primary.todos[0].text === PRIMARY_TODO.text &&
-    primary.todos[0].completed === PRIMARY_TODO.completed &&
-    primary.todos[0].dueDate === PRIMARY_TODO.dueDate
-
-  if (alreadySeeded) return
-
-  /** @type {import('@web-interview/todos/types').Transaction[]} */
-  const transactions = []
-
-  if (primary) {
-    for (const todo of primary.todos) {
-      transactions.push(
-        deleteTodoTransaction({
-          basis,
-          clientId: E2E_RESET_CLIENT_ID,
-          listId: primary.id,
-          todo,
-        })
-      )
-    }
-    transactions.push(
-      deleteTodoListTransaction({
-        basis,
-        clientId: E2E_RESET_CLIENT_ID,
-        todoList: primary,
-      })
-    )
-  }
-
-  transactions.push(
-    createTodoListAtBottomTransaction({
-      basis,
-      clientId: E2E_RESET_CLIENT_ID,
-      listId: PRIMARY_LIST_ID,
-      title: PRIMARY_LIST_TITLE,
-    }),
-    createTodoTransaction({
-      basis,
-      clientId: E2E_RESET_CLIENT_ID,
-      listId: PRIMARY_LIST_ID,
-      todo: { ...PRIMARY_TODO },
-    })
-  )
-
-  const response = await request.post(`${E2E_API_BASE}${TODO_API_PATH.SYNC}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      'x-client-id': E2E_RESET_CLIENT_ID,
-    },
-    data: { basis, transactions },
-  })
-  if (!response.ok()) {
-    throw new Error(
-      `Failed to reset first list: ${response.status()} ${await response.text()}`
-    )
-  }
-
-  const body = await response.json()
-  if (body.rejectedTransactions?.length) {
-    throw new Error(
-      `Failed to reset first list: ${JSON.stringify(body.rejectedTransactions)}`
-    )
-  }
+/** @param {import('@playwright/test').Page} page @param {string} text */
+async function addTodo(page, text) {
+  const composer = page.getByLabel('Add a todo')
+  await composer.fill(text)
+  await composer.press('Enter')
+  await expect(page.getByLabel('What to do?').first()).toHaveValue(text)
 }
 
 /** @param {import('@playwright/test').Page} page */
-const waitForAutosave = (page) =>
+const waitForWrite = (page) =>
   page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
-      response.url().endsWith(TODO_API_PATH.SYNC) &&
+      response.url().endsWith(DATOM_API_PATH.ROOT) &&
       response.ok()
   )
 
@@ -145,25 +56,23 @@ const elementHeight = async (locator) => {
   return box.height
 }
 
-test.beforeEach(async ({ request }) => {
-  await resetFirstList(request)
-})
-
 test('rejects a due date that does not exist in its month', async ({ request }) => {
-  const { basis, todoLists } = await fetchReadModel(request)
-  const todo = todoLists[PRIMARY_LIST_ID].todos[0]
-  const transaction = patchTodoTransaction({
-    basis,
-    clientId: E2E_RESET_CLIENT_ID,
-    listId: PRIMARY_LIST_ID,
-    todo,
-    patch: { dueDate: '2026-02-29' },
-  })
-  expect(transaction).not.toBeNull()
-
-  const response = await request.post(`${E2E_API_BASE}${TODO_API_PATH.SYNC}`, {
+  const list = listId(Date.now())
+  const todo = todoId(list, Date.now())
+  const created = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
     headers: { 'Content-Type': 'application/json' },
-    data: { basis, transactions: [transaction] },
+    data: {
+      datoms: [
+        [list, ATTRIBUTE.TITLE, uniqueListTitle('Due date rejection'), ulid(Date.now()), true],
+        [todo, ATTRIBUTE.TEXT, 'Todo with a due date', ulid(Date.now()), true],
+      ],
+    },
+  })
+  expect(created.ok()).toBe(true)
+
+  const response = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: { datoms: [[todo, ATTRIBUTE.DUE_DATE, '2026-02-29', ulid(Date.now()), true]] },
   })
 
   expect(response.status()).toBe(HTTP.HTTP_STATUS_BAD_REQUEST)
@@ -171,13 +80,25 @@ test('rejects a due date that does not exist in its month', async ({ request }) 
     code: ERROR_CODE.VALIDATION,
     issues: [
       expect.objectContaining({
-        message: expect.stringMatching(/Invalid value for todo\/dueDate/),
+        message: expect.stringMatching(/Invalid value for dueDate/),
       }),
     ],
   })
+})
 
-  const { todoLists: lists } = await fetchReadModel(request)
-  expect(lists[PRIMARY_LIST_ID].todos).toEqual([PRIMARY_TODO])
+test('rejects a transaction id dated into the future', async ({ request }) => {
+  const list = listId(Date.now())
+  const response = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: {
+      datoms: [[list, ATTRIBUTE.TITLE, 'From the future', ulid(Date.now() + 60_000), true]],
+    },
+  })
+
+  expect(response.status()).toBe(HTTP.HTTP_STATUS_BAD_REQUEST)
+  await expect(response.json()).resolves.toMatchObject({
+    code: ERROR_CODE.INVALID_DATOM,
+  })
 })
 
 test('does not shift Todo List controls while hydrating', async ({ page }) => {
@@ -211,87 +132,104 @@ test('does not shift Todo List controls while hydrating', async ({ page }) => {
   expect(shiftedLabels).not.toContain('Add Todo List')
 })
 
-test('autosaves todos and persists them across refresh', async ({ page }) => {
+test('shows the seeded Todo Lists that survived the server restart', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByText('My Todo Lists')).toBeVisible()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await waitForApp(page)
 
-  const textField = page.getByLabel('What to do?')
-  const saved = waitForAutosave(page)
+  await page.getByText(PRIMARY_LIST_TITLE, { exact: true }).click()
+  await expect(page.getByLabel('What to do?')).toHaveValue(PRIMARY_TODO_TEXT)
+})
+
+test('autosaves a todo and persists it across refresh', async ({ page }) => {
+  const title = uniqueListTitle('Autosave')
+  await page.goto('/')
+  await waitForApp(page)
+  await startTodoList(page, title)
+  await addTodo(page, 'Original text')
+
+  const textField = page.getByLabel('What to do?').first()
+  const saved = waitForWrite(page)
   await textField.fill('Persisted from e2e')
+  await textField.press('Enter')
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
 
   await page.reload()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(page.getByLabel('What to do?')).toHaveValue('Persisted from e2e')
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Persisted from e2e')
 })
 
 test('marks a todo and its list as completed and persists after refresh', async ({ page }) => {
   await page.goto('/')
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await waitForApp(page)
+  await page.getByText(PRIMARY_LIST_TITLE, { exact: true }).click()
   const listButton = page.getByRole('button', { name: primaryListName })
   const initialHeight = await elementHeight(listButton)
 
-  const saved = waitForAutosave(page)
-  await page.getByLabel(`Mark completed: ${PRIMARY_TODO.text}`).check()
+  const saved = waitForWrite(page)
+  await page.getByLabel(`Mark completed: ${PRIMARY_TODO_TEXT}`).check()
   await saved
   await expect(page.getByText('1 of 1 completed')).toBeVisible()
-  const completedHeight = await elementHeight(listButton)
-  expect(completedHeight).toBe(initialHeight)
+  expect(await elementHeight(listButton)).toBe(initialHeight)
   await expect(page.getByRole('button', { name: primaryListName })).toHaveAttribute(
     'aria-current',
     'true'
   )
 
   await page.reload()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(page.getByLabel(`Mark completed: ${PRIMARY_TODO.text}`)).toBeChecked()
+  await page.getByText(PRIMARY_LIST_TITLE, { exact: true }).click()
+  await expect(page.getByLabel(`Mark completed: ${PRIMARY_TODO_TEXT}`)).toBeChecked()
   await expect(page.getByText('1 of 1 completed')).toBeVisible()
+
+  const cleared = waitForWrite(page)
+  await page.getByLabel(`Mark completed: ${PRIMARY_TODO_TEXT}`).uncheck()
+  await cleared
 })
 
 test('shows a due-in label for a due date and persists after refresh', async ({ page }) => {
+  const title = uniqueListTitle('Due date')
+  const dueInYearsLabel = /Due in \d+ years: Todo with a deadline/
   await page.goto('/')
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await waitForApp(page)
+  await startTodoList(page, title)
+  await addTodo(page, 'Todo with a deadline')
 
-  const saved = waitForAutosave(page)
-  await page.getByLabel(`Due date: ${PRIMARY_TODO.text}`).fill('2099-01-15')
-  await expect(
-    page.getByLabel(dueInYearsLabel)
-  ).toHaveValue('2099-01-15')
+  const saved = waitForWrite(page)
+  await page.getByLabel('Due date: Todo with a deadline').fill('2099-01-15')
+  await expect(page.getByLabel(dueInYearsLabel)).toHaveValue('2099-01-15')
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
 
   await page.reload()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(
-    page.getByLabel(dueInYearsLabel)
-  ).toHaveValue('2099-01-15')
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel(dueInYearsLabel)).toHaveValue('2099-01-15')
 })
 
-test('keeps edits when switching lists before debounce expires', async ({ page }) => {
+test('keeps a todo edit when switching lists before the text settles', async ({ page }) => {
+  const title = uniqueListTitle('Switch away')
   await page.goto('/')
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await waitForApp(page)
+  await startTodoList(page, title)
+  await addTodo(page, 'Original text')
 
-  const textField = page.getByLabel('What to do?')
-  const saved = waitForAutosave(page)
-  await textField.fill('Unsaved switch test')
-  await page.getByText(SECONDARY_LIST_TITLE).click()
+  const saved = waitForWrite(page)
+  await page.getByLabel('What to do?').first().fill('Unsaved switch test')
+  await page.getByText(PRIMARY_LIST_TITLE, { exact: true }).click()
   await saved
 
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(page.getByLabel('What to do?')).toHaveValue('Unsaved switch test')
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Unsaved switch test')
   await expect(page.getByText('All changes saved')).toBeVisible()
 })
 
-test('creates a todo by typing in the top composer and removes it when cleared', async ({
-  page,
-}) => {
+test('creates a todo by typing in the top composer and removes it when cleared', async ({ page }) => {
+  const title = uniqueListTitle('Ghost composer')
   await page.goto('/')
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await waitForApp(page)
+  await startTodoList(page, title)
 
   const composer = page.getByLabel('Add a todo')
-  const saved = waitForAutosave(page)
+  const saved = waitForWrite(page)
   await composer.fill('Typed into ghost')
   await page.getByRole('button', { name: 'Add todo', exact: true }).click()
   await saved
@@ -299,24 +237,26 @@ test('creates a todo by typing in the top composer and removes it when cleared',
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Typed into ghost')
 
   await page.reload()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await page.getByText(title, { exact: true }).click()
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Typed into ghost')
 
-  const removed = waitForAutosave(page)
+  const removed = waitForWrite(page)
   await page.getByLabel('Delete todo: Typed into ghost').click()
   await removed
 
   await page.reload()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(page.getByLabel('What to do?')).toHaveValue(PRIMARY_TODO.text)
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('What to do?')).toHaveCount(0)
 })
 
 test('commits composer text with Enter', async ({ page }) => {
+  const title = uniqueListTitle('Enter commit')
   await page.goto('/')
-  await page.getByText(PRIMARY_LIST_TITLE).click()
+  await waitForApp(page)
+  await startTodoList(page, title)
 
   const composer = page.getByLabel('Add a todo')
-  const saved = waitForAutosave(page)
+  const saved = waitForWrite(page)
   await composer.fill('Enter to commit')
   await composer.press('Enter')
   await saved
@@ -326,45 +266,15 @@ test('commits composer text with Enter', async ({ page }) => {
   await expect(page.getByText('All changes saved')).toBeVisible()
 })
 
-test('keeps a durable outbox across reload and syncs after reconnecting', async ({ page }) => {
-  await page.goto('/')
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
-
-  await page.getByLabel('What to do?').fill('Written while offline')
-  await expect(page.getByText('Waiting for connection')).toBeVisible()
-
-  /** @type {string[]} */
-  const reloadDialogs = []
-  page.on('dialog', async (dialog) => {
-    reloadDialogs.push(dialog.type())
-    await dialog.accept()
-  })
-  await page.reload()
-  expect(reloadDialogs).toEqual([])
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(page.getByLabel('What to do?')).toHaveValue('Written while offline')
-
-  await page.unroute(`${E2E_API_BASE}/**`)
-  const synced = waitForAutosave(page)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await synced
-  await expect(page.getByText('All changes saved')).toBeVisible()
-
-  await page.reload()
-  await page.getByText(PRIMARY_LIST_TITLE).click()
-  await expect(page.getByLabel('What to do?')).toHaveValue('Written while offline')
-})
-
-test('creates a Todo List and Todo that survive synchronization and reload', async ({ page }) => {
+test('creates a Todo List and Todo that survive a reload', async ({ page }) => {
   const title = uniqueListTitle('Created list')
   const todoText = `Created Todo ${title}`
   await page.goto('/')
+  await waitForApp(page)
 
-  const saved = waitForAutosave(page)
+  const saved = waitForWrite(page)
   await startTodoList(page, title)
-  await page.getByLabel('Add a todo').fill(todoText)
-  await page.getByLabel('Add a todo').press('Enter')
+  await addTodo(page, todoText)
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
 
@@ -374,63 +284,101 @@ test('creates a Todo List and Todo that survive synchronization and reload', asy
   await expect(page.getByLabel('What to do?').first()).toHaveValue(todoText)
 })
 
-test('renames a Todo List even when switching before the debounce expires', async ({ page }) => {
+test('renames a Todo List even when switching before the text settles', async ({ page }) => {
   const original = uniqueListTitle('Rename source')
   const renamed = uniqueListTitle('Renamed list')
   await page.goto('/')
-  const created = waitForAutosave(page)
+  await waitForApp(page)
+  const created = waitForWrite(page)
   await startTodoList(page, original)
   await created
 
-  const renamedSync = waitForAutosave(page)
+  const renamedWrite = waitForWrite(page)
   await page.getByLabel('Todo List name').fill(renamed)
   await page.getByText(PRIMARY_LIST_TITLE, { exact: true }).click()
-  await renamedSync
+  await renamedWrite
 
   await page.reload()
   await page.getByText(renamed, { exact: true }).click()
   await expect(page.getByLabel('Todo List name')).toHaveValue(renamed)
 })
 
-test('creates a Todo List offline, restores it from IndexedDB, and synchronizes on reconnect', async ({ page }) => {
-  const title = uniqueListTitle('Offline list')
+test('drains edits made while offline once the connection returns', async ({ page }) => {
+  const title = uniqueListTitle('Offline within a session')
   await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
-  await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
-
+  await waitForApp(page)
   await startTodoList(page, title)
-  await expect(page.getByText('Waiting for connection')).toBeVisible()
-  await page.reload()
-  await expect(page.getByText(title, { exact: true })).toBeVisible()
-
-  await page.unroute(`${E2E_API_BASE}/**`)
-  const synchronized = waitForAutosave(page)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await synchronized
+  await addTodo(page, 'Original text')
   await expect(page.getByText('All changes saved')).toBeVisible()
 
+  await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
+  const textField = page.getByLabel('What to do?').first()
+  await textField.fill('Written while offline')
+  await textField.press('Enter')
+  await expect(page.getByText('Waiting for connection')).toBeVisible()
+
+  await page.unroute(`${E2E_API_BASE}/**`)
+  await expect(page.getByText('All changes saved')).toBeVisible({ timeout: 30_000 })
+
   await page.reload()
-  await expect(page.getByText(title, { exact: true })).toBeVisible()
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Written while offline')
+})
+
+test('reports a lost connection and disables editing when reloaded offline', async ({ page }) => {
+  await page.goto('/')
+  await waitForApp(page)
+
+  await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
+  await page.reload()
+
+  await expect(page.getByText('Connection lost')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Add Todo List' })).toBeDisabled()
+  await expect(page.getByText(PRIMARY_LIST_TITLE, { exact: true })).toHaveCount(0)
+})
+
+test('converges two tabs without any interaction in the second', async ({ page, context }) => {
+  const title = uniqueListTitle('Two tabs')
+  await page.goto('/')
+  await waitForApp(page)
+  const created = waitForWrite(page)
+  await startTodoList(page, title)
+  await created
+
+  const other = await context.newPage()
+  await other.goto('/')
+  await waitForApp(other)
+  await other.getByText(title, { exact: true }).click()
+  await expect(other.getByLabel('What to do?')).toHaveCount(0)
+
+  const written = waitForWrite(page)
+  await addTodo(page, 'Written in the first tab')
+  await written
+
+  await expect(other.getByLabel('What to do?').first()).toHaveValue(
+    'Written in the first tab'
+  )
+  await other.close()
 })
 
 test('deletes empty lists immediately and confirms deletion of non-empty lists', async ({ page }) => {
   const emptyTitle = uniqueListTitle('Empty delete')
   const populatedTitle = uniqueListTitle('Populated delete')
   await page.goto('/')
+  await waitForApp(page)
 
-  let saved = waitForAutosave(page)
+  let saved = waitForWrite(page)
   await startTodoList(page, emptyTitle)
   await saved
-  saved = waitForAutosave(page)
+  saved = waitForWrite(page)
   await page.getByRole('button', { name: `Delete Todo List: ${emptyTitle}` }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText(emptyTitle, { exact: true })).toHaveCount(0)
   await saved
 
-  saved = waitForAutosave(page)
+  saved = waitForWrite(page)
   await startTodoList(page, populatedTitle)
-  await page.getByLabel('Add a todo').fill('Todo removed with its list')
-  await page.getByLabel('Add a todo').press('Enter')
+  await addTodo(page, 'Todo removed with its list')
   await saved
 
   await page.getByRole('button', {
@@ -445,11 +393,13 @@ test('deletes empty lists immediately and confirms deletion of non-empty lists',
   await page.getByRole('button', {
     name: `Delete Todo List: ${populatedTitle}`,
   }).click()
-  const deleted = waitForAutosave(page)
+  const deleted = waitForWrite(page)
   await page.getByRole('dialog', { name: `Delete ${populatedTitle}?` })
     .getByRole('button', { name: 'Delete Todo List' })
     .click()
   await deleted
+
+  // One datom deletes the whole Todo List: its Todos stop projecting with it.
   await page.reload()
   await expect(page.getByText(populatedTitle, { exact: true })).toHaveCount(0)
 })

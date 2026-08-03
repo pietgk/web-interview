@@ -17,109 +17,165 @@ Playwright browsers on a clean checkout: `npx playwright install chromium`.
 ## Scope completed
 
 - **Main:** Persist todo lists across server restarts in an append-only JSONL journal
-- **Autosave:** No Save button; optimistic local transactions with debounced network sync
-- **Offline:** Durable IndexedDB outbox, reload recovery, and automatic reconnection
+- **Autosave:** No Save button; edits mint one datom when a field settles
+- **Real time:** Multiple clients and browser tabs converge without interaction
 - **Completed items:** Toggle per todo
 - **Completed lists:** Derived indicator when every item is completed
-- **Todo List lifecycle:** Create, rename, and tombstone-delete whole Todo Lists
+- **Todo List lifecycle:** Create, rename, and delete whole Todo Lists in one datom each
 - **Due dates:** Remaining and overdue labels, with completed items shown as `Completed`
-- **StatusBar:** One global durability, synchronization, failure, and recovery surface
-- **Tests:** Shared core, API and journal integration, React components, and Playwright journeys
+- **StatusBar:** One global connection, delivery, and recovery surface
+- **Tests:** Shared model, API and journal integration, React components, and Playwright journeys
 
-## Persistence: immutable transactions in a JSONL journal
+## Persistence: one datom per line in a JSONL journal
 
-One transaction record contains all datoms that become true or false together. The server
-serializes writes through one actor, appends one checksummed line, calls `datasync()`, and only
-then acknowledges the transaction. Startup replay deterministically rebuilds the read model
-without requiring an external database.
+A datom is `[entity, attribute, value, tx, op]`, and every transaction contains exactly one of
+them, so `tx` is the transaction id and the datom's identity at the same time. The server appends
+one bare JSON array per line, calls `datasync()`, and only then acknowledges the write. Startup
+replays the journal deterministically without requiring an external database.
 
-The journal is intentionally single-process and replay cost grows with history. Checkpoints or an
-external transaction store can be added later without changing the domain transaction format.
+There is no checksum: a torn write always loses the closing bracket and therefore always fails
+`JSON.parse`, so a checksum would add roughly 70% to each line to detect only bit rot. Recovery
+discards a final line that is unterminated or unparseable, and fails startup on any earlier bad
+line.
 
-## API: read-model and transaction synchronization
+The journal is intentionally single-process and replay cost grows with history.
 
-`GET /api/todo-lists/read-model` supplies the authoritative database value. `POST
-/api/todo-lists/sync` accepts idempotent transaction batches and returns the new basis, accepted
-ids, structured rejections, and authoritative read model. The client rebases any remaining local
-transactions over that response.
+## API: a Server-Sent Events stream down, HTTP POST up
+
+`GET /api/datoms/stream` emits one datom per event with `id: {tx}` for the browser's cursor.
+Omitting `since` returns the compacted current set: the highest-`tx` datom for each
+`(entity, attribute)` pair, in ascending `tx` order, so superseded datoms are never sent and the
+stream differs from the journal. A periodic `clock` event carries server time and deliberately
+carries no `id`, because a clock tick is not a position in the datom log and giving it one would
+make the client skip datoms on the next reconnect.
+
+Retraction tombstones stay in the compacted set. A client that was disconnected when a Todo was
+deleted learns of the deletion only from that retraction; without it the Todo would be immortal on
+every client that missed it.
+
+`POST /api/datoms` sends the outbox and returns server time. The server journals every valid
+datom, including the ones that lost, because the journal is the history. It broadcasts only
+winners, because no client needs a datom that lost: a client whose write lost still converges,
+since its cursor is behind and the stream hands it the winner.
+
+Details: [`docs/adr/004-single-datom-log.md`](./docs/adr/004-single-datom-log.md).
+
+## Last-write-wins removes the conflict path entirely
+
+The current value of `(entity, attribute)` is the datom with the highest `tx`. All attributes are
+cardinality-one, so a conflict can only be resolved by picking a winner, and the machinery for
+reporting the loser to a user has no useful outcome. There are no rejections, no rollback, no
+rebase, no `basis`, and no server sequence.
+
+Nothing is synthesized at apply time. A rename writes one assertion, not a retraction plus an
+assertion, so a datom is byte-identical in the browser, on the wire, and in the journal. Both
+sides converge by construction, and the server's echo of a client's own datom is an exact no-op.
+
+Re-delivering a datom produces an identical projection, so there is no idempotency bookkeeping at
+all: no transaction id set, no accepted-id list, no duplicate detection.
 
 ## Shared runtime contract
 
-The shared package contains strict Zod schemas for todos, datoms, transactions, read models, and
-sync responses. It also contains the atomic transactor, deterministic projector, replay and as-of
-helpers, transaction builders, selectors, and the shared actor implementation.
+The shared package owns one class and one schema. `DatomStore` folds datoms and projects the read
+model; `datomSchema` validates entity id shape, attribute membership, attribute-to-entity-type
+match, and value type and range. Both sides use them verbatim, so the fold and the projection
+cannot diverge.
 
 This implementation borrows the immutable-fact model. It does not contain Datomic code or depend
 on Datomic.
 
-## One shared actor in the browser and server
-
-Transaction validation, application, replay, and projection are domain behavior rather than
-browser behavior. One `TodoListActor` implementation prevents the browser and Node from
-developing different persistence semantics.
-
-- One singleton actor runs in Node with `JsonlJournalStorage`
-- One actor runs in each browser app with `IndexedDbReplicaStorage`
-- React subscribes directly with `useSyncExternalStore`
-- Local persistence is serialized; remote synchronization is debounced and retryable
-- Transaction ids make uncertain HTTP retries idempotent
-- Server sequence is the authoritative order for concurrent cardinality-one writes
-
-Details: [`docs/adr/003-shared-datom-actor.md`](./docs/adr/003-shared-datom-actor.md).
-
 ## Browser read model and offline behavior
 
-The visible model is the latest authoritative server model plus locally pending transactions.
-Each local transaction is written to IndexedDB before it depends on network delivery. On sync,
-the browser removes accepted transactions and replays any remaining transactions over the server
-response. This makes page-exit network requests an optimization rather than a correctness
-requirement.
+The browser adds an outbox array, an `EventSource` client, and a POST drainer. It persists
+nothing. `EventSource`'s built-in reconnect and `Last-Event-ID` replace the sync cursor, the
+debounce timer, the exponential backoff with jitter, and `navigator.onLine`.
 
-The actor exposes local persistence, remote synchronization, pending work, and errors separately,
-so the UI can say `Saving`, `Saved offline`, or `All changes saved` accurately.
+The server prefers `Last-Event-ID` over `?since=` when both are present, because an auto-reconnect
+re-requests the original URL carrying its now-stale `?since=` alongside a fresh header. That
+preference is an efficiency rule, not a correctness rule, and a test asserts that a stale cursor
+still converges.
+
+A client mints `tx` from the last known server time plus elapsed monotonic time, and never reads
+the local wall clock. Editing is disabled until the first server time arrives, then stays enabled
+for the session. The stream sends the compacted set before it sends server time, so having a clock
+also means having the state that came with it.
+
+**Offline edits do not survive a reload.** The outbox is in memory. Offline work within a session
+drains on reconnect, but refreshing the page discards it. This is a stated non-goal.
+
+## Entity ids carry identity, `tx` carries order
+
+| entity | id |
+|---|---|
+| Todo List | `L{ULID}` |
+| Todo | `L{listULID}/T{ULID}` |
+
+A ULID is a 48-bit millisecond timestamp plus 80 random bits in Crockford base32, so lexicographic
+order is time order. Embedding the Todo List id in the Todo id removes a `todo/list` attribute and
+makes a Todo that belongs to no Todo List unrepresentable rather than merely unlikely.
+
+Carrying the timestamp in the id means creation time survives compaction, which `min(tx)` over
+stored datoms does not: a compacted store holds only current winners, so a renamed Todo would
+otherwise appear to have been created at the time of its rename. A test pins this.
+
+Todos sort by id descending (newest first), Todo Lists by id ascending (oldest first). Both are
+plain string comparisons needing no tie-break, because ULIDs are unique. The generator is
+monotonic within a millisecond, so two ids minted in the same millisecond keep their mint order.
+
+## Todo List lifecycle uses defining attributes, not tombstones
+
+| attribute | entity | defining | value |
+|---|---|---|---|
+| `title` | Todo List | yes | string, 1 to 100 characters after trimming |
+| `text` | Todo | yes | string, up to 1000 characters |
+| `completed` | Todo | no | boolean |
+| `dueDate` | Todo | no | calendar date |
+
+An entity exists exactly while its defining attribute is currently asserted. Deleting a Todo List
+retracts its `title`, which is one datom no matter how many Todos it holds: those Todos stop
+projecting because the Todo List named by their ids no longer exists. Undelete is re-assertion,
+and it restores the entity's other attributes with it.
+
+Duplicate titles remain valid, because a Todo List is identified by itself, not by what it is
+called.
+
+The navigation order is a pure projection of the read model. Incomplete Todo Lists with a Next Due
+Date come first by date, undated and empty Todo Lists retain creation order, and completed Todo
+Lists retain creation order at the end.
 
 ## List completion is derived
 
 List completion is never stored. A non-empty list is completed when every visible todo is
-completed. Both the navigation summary and active editor use the optimistic actor read model, so
-they update before server acknowledgement.
+completed. Both the navigation summary and the active editor read the local projection, so they
+update before the server has acknowledged anything.
 
-## Todo List lifecycle uses stable identities and tombstones
+## Edit granularity: mint on settle
 
-Todo Lists are created with an atomic title, creation order, and `list/deleted = false`
-transaction. Renames update only `list/title`; duplicate titles remain valid because list ids define
-identity. Deletion asserts `list/deleted = true`, which hides the Todo List and its Todos from the
-complete read model while retaining the historical facts in the JSONL journal.
+In-flight text stays in React state. A datom is minted when a field settles: 500ms idle, blur, or
+Enter, whichever comes first. Discrete actions (completed, due date, delete) mint immediately.
 
-The navigation order is a pure projection of the optimistic read model. Incomplete Todo Lists
-with a Next Due Date come first by date, undated and empty Todo Lists retain creation order, and
-completed Todo Lists retain creation order at the end.
-
-## StatusBar is a pure projection of the shared actor
-
-The application creates one browser actor and passes the same runtime to StatusBar and Todo Lists.
-StatusBar does not own another state machine. A pure selector maps actor snapshots to one ordered
-status line with deterministic severity, wording, details, and layer-specific recovery actions.
-Only rejection notifications can be dismissed; persistence, synchronization, offline, and loading
-failures remain visible until their underlying condition changes.
-
-## Todos use stable entity ids
-
-The UI read model remains:
-
-```js
-{ id, text, completed, dueDate }
-```
-
-Persistent attributes are stored as cardinality-one facts. Todo deletion is a `todo/deleted =
-true` assertion, which preserves history and permits a future compensating undo transaction.
+Without this, typing a twenty-character Todo would mint twenty datoms on `text`, nineteen of them
+superseded within a second, and there is no transaction envelope left to group them. Leaving a
+field by switching Todo Lists settles rather than discards, so the edit survives.
 
 ## Ghost composer
 
-The focus and linked-id state are ephemeral React state. The first non-whitespace character
-creates a persistent todo transaction. Enter or the trailing Add button commits the row visually.
-Clearing a linked todo creates a deletion transaction unless another persistent attribute keeps
-it materialized.
+The composer's text and its link to a materialized Todo are ephemeral React state. The Todo
+materializes on the first settle rather than on the first character, and a settled blank composer
+retracts it again. Enter or the trailing Add button commits the row into the list.
+
+## StatusBar is a pure projection of client status
+
+The application creates one client and passes the same runtime to StatusBar and Todo Lists. A pure
+selector maps `{connection, pendingCount, saving, canEdit, error}` to one ordered status line.
+
+"Saving…" appears only after the outbox has been non-empty for 300ms, because settle-grained
+minting followed by an immediate POST empties the outbox in roughly 50ms and an undelayed
+indicator would flicker on every edit. The 300ms is a timer in the client, not in the selector, so
+the selector stays pure and the delay stays testable on its own.
+
+An outbox that cannot drain reports "Waiting for connection" even while the stream is nominally
+open, because delivery is what the user cares about and saying "Saving…" forever would be a lie.
 
 ## Due-date formatting
 
@@ -131,19 +187,22 @@ completed todos are never described as overdue.
 
 | Layer | Role |
 |---|---|
-| Shared core | Schemas, atomic transactor, replay, actor, and selectors |
-| Unit and component | Domain rules, optimistic rendering, batching, retry, and accessibility |
-| Node integration | Journal recovery, restart durability, API contract, and idempotency |
-| Playwright | Online and offline journeys across real browser reloads |
+| Shared core | ULID monotonicity, datom schema, last-write-wins fold, projection, selectors |
+| Unit and component | Settle granularity, ghost composer, accessibility |
+| Node integration | Journal recovery, restart durability, stream and POST semantics, durability ordering |
+| Playwright | Online, offline, reload, and two-tab journeys in a real browser |
 
-Failure paths such as torn writes, duplicate delivery, offline reload, invalid transactions, and
-completed due dates are first-class tests.
+This model fails silently when it is wrong: a datom that is not broadcast, a tombstone that is not
+retained, a cursor that skips. Nothing throws and one client just quietly shows the wrong thing,
+so the test names state the rule rather than the mechanism.
 
 ## Knowingly deferred
 
-- Authentication and authorization
+- Authentication and authorization; a losing write cannot be distinguished from a hostile one
 - Horizontal multi-process writers for one JSONL journal
-- Multi-tab coordination beyond server-sequence convergence
+- A tombstone horizon; retractions currently accumulate without bound in the compacted set
+- Offline edits surviving a reload
 - Selected-list persistence across refresh
 - Journal checkpoints and compaction
-- Undo and redo UI; transaction history and as-of replay primitives already exist
+- Manual Todo reordering, which would need an `order` attribute again
+- Undo and redo UI, though undo is expressible as re-assertion of a defining attribute

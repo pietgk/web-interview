@@ -10,58 +10,17 @@
  * @property {RelativeDueUnit | null} unit
  */
 
-/** @returns {string} */
-const newTodoId = () => {
-  const cryptoApi = typeof crypto !== 'undefined' ? crypto : undefined
-  return (
-    cryptoApi?.randomUUID?.() ??
-    `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`
-  )
-}
-
-/**
- * @param {Partial<Todo>} [options]
- * @returns {Todo}
- */
-export const createTodo = ({
-  id = newTodoId(),
-  text = '',
-  completed = false,
-  dueDate = null,
-} = {}) => ({
-  id,
-  text,
-  completed,
-  dueDate,
-})
-
 /** @param {Todo[]} [todos] */
 export const isListCompleted = (todos = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
 
 /**
- * Empty draft rows with no attributes are dematerialized (not persisted).
- * @param {Todo} todo
+ * `text` is a Todo's defining attribute, so a ghost composer that settles blank
+ * has nothing to assert and takes its Todo away with it.
+ *
+ * @param {Pick<Todo, 'text'>} todo
  */
-export const isDematerializableTodo = (todo) =>
-  !String(todo?.text ?? '').trim() && !todo?.completed && todo?.dueDate == null
-
-/**
- * @param {Todo[]} todos
- * @param {number} index
- * @param {TodoPatch} patch
- */
-export const updateTodoAt = (todos, index, patch) =>
-  todos.map((todo, i) => (i === index ? { ...todo, ...patch } : todo))
-
-/**
- * @param {Todo[]} todos
- * @param {number} index
- */
-export const removeTodoAt = (todos, index) => [
-  ...todos.slice(0, index),
-  ...todos.slice(index + 1),
-]
+export const isDematerializableTodo = (todo) => !String(todo?.text ?? '').trim()
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 const AVERAGE_DAYS_PER_MONTH = 365.2425 / 12

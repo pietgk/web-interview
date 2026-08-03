@@ -54,7 +54,7 @@ export const TodoListForm = ({
         />
 
         {!draft && (
-          <TodoEditor onLeave={() => send({ type: TODO_UI_EVENT.FLUSH })}>
+          <TodoEditor>
             <TodoComposer
               text={composerText}
               focusRef={composerRef}

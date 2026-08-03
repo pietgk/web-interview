@@ -1,20 +1,14 @@
-import { ACTOR_STATUS, PERSISTENCE_STATUS, SYNC_STATUS } from './todoProtocol.js'
+import { CONNECTION } from './todoProtocol.js'
 
 /** @typedef {import('./types.js').Todo} Todo */
 /** @typedef {import('./types.js').TodoList} TodoList */
 /** @typedef {import('./types.js').TodoLists} TodoLists */
-/** @typedef {import('./types.js').TodoListSnapshot} TodoListSnapshot */
+/** @typedef {import('./types.js').TodoClientStatus} TodoClientStatus */
 /** @typedef {{id: string, title: string, completed: boolean, completedCount: number, totalCount: number, nextDueDate: string | null}} TodoListSummary */
 
 /** @param {Todo[]} [todos] */
 export const isListCompleted = (todos = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
-
-/**
- * @param {TodoListSnapshot} snapshot
- * @returns {TodoLists}
- */
-export const selectTodoLists = (snapshot) => snapshot.readModel
 
 /**
  * @param {TodoList} todoList
@@ -58,118 +52,64 @@ export const selectTodoListSummaries = (todoLists) =>
     })
     .map(({ sourceIndex, ...summary }) => summary)
 
-/** @param {Pick<TodoListSnapshot, 'persistenceStatus'>} snapshot */
-export const hasLocallyUndurableChanges = (snapshot) =>
-  snapshot.persistenceStatus === PERSISTENCE_STATUS.WRITING ||
-  snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED
-
 const titlePart = { id: 'title', text: 'Things to do' }
 
 /**
- * @param {Pick<TodoListSnapshot, 'status' | 'pendingTransactions' | 'rejectedTransactions' | 'persistenceStatus' | 'syncStatus' | 'error'>} snapshot
+ * One status line over what the client knows about its own delivery. There is no
+ * conflict path and nothing is persisted locally, so the only things worth saying
+ * are whether the stream is up and whether the outbox has drained.
+ *
+ * @param {TodoClientStatus} status
  * @returns {import('./types.js').StatusBarModel}
  */
-export const selectStatusBar = (snapshot) => {
-  if (snapshot.status === ACTOR_STATUS.IDLE || snapshot.status === ACTOR_STATUS.LOADING) {
+export const selectStatusBar = ({ connection, pendingCount, saving, error }) => {
+  if (connection === CONNECTION.FAILED) {
+    return {
+      severity: 'error',
+      parts: [titlePart, { id: 'connection', text: 'Connection lost' }],
+      action: { label: 'Reconnect', event: 'RECONNECT' },
+      details: error ? { reason: error } : null,
+    }
+  }
+  if (connection === CONNECTION.CONNECTING) {
     return {
       severity: 'info',
-      parts: [titlePart, { id: 'loading', text: 'Loading Todo Lists…' }],
+      parts: [titlePart, { id: 'connection', text: 'Connecting…' }],
       action: null,
       details: null,
-      dismissible: false,
     }
   }
-  if (snapshot.status === ACTOR_STATUS.ERROR) {
-    return {
-      severity: 'error',
-      parts: [titlePart, { id: 'loading', text: 'Todo Lists could not be loaded' }],
-      action: { label: 'Retry loading', event: 'RELOAD' },
-      details: snapshot.error ? { reason: snapshot.error } : null,
-      dismissible: false,
-    }
-  }
-  if (snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED) {
-    return {
-      severity: 'error',
-      parts: [titlePart, { id: 'durability', text: 'Changes are not safely saved' }],
-      action: { label: 'Retry local save', event: 'RETRY_PERSISTENCE' },
-      details: snapshot.error ? { reason: snapshot.error } : null,
-      dismissible: false,
-    }
-  }
-
-  const rejection = snapshot.rejectedTransactions[0]
-  if (rejection) {
-    return {
-      severity: 'error',
-      parts: [titlePart, { id: 'rejection', text: 'A change could not be applied' }],
-      action: { label: 'Review', event: 'REVIEW_REJECTION' },
-      details: {
-        rejectionId: rejection.id,
-        listId: rejection.listId ?? null,
-        reason: rejection.error,
-        issues: rejection.issues ?? [],
-        rolledBack: true,
-      },
-      dismissible: true,
-    }
-  }
-  if (snapshot.syncStatus === SYNC_STATUS.FAILED) {
+  if (connection === CONNECTION.RECONNECTING) {
     return {
       severity: 'warning',
       parts: [
         titlePart,
-        { id: 'durability', text: 'Saved on this device' },
-        { id: 'sync', text: 'Server sync failed' },
+        { id: 'connection', text: 'Connection lost' },
+        {
+          id: 'sync',
+          text: pendingCount > 0 ? 'Waiting for connection' : 'Reconnecting…',
+        },
       ],
-      action: { label: 'Retry server synchronization', event: 'RETRY_SYNC' },
-      details: snapshot.error ? { reason: snapshot.error } : null,
-      dismissible: false,
+      action: null,
+      details: error ? { reason: error } : null,
     }
   }
-  if (snapshot.syncStatus === SYNC_STATUS.OFFLINE) {
-    const hasPending = snapshot.pendingTransactions.length > 0
+  // Delivery is what matters, and the outbox can stall while the stream is still
+  // nominally open. Saying "Saving…" forever would be a lie.
+  if (error && pendingCount > 0) {
     return {
       severity: 'warning',
-      parts: hasPending
-        ? [
-            titlePart,
-            { id: 'durability', text: 'Saved on this device' },
-            { id: 'sync', text: 'Waiting for connection' },
-          ]
-        : [
-            titlePart,
-            { id: 'connection', text: 'Offline' },
-            { id: 'sync', text: 'No unsynchronized changes' },
-          ],
+      parts: [titlePart, { id: 'sync', text: 'Waiting for connection' }],
       action: null,
-      details: snapshot.error ? { reason: snapshot.error } : null,
-      dismissible: false,
+      details: { reason: error },
     }
   }
-  if (snapshot.persistenceStatus === PERSISTENCE_STATUS.WRITING) {
+  if (saving) {
     return {
       severity: 'info',
-      parts: [titlePart, { id: 'durability', text: 'Saving on this device…' }],
+      parts: [titlePart, { id: 'sync', text: 'Saving…' }],
       action: null,
       details: null,
-      dismissible: false,
-    }
-  }
-  if (
-    snapshot.pendingTransactions.length > 0 ||
-    snapshot.syncStatus === SYNC_STATUS.SYNCING
-  ) {
-    return {
-      severity: 'info',
-      parts: [
-        titlePart,
-        { id: 'durability', text: 'Saved on this device' },
-        { id: 'sync', text: 'Synchronizing…' },
-      ],
-      action: null,
-      details: null,
-      dismissible: false,
     }
   }
   return {
@@ -177,6 +117,5 @@ export const selectStatusBar = (snapshot) => {
     parts: [titlePart, { id: 'saved', text: 'All changes saved' }],
     action: null,
     details: null,
-    dismissible: false,
   }
 }

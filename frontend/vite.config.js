@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { TODO_API_PATH } from '@web-interview/todos/protocol'
+import { DATOM_API_PATH } from '@web-interview/todos/protocol'
 
 const DEVELOPMENT_PORT = Number(process.env.VITE_DEV_PORT ?? 3000)
 const API_PROXY_TARGET =
   process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3001'
 const API_PROXY = {
-  [TODO_API_PATH.ROOT]: API_PROXY_TARGET,
+  [DATOM_API_PATH.ROOT]: API_PROXY_TARGET,
 }
 
 export default defineConfig({

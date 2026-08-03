@@ -1,66 +1,42 @@
 export const TODO_TEXT_MAX_LENGTH = 1000
 export const TODO_LIST_TITLE_MAX_LENGTH = 100
-export const SYNC_TRANSACTION_LIMIT = 100
-export const TRANSACTION_VERSION = 1
 
-export const TODO_API_PATH = Object.freeze({
-  ROOT: '/api/todo-lists',
-  READ_MODEL: '/api/todo-lists/read-model',
-  SYNC: '/api/todo-lists/sync',
+/**
+ * A past-dated `tx` is harmless because it loses. A future-dated one wins every
+ * conflict until wall time catches up, so the server refuses it.
+ */
+export const TX_FUTURE_TOLERANCE_MS = 5_000
+
+/** A text field settles after this much idle time, or on blur or Enter. */
+export const TEXT_SETTLE_MS = 500
+
+/**
+ * Settle-grained minting followed by an immediate POST empties the outbox in
+ * roughly 50ms, so an undelayed indicator would flicker on every edit.
+ */
+export const SAVING_INDICATOR_DELAY_MS = 300
+
+/** Carries server time and keeps the stream open through proxies. */
+export const HEARTBEAT_INTERVAL_MS = 15_000
+
+export const DATOM_API_PATH = Object.freeze({
+  ROOT: '/api/datoms',
+  STREAM: '/api/datoms/stream',
 })
+
+export const CLOCK_EVENT = 'clock'
 
 export const ERROR_CODE = Object.freeze({
   INTERNAL: 'INTERNAL_ERROR',
-  INVALID_ERROR_RESPONSE: 'INVALID_ERROR_RESPONSE',
-  INVALID_RESPONSE: 'INVALID_RESPONSE',
-  INVALID_TRANSACTION: 'INVALID_TRANSACTION',
+  INVALID_DATOM: 'INVALID_DATOM',
   MALFORMED_JSON: 'MALFORMED_JSON',
   NETWORK: 'NETWORK_ERROR',
-  TRANSACTION_REJECTED: 'TRANSACTION_REJECTED',
   VALIDATION: 'VALIDATION_ERROR',
 })
 
-export const ACTOR_EVENT = Object.freeze({
-  DISMISS_REJECTION: 'DISMISS_REJECTION',
-  OFFLINE: 'OFFLINE',
-  ONLINE: 'ONLINE',
-  RELOAD: 'RELOAD',
-  RETRY_PERSISTENCE: 'RETRY_PERSISTENCE',
-  RETRY_SYNC: 'RETRY_SYNC',
-  SYNC: 'SYNC',
-  TRANSACT: 'TRANSACT',
-})
-
-export const ACTOR_STATUS = Object.freeze({
-  ERROR: 'error',
-  IDLE: 'idle',
-  LOADING: 'loading',
-  READY: 'ready',
-})
-
-export const PERSISTENCE_STATUS = Object.freeze({
+export const CONNECTION = Object.freeze({
+  CONNECTING: 'connecting',
+  LIVE: 'live',
+  RECONNECTING: 'reconnecting',
   FAILED: 'failed',
-  IDLE: 'idle',
-  WRITING: 'writing',
 })
-
-export const SYNC_STATUS = Object.freeze({
-  DISABLED: 'disabled',
-  FAILED: 'failed',
-  IDLE: 'idle',
-  OFFLINE: 'offline',
-  SYNCING: 'syncing',
-})
-
-export const TRANSACTION_CAUSE = Object.freeze({
-  DATABASE_SEEDED: 'database.seeded',
-  TODO_CHANGED: 'todo.changed',
-  TODO_CREATED: 'todo.created',
-  TODO_DELETED: 'todo.deleted',
-  TODO_LIST_CREATED: 'todo-list.created',
-  TODO_LIST_DELETED: 'todo-list.deleted',
-  TODO_LIST_TITLE_CHANGED: 'todo-list.title-changed',
-})
-
-export const GENESIS_TRANSACTION_ID = 'tx-genesis'
-export const SEED_CLIENT_ID = 'server-seed'

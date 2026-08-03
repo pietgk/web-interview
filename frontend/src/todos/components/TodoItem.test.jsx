@@ -1,7 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TodoItem } from './TodoItem'
-import { createTodo } from '../todoModel'
+
+/** @param {Partial<import('@web-interview/todos/types').Todo>} [overrides] */
+const createTodo = (overrides = {}) => ({
+  id: '1',
+  text: '',
+  completed: false,
+  dueDate: null,
+  ...overrides,
+})
 
 describe('TodoItem', () => {
   it('notifies on text, completed, due date, and delete, and shows due status in the date label', async () => {
@@ -21,6 +29,8 @@ describe('TodoItem', () => {
     expect(screen.queryByText('1')).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText('What to do?'), '!')
+    expect(onChange).not.toHaveBeenCalledWith({ text: 'Buy milk!' })
+    await user.tab()
     expect(onChange).toHaveBeenCalledWith({ text: 'Buy milk!' })
 
     await user.click(screen.getByLabelText('Mark completed: Buy milk'))

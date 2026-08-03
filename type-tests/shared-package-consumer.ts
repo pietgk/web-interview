@@ -1,68 +1,26 @@
-import { createTodoListActor } from '@web-interview/todos/actor'
-import { parseTodoList } from '@web-interview/todos/contract'
-import {
-  applyTransaction,
-  databaseFromReadModel,
-  projectTodoLists,
-} from '@web-interview/todos/database'
-import { ACTOR_EVENT, TRANSACTION_CAUSE } from '@web-interview/todos/protocol'
-import { selectListSummary, selectTodoLists } from '@web-interview/todos/selectors'
-import {
-  createTodoTransaction,
-  patchTodoTransaction,
-} from '@web-interview/todos/transactions'
-import type {
-  TodoListSnapshot,
-  TodoStorage,
-  Transaction,
-} from '@web-interview/todos/types'
+import { ATTRIBUTE, datomSchema } from '@web-interview/todos/datom'
+import { DatomStore } from '@web-interview/todos/datom-store'
+import { CONNECTION } from '@web-interview/todos/protocol'
+import { selectListSummary, selectStatusBar } from '@web-interview/todos/selectors'
+import { createUlidMinter, listId, todoId } from '@web-interview/todos/ulid'
+import type { Datom, TodoClientStatus } from '@web-interview/todos/types'
 
-const parsed = parseTodoList({
-  id: 'list',
-  title: 'List',
-  todos: [{ id: 'todo', text: 'Typed', completed: false, dueDate: null }],
-})
+const mint = createUlidMinter(() => 1_760_000_000_000)
+const list = listId(1_760_000_000_000)
+const todo = todoId(list, 1_760_000_000_001)
 
-if (!parsed.ok) throw new Error(parsed.body.error)
+const parsed = datomSchema.safeParse([list, ATTRIBUTE.TITLE, 'Typed', mint.tx(), true])
+if (!parsed.success) throw new Error(parsed.error.message)
 
-const database = databaseFromReadModel({ [parsed.data.id]: parsed.data })
-const transaction: Transaction = createTodoTransaction({
-  basis: database.basis,
-  clientId: 'type-test',
-  listId: parsed.data.id,
-  todo: parsed.data.todos[0],
-})
-const applied = applyTransaction(database, transaction)
-const projected = projectTodoLists(applied.database)
-selectListSummary(projected.list)
+const store = new DatomStore()
+store.apply(parsed.data)
+store.apply([todo, ATTRIBUTE.TEXT, 'Typed todo', mint.tx(), true] satisfies Datom)
 
-const patch = patchTodoTransaction({
-  basis: applied.database.basis,
-  clientId: 'type-test',
-  listId: projected.list.id,
-  todo: projected.list.todos[0],
-  patch: { completed: true },
-})
-if (patch) applyTransaction(applied.database, patch)
+const projected = store.readModel()
+selectListSummary(projected[list])
+void store.datomsSince(mint.tx())
 
-const storage: TodoStorage = {
-  async load() {
-    return {
-      hasReplica: true,
-      basis: applied.database.basis,
-      authoritativeReadModel: projected,
-      pendingTransactions: [],
-    }
-  },
-  async append(nextTransaction) {
-    return { transaction: nextTransaction, authoritative: true }
-  },
-}
+declare const status: TodoClientStatus
+selectStatusBar(status)
 
-const actor = createTodoListActor({ storage })
-actor.send({ type: ACTOR_EVENT.TRANSACT, transaction })
-
-declare const snapshot: TodoListSnapshot
-selectTodoLists(snapshot)
-
-void TRANSACTION_CAUSE.TODO_CREATED
+void CONNECTION.LIVE

@@ -1,13 +1,13 @@
 import { createApp } from './app.js'
 import { readBackendConfig } from './config.js'
-import { createServerTodoActor } from './todos/createServerTodoActor.js'
+import { createDatomService } from './todos/datomService.js'
 
 const config = readBackendConfig()
-const todoActor = await createServerTodoActor({
-  filePath: config.todoLogPath,
-  initialTodoLists: config.initialTodoLists,
+const datomService = await createDatomService({
+  filePath: config.datomLogPath,
+  seed: config.initialTodoLists,
 })
-const app = createApp(todoActor, { corsOrigins: config.corsOrigins })
+const app = createApp(datomService, { corsOrigins: config.corsOrigins })
 
 app.listen(config.port, () =>
   console.log(`Example app listening on port ${config.port}!`)
