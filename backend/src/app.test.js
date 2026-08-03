@@ -8,7 +8,6 @@ import request from 'supertest'
 import {
   ERROR_CODE,
   TODO_API_PATH,
-  todoListPath,
 } from '@web-interview/todos/protocol'
 import { patchTodoTransaction } from '@web-interview/todos/transactions'
 import { createApp } from './app.js'
@@ -35,12 +34,13 @@ describe('todo lists API', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
-  it('GET /api/todo-lists returns seeded lists', async () => {
-    const response = await request(app).get(TODO_API_PATH.ROOT)
+  it('GET /read-model returns seeded lists with basis', async () => {
+    const response = await request(app).get(TODO_API_PATH.READ_MODEL)
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
-    assert.equal(response.body['0000000001'].title, 'First List')
-    assert.equal(response.body['0000000002'].todos[0].completed, false)
+    assert.equal(response.body.basis, 1)
+    assert.equal(response.body.todoLists['0000000001'].title, 'First List')
+    assert.equal(response.body.todoLists['0000000002'].todos[0].completed, false)
   })
 
   it('emits CORS headers only for configured origins', async () => {
@@ -48,10 +48,10 @@ describe('todo lists API', () => {
       corsOrigins: ['https://allowed.example'],
     })
     const allowed = await request(configuredApp)
-      .get(TODO_API_PATH.ROOT)
+      .get(TODO_API_PATH.READ_MODEL)
       .set('Origin', 'https://allowed.example')
     const rejected = await request(configuredApp)
-      .get(TODO_API_PATH.ROOT)
+      .get(TODO_API_PATH.READ_MODEL)
       .set('Origin', 'https://rejected.example')
 
     assert.equal(
@@ -59,14 +59,6 @@ describe('todo lists API', () => {
       'https://allowed.example'
     )
     assert.equal(rejected.headers['access-control-allow-origin'], undefined)
-  })
-
-  it('GET /read-model returns the actor basis and read model', async () => {
-    const response = await request(app).get(TODO_API_PATH.READ_MODEL)
-
-    assert.equal(response.status, HTTP.HTTP_STATUS_OK)
-    assert.equal(response.body.basis, 1)
-    assert.equal(response.body.todoLists['0000000001'].title, 'First List')
   })
 
   it('POST /sync atomically persists datom transactions', async () => {
@@ -116,40 +108,6 @@ describe('todo lists API', () => {
     assert.equal(first.body.basis, 2)
     assert.equal(second.body.basis, 2)
     assert.deepEqual(second.body.acceptedTransactionIds, [transaction.id])
-  })
-
-  it('PUT whole-list replacement persists todos and deletes omitted todos', async () => {
-    const todos = [
-      {
-        id: 'new-1',
-        text: 'Persisted todo',
-        completed: false,
-        dueDate: null,
-      },
-      {
-        id: 'new-2',
-        text: 'Done one',
-        completed: true,
-        dueDate: '2026-07-31',
-      },
-    ]
-
-    const putResponse = await request(app)
-      .put(todoListPath('0000000001'))
-      .send({ todos })
-
-    assert.equal(putResponse.status, HTTP.HTTP_STATUS_OK)
-    assert.deepEqual(putResponse.body.todos, todos)
-
-    const getResponse = await request(app).get(TODO_API_PATH.ROOT)
-    assert.deepEqual(getResponse.body['0000000001'].todos, todos)
-  })
-
-  it('PUT returns NOT_FOUND for an unknown list', async () => {
-    const response = await request(app).put(todoListPath('nope')).send({ todos: [] })
-
-    assert.equal(response.status, HTTP.HTTP_STATUS_NOT_FOUND)
-    assert.equal(response.body.code, ERROR_CODE.TODO_LIST_NOT_FOUND)
   })
 
   it('rejects invalid sync bodies without changing the read model', async () => {

@@ -59,8 +59,6 @@ last server transaction.
 - `GET /api/todo-lists/read-model` returns `{ basis, todoLists }`.
 - `POST /api/todo-lists/sync` accepts a basis and up to 100 transactions, then returns the new
   authoritative read model, accepted transaction ids, and structured rejections.
-- The original whole-list `PUT` remains only as a compatibility boundary and translates its body
-  into one datom transaction.
 
 ## Consequences
 

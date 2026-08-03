@@ -9,10 +9,6 @@ export const TODO_API_PATH = Object.freeze({
   SYNC: '/api/todo-lists/sync',
 })
 
-/** @param {string} listId */
-export const todoListPath = (listId) =>
-  `${TODO_API_PATH.ROOT}/${encodeURIComponent(listId)}`
-
 export const ERROR_CODE = Object.freeze({
   INTERNAL: 'INTERNAL_ERROR',
   INVALID_ERROR_RESPONSE: 'INVALID_ERROR_RESPONSE',
@@ -20,7 +16,6 @@ export const ERROR_CODE = Object.freeze({
   INVALID_TRANSACTION: 'INVALID_TRANSACTION',
   MALFORMED_JSON: 'MALFORMED_JSON',
   NETWORK: 'NETWORK_ERROR',
-  TODO_LIST_NOT_FOUND: 'TODO_LIST_NOT_FOUND',
   TRANSACTION_REJECTED: 'TRANSACTION_REJECTED',
   VALIDATION: 'VALIDATION_ERROR',
 })
@@ -65,7 +60,6 @@ export const TRANSACTION_CAUSE = Object.freeze({
   TODO_LIST_CREATED: 'todo-list.created',
   TODO_LIST_DELETED: 'todo-list.deleted',
   TODO_LIST_TITLE_CHANGED: 'todo-list.title-changed',
-  TODO_LIST_REPLACED: 'todo-list.replaced',
 })
 
 export const GENESIS_TRANSACTION_ID = 'tx-genesis'

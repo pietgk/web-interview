@@ -6,14 +6,12 @@ import {
   TODO_TEXT_MAX_LENGTH,
 } from './todoProtocol.js'
 
-/** @typedef {import('./types.js').Todo} Todo */
 /** @typedef {import('./types.js').TodoList} TodoList */
 /** @typedef {import('./types.js').TodoLists} TodoLists */
 /** @typedef {import('./types.js').RejectedTransaction} RejectedTransaction */
 /** @typedef {{path: (string | number)[], message: string}} ValidationIssue */
 /** @typedef {{error: string, code: typeof ERROR_CODE.VALIDATION, issues: ValidationIssue[]}} ValidationErrorBody */
 /** @template T @typedef {{ok: true, data: T, body?: never} | {ok: false, body: ValidationErrorBody, data?: never}} ParseResult */
-/** @typedef {{todos: Todo[]}} UpdateTodosRequest */
 /** @typedef {{basis: number, todoLists: TodoLists}} TodoReadModelResponse */
 /** @typedef {TodoReadModelResponse & {acceptedTransactionIds: string[], rejectedTransactions: RejectedTransaction[]}} TodoSyncResponse */
 
@@ -86,12 +84,6 @@ export const todoSyncResponseSchema = todoReadModelResponseSchema.extend({
   ),
 })
 
-export const updateTodosRequestSchema = z
-  .object({
-    todos: todosSchema,
-  })
-  .strict()
-
 /**
  * @param {z.ZodError<unknown>} error
  * @returns {ValidationIssue[]}
@@ -112,18 +104,6 @@ export const validationErrorBody = (error, message = 'Validation failed') => ({
   code: ERROR_CODE.VALIDATION,
   issues: formatZodIssues(error),
 })
-
-/**
- * @param {unknown} body
- * @returns {ParseResult<UpdateTodosRequest>}
- */
-export const parseUpdateTodosRequest = (body) => {
-  const result = updateTodosRequestSchema.safeParse(body ?? {})
-  if (!result.success) {
-    return { ok: false, body: validationErrorBody(result.error) }
-  }
-  return { ok: true, data: result.data }
-}
 
 /**
  * @param {unknown} data

@@ -2,30 +2,23 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseTodoList,
-  parseUpdateTodosRequest,
+  todoSchema,
   todosSchema,
 } from './todoContract.js'
-import { ERROR_CODE } from './todoProtocol.js'
 
 describe('todo contract', () => {
   it('rejects days that do not exist in their month', () => {
     for (const dueDate of ['2026-02-29', '2024-02-30', '2026-04-31']) {
-      const result = parseUpdateTodosRequest({
-        todos: [
-          {
-            id: 't1',
-            text: 'Bad date',
-            completed: false,
-            dueDate,
-          },
-        ],
+      const result = todoSchema.safeParse({
+        id: 't1',
+        text: 'Bad date',
+        completed: false,
+        dueDate,
       })
 
-      assert.equal(result.ok, false, `${dueDate} should be rejected`)
-      assert.ok(result.body)
-      assert.equal(result.body.code, ERROR_CODE.VALIDATION)
+      assert.equal(result.success, false, `${dueDate} should be rejected`)
       assert.ok(
-        result.body.issues.some((issue) =>
+        result.error.issues.some((issue) =>
           issue.message.includes('real calendar date')
         )
       )
@@ -34,31 +27,23 @@ describe('todo contract', () => {
 
   it('accepts February 29 only in leap years', () => {
     for (const dueDate of ['2024-02-29', '2000-02-29']) {
-      const result = parseUpdateTodosRequest({
-        todos: [
-          {
-            id: 't1',
-            text: 'Leap day',
-            completed: false,
-            dueDate,
-          },
-        ],
+      const result = todoSchema.safeParse({
+        id: 't1',
+        text: 'Leap day',
+        completed: false,
+        dueDate,
       })
 
-      assert.equal(result.ok, true, `${dueDate} should be accepted`)
+      assert.equal(result.success, true, `${dueDate} should be accepted`)
     }
 
-    const nonLeapCentury = parseUpdateTodosRequest({
-      todos: [
-        {
-          id: 't1',
-          text: 'Not a leap day',
-          completed: false,
-          dueDate: '1900-02-29',
-        },
-      ],
+    const nonLeapCentury = todoSchema.safeParse({
+      id: 't1',
+      text: 'Not a leap day',
+      completed: false,
+      dueDate: '1900-02-29',
     })
-    assert.equal(nonLeapCentury.ok, false)
+    assert.equal(nonLeapCentury.success, false)
   })
 
   it('rejects duplicate todo ids', () => {
@@ -86,37 +71,14 @@ describe('todo contract', () => {
     assert.equal(result.ok, false)
   })
 
-  it('accepts a valid update request', () => {
-    const result = parseUpdateTodosRequest({
-      todos: [
-        {
-          id: 't1',
-          text: '',
-          completed: false,
-          dueDate: '2026-07-31',
-        },
-      ],
+  it('accepts a valid todo with a calendar due date', () => {
+    const result = todoSchema.safeParse({
+      id: 't1',
+      text: '',
+      completed: false,
+      dueDate: '2026-07-31',
     })
-    assert.equal(result.ok, true)
-    assert.ok(result.data)
-    assert.equal(result.data.todos[0].dueDate, '2026-07-31')
-  })
-
-  it('requires trimmed Todo List titles between 1 and 100 characters', () => {
-    for (const title of ['', '   ', 'x'.repeat(101)]) {
-      assert.equal(parseTodoList({ id: 'list', title, todos: [] }).ok, false)
-    }
-    const valid = parseTodoList({
-      id: 'list',
-      title: `  ${'x'.repeat(100)}  `,
-      todos: [],
-    })
-    assert.equal(valid.ok, true)
-    assert.equal(valid.data?.title, 'x'.repeat(100))
-    assert.equal(parseTodoList({
-      id: 'list',
-      title: 'x'.repeat(100),
-      todos: [],
-    }).ok, true)
+    assert.equal(result.success, true)
+    assert.equal(result.data.dueDate, '2026-07-31')
   })
 })

@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test'
 import { constants as HTTP } from 'node:http2'
+import { ERROR_CODE, TODO_API_PATH } from '@web-interview/todos/protocol'
 import {
-  ERROR_CODE,
-  TODO_API_PATH,
-  todoListPath,
-} from '@web-interview/todos/protocol'
+  createTodoListAtBottomTransaction,
+  createTodoTransaction,
+  deleteTodoListTransaction,
+  deleteTodoTransaction,
+  patchTodoTransaction,
+} from '@web-interview/todos/transactions'
 import { E2E_API_BASE } from './environment.js'
 import {
   PRIMARY_LIST_ID,
@@ -12,6 +15,8 @@ import {
   PRIMARY_TODO,
   SECONDARY_LIST_TITLE,
 } from './fixture.js'
+
+const E2E_RESET_CLIENT_ID = 'playwright-e2e-reset'
 
 const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)
 const dueInYearsLabel = new RegExp(
@@ -31,18 +36,96 @@ async function startTodoList(page, title) {
   await expect(page.getByLabel('Add a todo')).toBeVisible()
 }
 
-/** @param {import('@playwright/test').APIRequestContext} request */
+/**
+ * @param {import('@playwright/test').APIRequestContext} request
+ * @returns {Promise<{basis: number, todoLists: import('@web-interview/todos/types').TodoLists}>}
+ */
+async function fetchReadModel(request) {
+  const response = await request.get(`${E2E_API_BASE}${TODO_API_PATH.READ_MODEL}`)
+  if (!response.ok()) {
+    throw new Error(
+      `Failed to load read model: ${response.status()} ${await response.text()}`
+    )
+  }
+  return response.json()
+}
+
+/**
+ * Soft-delete the seeded primary list (UI-style) and recreate it from the e2e
+ * fixture via POST /sync. Todos are tombstoned first so resurrecting the same
+ * list id does not bring dirty todos back. Journal history is retained.
+ *
+ * @param {import('@playwright/test').APIRequestContext} request
+ */
 async function resetFirstList(request) {
-  const response = await request.put(`${E2E_API_BASE}${todoListPath(PRIMARY_LIST_ID)}`, {
+  const { basis, todoLists } = await fetchReadModel(request)
+  const primary = todoLists[PRIMARY_LIST_ID]
+  const alreadySeeded =
+    primary?.title === PRIMARY_LIST_TITLE &&
+    primary.todos.length === 1 &&
+    primary.todos[0].id === PRIMARY_TODO.id &&
+    primary.todos[0].text === PRIMARY_TODO.text &&
+    primary.todos[0].completed === PRIMARY_TODO.completed &&
+    primary.todos[0].dueDate === PRIMARY_TODO.dueDate
+
+  if (alreadySeeded) return
+
+  /** @type {import('@web-interview/todos/types').Transaction[]} */
+  const transactions = []
+
+  if (primary) {
+    for (const todo of primary.todos) {
+      transactions.push(
+        deleteTodoTransaction({
+          basis,
+          clientId: E2E_RESET_CLIENT_ID,
+          listId: primary.id,
+          todo,
+        })
+      )
+    }
+    transactions.push(
+      deleteTodoListTransaction({
+        basis,
+        clientId: E2E_RESET_CLIENT_ID,
+        todoList: primary,
+      })
+    )
+  }
+
+  transactions.push(
+    createTodoListAtBottomTransaction({
+      basis,
+      clientId: E2E_RESET_CLIENT_ID,
+      listId: PRIMARY_LIST_ID,
+      title: PRIMARY_LIST_TITLE,
+    }),
+    createTodoTransaction({
+      basis,
+      clientId: E2E_RESET_CLIENT_ID,
+      listId: PRIMARY_LIST_ID,
+      todo: { ...PRIMARY_TODO },
+    })
+  )
+
+  const response = await request.post(`${E2E_API_BASE}${TODO_API_PATH.SYNC}`, {
     headers: {
-      'x-client-id': 'playwright-e2e-reset',
+      'Content-Type': 'application/json',
+      'x-client-id': E2E_RESET_CLIENT_ID,
     },
-    data: {
-      todos: [PRIMARY_TODO],
-    },
+    data: { basis, transactions },
   })
   if (!response.ok()) {
-    throw new Error(`Failed to reset first list: ${response.status()} ${await response.text()}`)
+    throw new Error(
+      `Failed to reset first list: ${response.status()} ${await response.text()}`
+    )
+  }
+
+  const body = await response.json()
+  if (body.rejectedTransactions?.length) {
+    throw new Error(
+      `Failed to reset first list: ${JSON.stringify(body.rejectedTransactions)}`
+    )
   }
 }
 
@@ -67,29 +150,33 @@ test.beforeEach(async ({ request }) => {
 })
 
 test('rejects a due date that does not exist in its month', async ({ request }) => {
-  const response = await request.put(
-    `${E2E_API_BASE}${todoListPath(PRIMARY_LIST_ID)}`,
-    {
-      data: {
-        todos: [{ ...PRIMARY_TODO, dueDate: '2026-02-29' }],
-      },
-    }
-  )
+  const { basis, todoLists } = await fetchReadModel(request)
+  const todo = todoLists[PRIMARY_LIST_ID].todos[0]
+  const transaction = patchTodoTransaction({
+    basis,
+    clientId: E2E_RESET_CLIENT_ID,
+    listId: PRIMARY_LIST_ID,
+    todo,
+    patch: { dueDate: '2026-02-29' },
+  })
+  expect(transaction).not.toBeNull()
+
+  const response = await request.post(`${E2E_API_BASE}${TODO_API_PATH.SYNC}`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: { basis, transactions: [transaction] },
+  })
 
   expect(response.status()).toBe(HTTP.HTTP_STATUS_BAD_REQUEST)
   await expect(response.json()).resolves.toMatchObject({
     code: ERROR_CODE.VALIDATION,
     issues: [
-      {
-        path: ['todos', 0, 'dueDate'],
-        message: 'dueDate must be a real calendar date',
-      },
+      expect.objectContaining({
+        message: expect.stringMatching(/Invalid value for todo\/dueDate/),
+      }),
     ],
   })
 
-  const listsResponse = await request.get(`${E2E_API_BASE}${TODO_API_PATH.ROOT}`)
-  expect(listsResponse.ok()).toBe(true)
-  const lists = await listsResponse.json()
+  const { todoLists: lists } = await fetchReadModel(request)
   expect(lists[PRIMARY_LIST_ID].todos).toEqual([PRIMARY_TODO])
 })
 

@@ -43,9 +43,6 @@ external transaction store can be added later without changing the domain transa
 ids, structured rejections, and authoritative read model. The client rebases any remaining local
 transactions over that response.
 
-The original whole-list `PUT` remains as a compatibility endpoint. It diffs the submitted list
-against the actor read model and creates one datom transaction.
-
 ## Shared runtime contract
 
 The shared package contains strict Zod schemas for todos, datoms, transactions, read models, and

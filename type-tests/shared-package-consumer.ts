@@ -5,7 +5,7 @@ import {
   databaseFromReadModel,
   projectTodoLists,
 } from '@web-interview/todos/database'
-import { ACTOR_EVENT, TRANSACTION_CAUSE, todoListPath } from '@web-interview/todos/protocol'
+import { ACTOR_EVENT, TRANSACTION_CAUSE } from '@web-interview/todos/protocol'
 import { selectListSummary, selectTodoLists } from '@web-interview/todos/selectors'
 import {
   createTodoTransaction,
@@ -35,7 +35,6 @@ const transaction: Transaction = createTodoTransaction({
 const applied = applyTransaction(database, transaction)
 const projected = projectTodoLists(applied.database)
 selectListSummary(projected.list)
-todoListPath(projected.list.id)
 
 const patch = patchTodoTransaction({
   basis: applied.database.basis,

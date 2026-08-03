@@ -51,14 +51,6 @@ import {
  * @property {string} [occurredAt]
  */
 
-/**
- * @typedef {object} ReplaceTodoListTransactionOptions
- * @property {number} basis
- * @property {string} clientId
- * @property {TodoList} todoList
- * @property {Todo[]} todos
- */
-
 /** @returns {string} */
 const fallbackId = () =>
   `tx-${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -309,85 +301,5 @@ export const seedTransactionFromTodoLists = ({
     datoms,
     id,
     occurredAt,
-  })
-}
-
-/**
- * Translates a whole-list replacement into the app's immutable transaction format.
- *
- * The current `todoList` is the authoritative snapshot and `todos` is the complete
- * desired contents of that list. The generated datoms create new todos, update the
- * attributes of existing todos, assign list order from the incoming array, and
- * tombstone existing todos omitted from that array. A removed due date is expressed
- * as a retraction rather than a null value. The list itself, including its title, is
- * not replaced.
- *
- * This builder exists for the legacy `PUT /api/todo-lists/:id` compatibility route.
- * It lets that whole-document API feed the same `TodoListActor`, validation,
- * projection, and append-only journal as the transaction-based sync path used by
- * the browser. Returning `null` means the replacement produced no datoms, so the
- * caller does not need to submit a transaction.
- *
- * @param {ReplaceTodoListTransactionOptions} options
- * @returns {Transaction | null}
- */
-export const replaceTodoListTransaction = ({
-  basis,
-  clientId,
-  todoList,
-  todos,
-}) => {
-  const existing = new Map(todoList.todos.map((todo) => [todo.id, todo]))
-  const incomingIds = new Set(todos.map((todo) => todo.id))
-  /** @type {DatomInput[]} */
-  const datoms = []
-
-  todos.forEach((todo, order) => {
-    const previous = existing.get(todo.id)
-    if (!previous) {
-      datoms.push(
-        [todo.id, ATTRIBUTE.TODO_LIST, todoList.id],
-        [todo.id, ATTRIBUTE.TODO_TEXT, todo.text],
-        [todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed]
-      )
-      if (todo.dueDate != null) {
-        datoms.push([todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate])
-      }
-      datoms.push(
-        [todo.id, ATTRIBUTE.TODO_ORDER, order],
-        [todo.id, ATTRIBUTE.TODO_DELETED, false]
-      )
-      return
-    }
-
-    if (previous.text !== todo.text) {
-      datoms.push([todo.id, ATTRIBUTE.TODO_TEXT, todo.text])
-    }
-    if (previous.completed !== todo.completed) {
-      datoms.push([todo.id, ATTRIBUTE.TODO_COMPLETED, todo.completed])
-    }
-    if (previous.dueDate !== todo.dueDate) {
-      if (todo.dueDate == null && previous.dueDate != null) {
-        datoms.push([todo.id, ATTRIBUTE.TODO_DUE_DATE, previous.dueDate, false])
-      } else if (todo.dueDate != null) {
-        datoms.push([todo.id, ATTRIBUTE.TODO_DUE_DATE, todo.dueDate])
-      }
-    }
-    datoms.push([todo.id, ATTRIBUTE.TODO_ORDER, order])
-  })
-
-  for (const todo of todoList.todos) {
-    if (!incomingIds.has(todo.id)) {
-      datoms.push([todo.id, ATTRIBUTE.TODO_DELETED, true])
-    }
-  }
-
-  if (datoms.length === 0) return null
-  return createTransaction({
-    basis,
-    clientId,
-    listId: todoList.id,
-    cause: TRANSACTION_CAUSE.TODO_LIST_REPLACED,
-    datoms,
   })
 }

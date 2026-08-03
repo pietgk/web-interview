@@ -1,12 +1,8 @@
 import { Router } from 'express'
 import { constants as HTTP } from 'node:http2'
-import {
-  formatZodIssues,
-  parseUpdateTodosRequest,
-} from '@web-interview/todos/contract'
+import { formatZodIssues } from '@web-interview/todos/contract'
 import { syncTodoListsRequestSchema } from '@web-interview/todos/database'
 import { ERROR_CODE } from '@web-interview/todos/protocol'
-import { replaceTodoListTransaction } from '@web-interview/todos/transactions'
 
 /** @typedef {import('@web-interview/todos/actor').TodoListActor} TodoListActor */
 
@@ -44,10 +40,6 @@ const transactionError = (error) => {
 export const createTodoListsRouter = (todoActor) => {
   const router = Router()
 
-  router.get('/', (_req, res) => {
-    res.json(authoritativeSnapshot(todoActor).authoritativeReadModel)
-  })
-
   router.get('/read-model', (_req, res) => {
     res.json(readModelResponse(todoActor))
   })
@@ -82,41 +74,6 @@ export const createTodoListsRouter = (todoActor) => {
       acceptedTransactionIds,
       rejectedTransactions,
     })
-  })
-
-  // Whole-list replacement endpoint. Todos omitted from the request are deleted.
-  router.put('/:id', async (req, res) => {
-    const parsed = parseUpdateTodosRequest(req.body)
-    if (!parsed.ok) {
-      return res.status(HTTP.HTTP_STATUS_BAD_REQUEST).json(parsed.body)
-    }
-
-    const snapshot = authoritativeSnapshot(todoActor)
-    const todoList = snapshot.authoritativeReadModel[req.params.id]
-    if (!todoList) {
-      return res.status(HTTP.HTTP_STATUS_NOT_FOUND).json({
-        error: 'Todo list not found',
-        code: ERROR_CODE.TODO_LIST_NOT_FOUND,
-      })
-    }
-
-    const transaction = replaceTodoListTransaction({
-      basis: snapshot.basis,
-      clientId: req.get('x-client-id') || 'http-compatibility-client',
-      todoList,
-      todos: parsed.data.todos,
-    })
-
-    try {
-      if (transaction) await todoActor.transact(transaction)
-      return res
-        .status(HTTP.HTTP_STATUS_OK)
-        .json(authoritativeSnapshot(todoActor).authoritativeReadModel[req.params.id])
-    } catch (error) {
-      return res
-        .status(HTTP.HTTP_STATUS_BAD_REQUEST)
-        .json(transactionError(error))
-    }
   })
 
   return router
