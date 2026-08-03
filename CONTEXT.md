@@ -10,10 +10,15 @@ _Avoid_: Model, lists
 
 **Todo List**:
 A named, ordered collection of zero or more Todos.
+A Todo List exists while it has a title. Deleting one takes its title away, and giving the title
+back brings the Todo List and its Todos with it.
+Two Todo Lists may share a title. A Todo List is identified by itself, not by what it is called.
 _Avoid_: List, todoList
 
 **Todo**:
-A task belonging to exactly one Todo List.
+A task belonging to exactly one Todo List, for its whole life.
+A Todo exists while it has text. Deleting one takes its text away, and giving the text back
+brings its completion and due date with it.
 _Avoid_: Item, task
 
 **Next Due Date**:

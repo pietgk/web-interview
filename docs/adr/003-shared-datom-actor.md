@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 004](./004-single-datom-log.md).
+
+The immutable-fact model and the append-only journal survive. Multi-datom transactions, the
+`basis` and `serverSeq` cursors, rebase-over-authoritative-response, per-transaction rejections,
+and the IndexedDB replica do not.
 
 ## Context
 
