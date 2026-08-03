@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Todo Lists UI implementation plan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #1976d2;
+      --secondary: #9c27b0;
+      --success: #2e7d32;
+      --success-bg: #edf7ed;
+      --info: #0288d1;
+      --info-bg: #e5f6fd;
+      --warning: #ed6c02;
+      --warning-bg: #fff4e5;
+      --error: #d32f2f;
+      --error-bg: #fdeded;
+      --ink: rgba(0, 0, 0, 0.87);
+      --muted: rgba(0, 0, 0, 0.60);
+      --line: rgba(0, 0, 0, 0.18);
+      --paper: #fff;
+      --canvas: #f5f5f5;
+      --selected: rgba(25, 118, 210, 0.12);
+      --shadow: 0 2px 5px rgba(0, 0, 0, 0.16);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: Roboto, Arial, Helvetica, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    :where(h1, h2, h3, p, li, td, th, code, .part) { overflow-wrap: anywhere; }
+    button, input { font: inherit; }
+    code {
+      padding: 0.1rem 0.32rem;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.055);
+      color: #6a1b9a;
+    }
+    a { color: var(--primary); }
+    .page { width: min(100%, 86rem); margin: 0 auto; padding: 1.25rem 1rem 4rem; }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.7fr);
+      gap: 1rem;
+      align-items: stretch;
+      margin-bottom: 1rem;
+    }
+    .panel, .card {
+      min-width: 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: var(--shadow);
+    }
+    .hero-copy { padding: 1.5rem; }
+    .eyebrow {
+      color: var(--primary);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0.35rem 0 0.5rem; font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.12; }
+    h2 { margin: 0 0 0.75rem; font-size: 1.35rem; }
+    h3 { margin: 0 0 0.45rem; font-size: 1rem; }
+    p { margin: 0.35rem 0 0.75rem; }
+    .hero-meta { padding: 1.25rem; display: grid; align-content: center; gap: 0.65rem; }
+    .meta-row { display: flex; gap: 0.6rem; align-items: baseline; }
+    .meta-label { color: var(--muted); min-width: 5.3rem; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      padding: 0.18rem 0.62rem;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+    .badge.success { color: var(--success); background: var(--success-bg); }
+    .badge.info { color: var(--info); background: var(--info-bg); }
+    .section { margin-top: 1rem; padding: 1.25rem; }
+    .section-lede { color: var(--muted); max-width: 75ch; }
+    .decision-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .decision {
+      min-width: 0;
+      padding: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+    }
+    .decision strong { display: block; margin-bottom: 0.25rem; }
+    .decision span { color: var(--muted); font-size: 0.9rem; }
+
+    .mock-shell {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      overflow: hidden;
+      background: var(--canvas);
+    }
+    .mock-status {
+      margin: 0.9rem auto;
+      width: calc(100% - 1.8rem);
+      max-width: 76rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+      padding: 0.75rem 0.9rem;
+      border: 1px solid var(--success);
+      border-radius: 5px;
+      background: var(--success-bg);
+      color: #1b5e20;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .status-icon { font-weight: 900; font-size: 1.15rem; flex: 0 0 auto; }
+    .status-parts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.55rem; min-width: 0; }
+    .status-parts h3 { margin: 0; font-size: 0.96rem; }
+    .status-divider { width: 1px; height: 1.15rem; background: currentColor; opacity: 0.35; }
+    .mock-main { width: calc(100% - 1.8rem); max-width: 76rem; margin: 0 auto; padding-bottom: 1rem; }
+    .mock-card { background: white; border: 1px solid var(--line); border-radius: 5px; margin-top: 0.9rem; box-shadow: var(--shadow); padding: 1rem; }
+    .list-row {
+      display: grid;
+      grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 4.25rem;
+      padding: 0.4rem 0.55rem;
+    }
+    .list-row.selected { background: var(--selected); }
+    .row-icon { color: var(--muted); font-size: 1.25rem; text-align: center; }
+    .row-title { font-weight: 500; }
+    .row-summary { color: var(--muted); font-size: 0.88rem; }
+    .overdue { color: var(--error); }
+    .icon-button {
+      border: 0;
+      border-radius: 50%;
+      width: 2.5rem;
+      height: 2.5rem;
+      background: transparent;
+      color: var(--secondary);
+      display: inline-grid;
+      place-items: center;
+      cursor: default;
+      font-size: 1.25rem;
+    }
+    .add-row { display: grid; grid-template-columns: 2.5rem 1fr; align-items: center; margin-top: 0.25rem; }
+    .field {
+      min-width: 0;
+      min-height: 3.45rem;
+      border: 1px solid rgba(0, 0, 0, 0.34);
+      border-radius: 4px;
+      padding: 1rem 0.8rem 0.55rem;
+      position: relative;
+      background: white;
+    }
+    .field-label {
+      position: absolute;
+      top: -0.55rem;
+      left: 0.65rem;
+      padding: 0 0.3rem;
+      background: white;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .todo-add { display: grid; grid-template-columns: minmax(0, 1fr) 2.7rem; gap: 0.45rem; align-items: center; margin-top: 1rem; }
+    .mock-note { margin: 0.8rem 0 0; color: var(--muted); font-size: 0.85rem; }
+
+    .before-after { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem; }
+    .compare { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; min-width: 0; }
+    .compare h3 { padding: 0.75rem 0.9rem; background: #f7f7f7; border-bottom: 1px solid var(--line); }
+    .compare ul { margin: 0; padding: 0.85rem 1.2rem 1rem 2rem; }
+    .compare.target { border-color: rgba(46, 125, 50, 0.55); }
+    .compare.target h3 { background: var(--success-bg); color: var(--success); }
+
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; min-width: 48rem; background: white; }
+    th, td { padding: 0.72rem 0.78rem; text-align: left; vertical-align: top; border-bottom: 1px solid rgba(0,0,0,0.1); }
+    th { background: #f4f6f8; font-size: 0.78rem; letter-spacing: 0.03em; text-transform: uppercase; color: var(--muted); }
+    tbody tr:last-child td { border-bottom: 0; }
+    td small { display: block; color: var(--muted); margin-top: 0.2rem; }
+    .severity { font-weight: 700; }
+    .severity.error { color: var(--error); }
+    .severity.warning { color: var(--warning); }
+    .severity.info { color: var(--info); }
+    .severity.success { color: var(--success); }
+    .mermaid-wrap { border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem; overflow: auto; background: white; }
+    .mermaid { min-width: 44rem; }
+    .phase-list { counter-reset: phase; display: grid; gap: 0.7rem; padding: 0; margin: 1rem 0 0; }
+    .phase {
+      counter-increment: phase;
+      list-style: none;
+      display: grid;
+      grid-template-columns: 2.5rem minmax(0, 1fr);
+      gap: 0.8rem;
+      align-items: start;
+      padding: 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: white;
+    }
+    .phase::before {
+      content: counter(phase);
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-weight: 700;
+    }
+    .phase p { color: var(--muted); margin-bottom: 0; }
+    .risk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .risk { border-left: 4px solid var(--warning); background: var(--warning-bg); padding: 0.85rem; border-radius: 4px; min-width: 0; }
+    .risk strong { display: block; }
+    .risk span { color: #6d4c1b; }
+    .commands { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; }
+    .command { padding: 0.65rem; text-align: center; border: 1px solid var(--line); border-radius: 5px; background: #fafafa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; }
+    .footer-note { margin-top: 1rem; padding: 1rem; color: var(--muted); text-align: center; }
+    @media (max-width: 840px) {
+      .hero, .decision-grid, .before-after, .risk-grid { grid-template-columns: 1fr; }
+      .commands { grid-template-columns: 1fr 1fr; }
+      .mock-status { align-items: flex-start; }
+      .status-parts { gap: 0.35rem 0.5rem; }
+    }
+    @media (max-width: 520px) {
+      .page { padding-inline: 0.65rem; }
+      .section { padding: 0.9rem; }
+      .commands { grid-template-columns: 1fr; }
+      .status-divider { display: none; }
+      .status-parts { flex-direction: column; align-items: flex-start; }
+      .list-row { grid-template-columns: 2rem minmax(0, 1fr) 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div class="eyebrow">Implementation plan</div>
+        <h1>Todo List lifecycle and StatusBar</h1>
+        <p>Add, rename, sort, and delete Todo Lists through the existing optimistic local-first transaction model, while replacing scattered save text with one extensible global StatusBar.</p>
+        <span class="badge success">Shared understanding confirmed</span>
+      </div>
+      <aside class="panel hero-meta" aria-label="Plan metadata">
+        <div class="meta-row"><span class="meta-label">Scope</span><strong>Frontend + shared model</strong></div>
+        <div class="meta-row"><span class="meta-label">Backend</span><strong>Existing sync route</strong></div>
+        <div class="meta-row"><span class="meta-label">Durability</span><strong>IndexedDB + JSONL</strong></div>
+        <div class="meta-row"><span class="meta-label">Deferred</span><strong>History and restore</strong></div>
+      </aside>
+    </section>
+
+    <section class="card section">
+      <h2>Outcome</h2>
+      <p class="section-lede">The full Todo Lists read model remains the single rendered source. Every valid list mutation becomes an optimistic transaction, is durably queued in IndexedDB, synchronizes after the existing 400 ms debounce, and is confirmed by the backend's complete authoritative read model.</p>
+      <div class="decision-grid">
+        <div class="decision"><strong>StatusBar, not AppBar</strong><span>An outlined, sticky global status surface starts with the permanent “Things to do” heading and can later coexist with a bottom DevBar.</span></div>
+        <div class="decision"><strong>One title field</strong><span>The active card's “Todo List name” field handles both initial naming and later renaming. No second name input appears in the collection.</span></div>
+        <div class="decision"><strong>Derived urgency</strong><span>Next Due Date, completion, counts, and display order are all selectors over the optimistic complete read model.</span></div>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>Target UI structure</h2>
+      <p class="section-lede">This MUI-inspired mock shows placement and hierarchy, not final pixel measurements. The StatusBar is the top application region; only the content below it scrolls.</p>
+      <div class="mock-shell" aria-label="Target Todo UI mock">
+        <div class="mock-status">
+          <span class="status-icon" aria-hidden="true">✓</span>
+          <div class="status-parts">
+            <h3>Things to do</h3>
+            <span class="status-divider" aria-hidden="true"></span>
+            <span>All changes saved</span>
+          </div>
+        </div>
+        <div class="mock-main">
+          <section class="mock-card">
+            <h3>My Todo Lists</h3>
+            <div class="list-row selected">
+              <div class="row-icon" aria-hidden="true">▤</div>
+              <div><div class="row-title">Release checklist</div><div class="row-summary">1 of 4 completed · <span class="overdue">2 days overdue</span></div></div>
+              <button class="icon-button" aria-label="Delete Todo List: Release checklist">▣</button>
+            </div>
+            <div class="list-row">
+              <div class="row-icon" aria-hidden="true">▤</div>
+              <div><div class="row-title">House</div><div class="row-summary">0 of 3 completed · Due in 5 days</div></div>
+              <button class="icon-button" aria-label="Delete Todo List: House">▣</button>
+            </div>
+            <div class="list-row">
+              <div class="row-icon" style="color: var(--success)" aria-hidden="true">●</div>
+              <div><div class="row-title">Interview prep</div><div class="row-summary">2 of 2 completed</div></div>
+              <button class="icon-button" aria-label="Delete Todo List: Interview prep">▣</button>
+            </div>
+            <div class="add-row"><button class="icon-button" aria-label="Add Todo List">＋</button><span class="row-summary">Add Todo List</span></div>
+          </section>
+          <section class="mock-card">
+            <div class="field"><span class="field-label">Todo List name</span>Release checklist</div>
+            <div class="todo-add"><div class="field">Add a todo</div><button class="icon-button" aria-label="Add todo">＋</button></div>
+            <p class="mock-note">A blank new-list draft initially shows only the focused name field. Todo controls appear after the first non-whitespace character materializes the list.</p>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>Current to target</h2>
+      <div class="before-after">
+        <article class="compare">
+          <h3>Current</h3>
+          <ul>
+            <li>Filled blue AppBar carries only the page title.</li>
+            <li>Save state is a small line inside the active Todo List.</li>
+            <li>Switching or deleting a list can hide its pending or failed state.</li>
+            <li>Todo Lists are seeded entities without create, rename, or delete transactions.</li>
+            <li>Navigation uses stored order and completion summary only.</li>
+          </ul>
+        </article>
+        <article class="compare target">
+          <h3>Target</h3>
+          <ul>
+            <li>Outlined StatusBar is the stable top application region.</li>
+            <li>Status parts explain local durability, backend synchronization, and recovery.</li>
+            <li>One runtime snapshot drives StatusBar and all Todo List UI.</li>
+            <li>Todo List lifecycle uses the same transaction, outbox, sync, and journal path as Todos.</li>
+            <li>Navigation derives urgency order, completion, counts, and Next Due Date.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>Runtime and persistence flow</h2>
+      <p class="section-lede">The seam moves up to application composition: <code>useTodoLists()</code> creates one runtime, then its small interface is passed to both the StatusBar and Todo Lists modules. No second actor or storage adapter is created.</p>
+      <div class="mermaid-wrap">
+        <pre class="mermaid">
+flowchart TD
+  APP["App creates one Todo runtime"]
+  STATUS["StatusBar\nselectGlobalStatus(snapshot)"]
+  UI["Todo Lists UI\ncreate, rename, delete, edit"]
+  ACTOR["Shared TodoListActor\noptimistic complete read model"]
+  IDB["IndexedDB replica\ndurable pending transactions"]
+  API["POST /api/todo-lists/sync\n400 ms debounce"]
+  SERVER["Server TodoListActor\nauthoritative sequence"]
+  JOURNAL["JSONL journal\ndatasync before acknowledgement"]
+  MODEL["Complete authoritative\nTodo Lists read model"]
+
+  APP --> STATUS
+  APP --> UI
+  STATUS -->|"actions"| ACTOR
+  UI -->|"transactions"| ACTOR
+  ACTOR -->|"append"| IDB
+  IDB --> API
+  API --> SERVER
+  SERVER --> JOURNAL
+  JOURNAL --> MODEL
+  MODEL -->|"rebase pending transactions"| ACTOR
+  ACTOR -->|"one snapshot"| APP
+        </pre>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>StatusBar state model</h2>
+      <p class="section-lede">One pure selector returns severity, ordered status parts, a state-specific primary action, optional Details, and optional dismissal. The first applicable row wins; lower-priority facts may become supporting parts.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Priority</th><th>Condition</th><th>Severity</th><th>Status parts after “Things to do”</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>IndexedDB append failed</td><td class="severity error">Error</td><td>Changes are not safely saved</td><td>Retry local save, Details</td></tr>
+            <tr><td>2</td><td>Backend rejected a transaction</td><td class="severity error">Error</td><td>A change could not be applied</td><td>Review, dismiss notification</td></tr>
+            <tr><td>3</td><td>Remote synchronization failed</td><td class="severity warning">Warning</td><td>Saved on this device · Server sync failed</td><td>Retry synchronization, Details</td></tr>
+            <tr><td>4</td><td>Browser offline</td><td class="severity warning">Warning</td><td>Offline · No unsynchronized changes, or Saved on this device · Waiting for connection</td><td>Details when useful; automatic recovery</td></tr>
+            <tr><td>5</td><td>Local append in progress</td><td class="severity info">Info</td><td>Saving on this device…</td><td>None</td></tr>
+            <tr><td>6</td><td>Locally durable, pending or syncing</td><td class="severity info">Info</td><td>Saved on this device · Synchronizing…</td><td>None</td></tr>
+            <tr><td>7</td><td>No outstanding work</td><td class="severity success">Success</td><td>All changes saved</td><td>None</td></tr>
+            <tr><td>Startup</td><td>Loading or load failure</td><td class="severity info">Info / Error</td><td>Loading Todo Lists…, or Todo Lists could not be loaded</td><td>Retry loading, Details on failure</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mock-note">MUI 5.18 only renders its automatic <code>onClose</code> icon when no <code>action</code> prop exists. When Review and dismissal coexist, the StatusBar action group renders Details plus an equivalent close IconButton.</p>
+    </section>
+
+    <section class="card section">
+      <h2>Todo List behavior</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Interaction</th><th>Visible behavior</th><th>Model behavior</th><th>Important edge case</th></tr></thead>
+          <tbody>
+            <tr><td>Add</td><td>Standalone plus below list rows opens a blank draft and focuses “Todo List name.”</td><td>No transaction until the first non-whitespace character; then create at the bottom of stable creation order.</td><td>A second plus press while the blank draft is active only restores focus.</td></tr>
+            <tr><td>Rename</td><td>The active name field edits in place; Enter focuses “Add a todo.”</td><td>Valid edits transact optimistically and share the 400 ms sync debounce.</td><td>Blank stays local with an error and reverts on blur; Escape restores the saved name.</td></tr>
+            <tr><td>Validate</td><td>Names contain 1 through 100 trimmed characters.</td><td>UI, transaction validation, and read-model contract agree.</td><td>Duplicate names remain valid because identity is the stable ID.</td></tr>
+            <tr><td>Delete</td><td>Every list row has the same trailing trash IconButton pattern as a Todo.</td><td>One transaction asserts <code>list/deleted = true</code>; projector hides the list and its Todos.</td><td>Empty deletes immediately; non-empty confirms with name and Todo count.</td></tr>
+            <tr><td>Select</td><td>Initial load selects the first displayed list. Deletion selects next, then previous.</td><td>Selection stays ephemeral and keyed by stable ID.</td><td>After deleting the final list, focus moves to the collection plus button.</td></tr>
+            <tr><td>Summarize</td><td>Count and due label share the secondary line; only overdue text uses error color.</td><td><code>selectListSummary</code> derives earliest due date among incomplete Todos.</td><td>Completed Todos never contribute to Next Due Date.</td></tr>
+            <tr><td>Sort</td><td>Rows move immediately as optimistic due dates or completion change.</td><td>Dated incomplete first, ascending; undated incomplete or empty next; completed last; creation order breaks ties.</td><td>Active editor remains attached to its ID while its navigation row moves.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>File-level change plan</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Module</th><th>Files</th><th>Change</th><th>Test surface</th></tr></thead>
+          <tbody>
+            <tr><td>Domain protocol</td><td><code>shared/src/todoProtocol.js</code><br><code>shared/src/types.js</code></td><td>Add 100-character title constraint, list lifecycle causes, <code>list/deleted</code>, and rejection-dismiss actor event.</td><td>Protocol declarations and typecheck</td></tr>
+            <tr><td>Transaction module</td><td><code>shared/src/transactions.js</code></td><td>Add stable list ID generation plus create-at-bottom, rename, and tombstone-delete builders.</td><td>Transaction tests through applied read-model outcomes</td></tr>
+            <tr><td>Database and contracts</td><td><code>shared/src/todoDatabase.js</code><br><code>shared/src/todoContract.js</code></td><td>Validate the new attribute, seed it for new databases, hide tombstoned lists, and enforce valid titles at external read-model seams.</td><td>Replay, projection, validation, and legacy journal tests</td></tr>
+            <tr><td>Actor and selectors</td><td><code>shared/src/todoListActor.js</code><br><code>shared/src/selectors.js</code></td><td>Dismiss reviewed rejections; derive global status, Next Due Date, and deterministic display order.</td><td>Actor interface and pure selector tests</td></tr>
+            <tr><td>App composition</td><td><code>frontend/src/App.jsx</code><br><code>frontend/src/todos/useTodoLists.js</code></td><td>Create one runtime at the app level. Pass its small interface to StatusBar and Todo Lists. Use a fixed-height app shell with only main content scrolling.</td><td>App composition test with one actor instance</td></tr>
+            <tr><td>Status UI</td><td><code>frontend/src/todos/components/StatusBar.jsx</code><br><code>StatusDetailsDialog.jsx</code></td><td>Render outlined severity, status parts, progress, state-specific actions, details, live-region semantics, and acknowledgment close.</td><td>Status/action matrix and keyboard dialog tests</td></tr>
+            <tr><td>List navigation</td><td><code>frontend/src/todos/components/TodoLists.jsx</code><br><code>todoUiProtocol.js</code></td><td>Add draft selection state, sorted summaries, standalone plus, sibling delete actions, confirmation dialog, and nearest-list selection.</td><td>Component journeys against the real shared actor</td></tr>
+            <tr><td>Active editor</td><td><code>TodoListForm.jsx</code><br><code>TodoListTitleField.jsx</code><br><code>TodoComposer.jsx</code></td><td>Replace the static heading with the shared create/rename field, remove per-list SaveStatus, and implement focus rules.</td><td>Validation, Enter, Escape, blur, focus, and autosave tests</td></tr>
+            <tr><td>Legacy status UI</td><td><code>SaveStatus.jsx</code> and tests</td><td>Remove after StatusBar tests cover all behavior through the new interface.</td><td>Deletion test: complexity must not leak back into callers</td></tr>
+            <tr><td>End-to-end</td><td><code>e2e/todos.spec.js</code><br><code>e2e/fixture.js</code></td><td>Cover list creation, rename, disk persistence, offline recovery, date sorting, delete confirmation, focus, and global status recovery.</td><td>Real Chromium, frontend, backend actor, and temporary JSONL journal</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>Implementation sequence</h2>
+      <ol class="phase-list">
+        <li class="phase"><div><h3>Specify outcomes in shared tests</h3><p>Add failing tests for create, rename, tombstone delete, replay, Next Due Date, display ordering, and global status priority. Preserve current journal replay behavior where <code>list/deleted</code> is absent.</p></div></li>
+        <li class="phase"><div><h3>Extend the shared transaction model</h3><p>Implement protocol, schema, database, transaction, actor, and selector changes. Confirm the same actor implementation works for IndexedDB and authoritative JSONL adapters.</p></div></li>
+        <li class="phase"><div><h3>Lift the runtime seam and add StatusBar</h3><p>Create one runtime in App, remove MainAppBar and per-list SaveStatus, then implement status parts, action routing, details, dismissal, accessibility, and scroll layout.</p></div></li>
+        <li class="phase"><div><h3>Add Todo List lifecycle UI</h3><p>Implement the blank draft, one title field, plus action, list trash actions, confirmation, focus restoration, validation, live sorting, and automatic selection.</p></div></li>
+        <li class="phase"><div><h3>Exercise real user journeys</h3><p>Run Playwright through optimistic updates, the 400 ms debounce, offline IndexedDB reload, reconnection, backend sync, JSONL durability, delete rollback, and responsive keyboard behavior.</p></div></li>
+        <li class="phase"><div><h3>Finish engineering verification</h3><p>Fix every test, lint, type, build, accessibility, focus, and visual regression found. Review the final UI at desktop and narrow widths before handoff.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="card section">
+      <h2>Risks and controls</h2>
+      <div class="risk-grid">
+        <div class="risk"><strong>Legacy journal compatibility</strong><span>Older records have no <code>list/deleted</code>. Treat absence as false and add a replay test before changing validation.</span></div>
+        <div class="risk"><strong>Invalid nested button markup</strong><span>A trash IconButton cannot live inside ListItemButton. Use a ListItem secondary action so select and delete remain sibling controls.</span></div>
+        <div class="risk"><strong>Draft auto-selection race</strong><span>Initial auto-selection must not overwrite an active blank draft. Model draft and existing selection explicitly.</span></div>
+        <div class="risk"><strong>Status flicker and announcement spam</strong><span>Collapse transient actor states into the three agreed autosave stages and announce only changed status parts.</span></div>
+        <div class="risk"><strong>Deletion hidden while offline</strong><span>The tombstone transaction is durable in IndexedDB and replayed optimistically after reload before backend synchronization.</span></div>
+        <div class="risk"><strong>Rejected list mutation loses context</strong><span>Retain enough rejection metadata for a human-readable Details dialog while keeping raw datoms out of the normal UI.</span></div>
+      </div>
+    </section>
+
+    <section class="card section">
+      <h2>Verification gate</h2>
+      <p class="section-lede">Implementation is complete only when every layer and the rendered UI pass together.</p>
+      <div class="commands">
+        <div class="command">npm test</div>
+        <div class="command">npm run test:e2e</div>
+        <div class="command">npm run typecheck</div>
+        <div class="command">npm run lint</div>
+        <div class="command">npm run build --prefix frontend</div>
+      </div>
+    </section>
+
+    <section class="card footer-note">
+      <strong>No ADR proposed.</strong> These UI and selector decisions are visible, incremental, and reversible. The domain glossary records Todo Lists, Todo List, Todo, and Next Due Date. History and restoration remain explicitly deferred.
+    </section>
+  </main>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "default",
+      securityLevel: "strict",
+      themeVariables: {
+        primaryColor: "#e3f2fd",
+        primaryTextColor: "#1b1b1b",
+        primaryBorderColor: "#1976d2",
+        lineColor: "#6b7280",
+        secondaryColor: "#f3e5f5",
+        tertiaryColor: "#edf7ed",
+        fontFamily: "Roboto, Arial, sans-serif"
+      }
+    });
+  </script>
+</body>
+</html>
