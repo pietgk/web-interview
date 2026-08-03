@@ -1,4 +1,5 @@
 export const TODO_TEXT_MAX_LENGTH = 1000
+export const TODO_LIST_TITLE_MAX_LENGTH = 100
 export const SYNC_TRANSACTION_LIMIT = 100
 export const TRANSACTION_VERSION = 1
 
@@ -25,6 +26,7 @@ export const ERROR_CODE = Object.freeze({
 })
 
 export const ACTOR_EVENT = Object.freeze({
+  DISMISS_REJECTION: 'DISMISS_REJECTION',
   OFFLINE: 'OFFLINE',
   ONLINE: 'ONLINE',
   RELOAD: 'RELOAD',
@@ -60,6 +62,9 @@ export const TRANSACTION_CAUSE = Object.freeze({
   TODO_CHANGED: 'todo.changed',
   TODO_CREATED: 'todo.created',
   TODO_DELETED: 'todo.deleted',
+  TODO_LIST_CREATED: 'todo-list.created',
+  TODO_LIST_DELETED: 'todo-list.deleted',
+  TODO_LIST_TITLE_CHANGED: 'todo-list.title-changed',
   TODO_LIST_REPLACED: 'todo-list.replaced',
 })
 

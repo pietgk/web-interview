@@ -13,10 +13,23 @@ import {
   SECONDARY_LIST_TITLE,
 } from './fixture.js'
 
-const primaryListName = new RegExp(PRIMARY_LIST_TITLE)
+const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)
 const dueInYearsLabel = new RegExp(
   `Due in \\d+ years: ${PRIMARY_TODO.text}`
 )
+
+/** @param {string} prefix */
+const uniqueListTitle = (prefix) =>
+  `${prefix} ${Date.now()} ${Math.random().toString(16).slice(2)}`
+
+/** @param {import('@playwright/test').Page} page @param {string} title */
+async function startTodoList(page, title) {
+  await page.getByRole('button', { name: 'Add Todo List' }).click()
+  const titleField = page.getByLabel('Todo List name')
+  await expect(titleField).toBeFocused()
+  await titleField.fill(title)
+  await expect(page.getByLabel('Add a todo')).toBeVisible()
+}
 
 /** @param {import('@playwright/test').APIRequestContext} request */
 async function resetFirstList(request) {
@@ -162,7 +175,7 @@ test('creates a todo by typing in the top composer and removes it when cleared',
   const composer = page.getByLabel('Add a todo')
   const saved = waitForAutosave(page)
   await composer.fill('Typed into ghost')
-  await page.getByRole('button', { name: 'Add todo' }).click()
+  await page.getByRole('button', { name: 'Add todo', exact: true }).click()
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Typed into ghost')
@@ -201,7 +214,7 @@ test('keeps a durable outbox across reload and syncs after reconnecting', async 
   await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
 
   await page.getByLabel('What to do?').fill('Written while offline')
-  await expect(page.getByText('Saved offline')).toBeVisible()
+  await expect(page.getByText('Waiting for connection')).toBeVisible()
 
   /** @type {string[]} */
   const reloadDialogs = []
@@ -223,4 +236,102 @@ test('keeps a durable outbox across reload and syncs after reconnecting', async 
   await page.reload()
   await page.getByText(PRIMARY_LIST_TITLE).click()
   await expect(page.getByLabel('What to do?')).toHaveValue('Written while offline')
+})
+
+test('creates a Todo List and Todo that survive synchronization and reload', async ({ page }) => {
+  const title = uniqueListTitle('Created list')
+  const todoText = `Created Todo ${title}`
+  await page.goto('/')
+
+  const saved = waitForAutosave(page)
+  await startTodoList(page, title)
+  await page.getByLabel('Add a todo').fill(todoText)
+  await page.getByLabel('Add a todo').press('Enter')
+  await saved
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  await page.reload()
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('Todo List name')).toHaveValue(title)
+  await expect(page.getByLabel('What to do?').first()).toHaveValue(todoText)
+})
+
+test('renames a Todo List even when switching before the debounce expires', async ({ page }) => {
+  const original = uniqueListTitle('Rename source')
+  const renamed = uniqueListTitle('Renamed list')
+  await page.goto('/')
+  const created = waitForAutosave(page)
+  await startTodoList(page, original)
+  await created
+
+  const renamedSync = waitForAutosave(page)
+  await page.getByLabel('Todo List name').fill(renamed)
+  await page.getByText(PRIMARY_LIST_TITLE, { exact: true }).click()
+  await renamedSync
+
+  await page.reload()
+  await page.getByText(renamed, { exact: true }).click()
+  await expect(page.getByLabel('Todo List name')).toHaveValue(renamed)
+})
+
+test('creates a Todo List offline, restores it from IndexedDB, and synchronizes on reconnect', async ({ page }) => {
+  const title = uniqueListTitle('Offline list')
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
+  await page.route(`${E2E_API_BASE}/**`, (route) => route.abort('internetdisconnected'))
+
+  await startTodoList(page, title)
+  await expect(page.getByText('Waiting for connection')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+
+  await page.unroute(`${E2E_API_BASE}/**`)
+  const synchronized = waitForAutosave(page)
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await synchronized
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByText(title, { exact: true })).toBeVisible()
+})
+
+test('deletes empty lists immediately and confirms deletion of non-empty lists', async ({ page }) => {
+  const emptyTitle = uniqueListTitle('Empty delete')
+  const populatedTitle = uniqueListTitle('Populated delete')
+  await page.goto('/')
+
+  let saved = waitForAutosave(page)
+  await startTodoList(page, emptyTitle)
+  await saved
+  saved = waitForAutosave(page)
+  await page.getByRole('button', { name: `Delete Todo List: ${emptyTitle}` }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByText(emptyTitle, { exact: true })).toHaveCount(0)
+  await saved
+
+  saved = waitForAutosave(page)
+  await startTodoList(page, populatedTitle)
+  await page.getByLabel('Add a todo').fill('Todo removed with its list')
+  await page.getByLabel('Add a todo').press('Enter')
+  await saved
+
+  await page.getByRole('button', {
+    name: `Delete Todo List: ${populatedTitle}`,
+  }).click()
+  const dialog = page.getByRole('dialog', { name: `Delete ${populatedTitle}?` })
+  await expect(dialog).toContainText('1 Todo will also disappear.')
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByText(populatedTitle, { exact: true })).toBeVisible()
+
+  await page.getByRole('button', {
+    name: `Delete Todo List: ${populatedTitle}`,
+  }).click()
+  const deleted = waitForAutosave(page)
+  await page.getByRole('dialog', { name: `Delete ${populatedTitle}?` })
+    .getByRole('button', { name: 'Delete Todo List' })
+    .click()
+  await deleted
+  await page.reload()
+  await expect(page.getByText(populatedTitle, { exact: true })).toHaveCount(0)
 })

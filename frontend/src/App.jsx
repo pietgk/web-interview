@@ -1,50 +1,31 @@
 import React from 'react'
-import { AppBar, Toolbar, Typography } from '@mui/material'
+import { Box } from '@mui/material'
+import { StatusBar } from './todos/components/StatusBar'
 import { TodoLists } from './todos/components/TodoLists'
-
-const MainAppBar = () => {
-  return (
-    <AppBar position='static' color='primary'>
-      <Toolbar>
-        <Typography variant='h6' component='h1' color='inherit'>
-          Things to do
-        </Typography>
-      </Toolbar>
-    </AppBar>
-  )
-}
-
-/** @type {React.CSSProperties} */
-const mainWrapperStyle = { display: 'flex', flexDirection: 'column' }
-/** @type {React.CSSProperties} */
-const centerContentWrapper = { display: 'flex', justifyContent: 'center' }
-/** @type {React.CSSProperties} */
-const contentWrapperStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  maxWidth: '80rem',
-  flexGrow: 1,
-}
-
-/** @param {{children: React.ReactNode}} props */
-const MainWrapper = ({ children }) => {
-  return (
-    <div style={mainWrapperStyle}>
-      <MainAppBar />
-      <div style={centerContentWrapper}>
-        <div style={contentWrapperStyle}>
-          <main>{children}</main>
-        </div>
-      </div>
-    </div>
-  )
-}
+import { useTodoLists } from './todos/useTodoLists'
 
 const App = () => {
+  const runtime = useTodoLists()
+
   return (
-    <MainWrapper>
-      <TodoLists style={{ margin: '1rem' }} />
-    </MainWrapper>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100dvh',
+        minHeight: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <Box sx={{ width: '100%', maxWidth: '80rem', margin: '0 auto', padding: 2, boxSizing: 'border-box' }}>
+        <StatusBar runtime={runtime} />
+      </Box>
+      <Box component='main' sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <Box sx={{ width: '100%', maxWidth: '80rem', margin: '0 auto' }}>
+          <TodoLists runtime={runtime} style={{ margin: '0 1rem 1rem' }} />
+        </Box>
+      </Box>
+    </Box>
   )
 }
 

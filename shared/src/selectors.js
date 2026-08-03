@@ -1,12 +1,10 @@
-import { transactionAffectsList } from './todoListActor.js'
-import { PERSISTENCE_STATUS, SYNC_STATUS } from './todoProtocol.js'
+import { ACTOR_STATUS, PERSISTENCE_STATUS, SYNC_STATUS } from './todoProtocol.js'
 
 /** @typedef {import('./types.js').Todo} Todo */
 /** @typedef {import('./types.js').TodoList} TodoList */
 /** @typedef {import('./types.js').TodoLists} TodoLists */
 /** @typedef {import('./types.js').TodoListSnapshot} TodoListSnapshot */
-/** @typedef {{id: string, title: string, completed: boolean, completedCount: number, totalCount: number}} TodoListSummary */
-/** @typedef {{message: string, tone: 'error' | 'secondary', showRetry: boolean, saveError: string | null}} TodoListSaveChrome */
+/** @typedef {{id: string, title: string, completed: boolean, completedCount: number, totalCount: number, nextDueDate: string | null}} TodoListSummary */
 
 /** @param {Todo[]} [todos] */
 export const isListCompleted = (todos = []) =>
@@ -28,71 +26,157 @@ export const selectListSummary = (todoList) => ({
   completed: isListCompleted(todoList.todos),
   completedCount: todoList.todos.filter((todo) => todo.completed).length,
   totalCount: todoList.todos.length,
+  nextDueDate: todoList.todos.reduce(
+    (earliest, todo) =>
+      !todo.completed && todo.dueDate && (!earliest || todo.dueDate < earliest)
+        ? todo.dueDate
+        : earliest,
+    /** @type {string | null} */ (null)
+  ),
 })
+
+/**
+ * @param {TodoLists} todoLists
+ * @returns {TodoListSummary[]}
+ */
+export const selectTodoListSummaries = (todoLists) =>
+  Object.values(todoLists)
+    .map((todoList, sourceIndex) => ({
+      ...selectListSummary(todoList),
+      sourceIndex,
+    }))
+    .sort((left, right) => {
+      const leftBucket = left.completed ? 2 : left.nextDueDate ? 0 : 1
+      const rightBucket = right.completed ? 2 : right.nextDueDate ? 0 : 1
+      if (leftBucket !== rightBucket) return leftBucket - rightBucket
+      if (leftBucket === 0 && left.nextDueDate !== right.nextDueDate) {
+        return /** @type {string} */ (left.nextDueDate).localeCompare(
+          /** @type {string} */ (right.nextDueDate)
+        )
+      }
+      return left.sourceIndex - right.sourceIndex
+    })
+    .map(({ sourceIndex, ...summary }) => summary)
 
 /** @param {Pick<TodoListSnapshot, 'persistenceStatus'>} snapshot */
 export const hasLocallyUndurableChanges = (snapshot) =>
   snapshot.persistenceStatus === PERSISTENCE_STATUS.WRITING ||
   snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED
 
-/**
- * @param {TodoListSnapshot} snapshot
- * @param {string} listId
- * @returns {TodoListSaveChrome}
- */
-export const selectListSaveChrome = (snapshot, listId) => {
-  const hasPending = snapshot.pendingTransactions.some((transaction) =>
-    transactionAffectsList(transaction, listId)
-  )
-  const rejected = snapshot.rejectedTransactions.find((entry) => entry.listId === listId)
+const titlePart = { id: 'title', text: 'Things to do' }
 
-  if (rejected) {
+/**
+ * @param {Pick<TodoListSnapshot, 'status' | 'pendingTransactions' | 'rejectedTransactions' | 'persistenceStatus' | 'syncStatus' | 'error'>} snapshot
+ * @returns {import('./types.js').StatusBarModel}
+ */
+export const selectStatusBar = (snapshot) => {
+  if (snapshot.status === ACTOR_STATUS.IDLE || snapshot.status === ACTOR_STATUS.LOADING) {
     return {
-      message: `Save failed: ${rejected.error}`,
-      tone: 'error',
-      showRetry: false,
-      saveError: rejected.error,
+      severity: 'info',
+      parts: [titlePart, { id: 'loading', text: 'Loading Todo Lists…' }],
+      action: null,
+      details: null,
+      dismissible: false,
     }
   }
-  if (snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED && hasPending) {
+  if (snapshot.status === ACTOR_STATUS.ERROR) {
     return {
-      message: `Save failed: ${snapshot.error}`,
-      tone: 'error',
-      showRetry: true,
-      saveError: snapshot.error,
+      severity: 'error',
+      parts: [titlePart, { id: 'loading', text: 'Todo Lists could not be loaded' }],
+      action: { label: 'Retry loading', event: 'RELOAD' },
+      details: snapshot.error ? { reason: snapshot.error } : null,
+      dismissible: false,
     }
   }
-  if (snapshot.syncStatus === SYNC_STATUS.FAILED && hasPending) {
+  if (snapshot.persistenceStatus === PERSISTENCE_STATUS.FAILED) {
     return {
-      message: `Save failed: ${snapshot.error}`,
-      tone: 'error',
-      showRetry: true,
-      saveError: snapshot.error,
+      severity: 'error',
+      parts: [titlePart, { id: 'durability', text: 'Changes are not safely saved' }],
+      action: { label: 'Retry local save', event: 'RETRY_PERSISTENCE' },
+      details: snapshot.error ? { reason: snapshot.error } : null,
+      dismissible: false,
     }
   }
-  if (snapshot.syncStatus === SYNC_STATUS.OFFLINE && hasPending) {
+
+  const rejection = snapshot.rejectedTransactions[0]
+  if (rejection) {
     return {
-      message: 'Saved offline',
-      tone: 'secondary',
-      showRetry: true,
-      saveError: snapshot.error,
+      severity: 'error',
+      parts: [titlePart, { id: 'rejection', text: 'A change could not be applied' }],
+      action: { label: 'Review', event: 'REVIEW_REJECTION' },
+      details: {
+        rejectionId: rejection.id,
+        listId: rejection.listId ?? null,
+        reason: rejection.error,
+        issues: rejection.issues ?? [],
+        rolledBack: true,
+      },
+      dismissible: true,
     }
   }
-  if (hasPending) {
+  if (snapshot.syncStatus === SYNC_STATUS.FAILED) {
     return {
-      message:
-        snapshot.syncStatus === SYNC_STATUS.SYNCING
-          ? 'Saving…'
-          : 'Unsaved changes',
-      tone: 'secondary',
-      showRetry: false,
-      saveError: null,
+      severity: 'warning',
+      parts: [
+        titlePart,
+        { id: 'durability', text: 'Saved on this device' },
+        { id: 'sync', text: 'Server sync failed' },
+      ],
+      action: { label: 'Retry server synchronization', event: 'RETRY_SYNC' },
+      details: snapshot.error ? { reason: snapshot.error } : null,
+      dismissible: false,
+    }
+  }
+  if (snapshot.syncStatus === SYNC_STATUS.OFFLINE) {
+    const hasPending = snapshot.pendingTransactions.length > 0
+    return {
+      severity: 'warning',
+      parts: hasPending
+        ? [
+            titlePart,
+            { id: 'durability', text: 'Saved on this device' },
+            { id: 'sync', text: 'Waiting for connection' },
+          ]
+        : [
+            titlePart,
+            { id: 'connection', text: 'Offline' },
+            { id: 'sync', text: 'No unsynchronized changes' },
+          ],
+      action: null,
+      details: snapshot.error ? { reason: snapshot.error } : null,
+      dismissible: false,
+    }
+  }
+  if (snapshot.persistenceStatus === PERSISTENCE_STATUS.WRITING) {
+    return {
+      severity: 'info',
+      parts: [titlePart, { id: 'durability', text: 'Saving on this device…' }],
+      action: null,
+      details: null,
+      dismissible: false,
+    }
+  }
+  if (
+    snapshot.pendingTransactions.length > 0 ||
+    snapshot.syncStatus === SYNC_STATUS.SYNCING
+  ) {
+    return {
+      severity: 'info',
+      parts: [
+        titlePart,
+        { id: 'durability', text: 'Saved on this device' },
+        { id: 'sync', text: 'Synchronizing…' },
+      ],
+      action: null,
+      details: null,
+      dismissible: false,
     }
   }
   return {
-    message: 'All changes saved',
-    tone: 'secondary',
-    showRetry: false,
-    saveError: null,
+    severity: 'success',
+    parts: [titlePart, { id: 'saved', text: 'All changes saved' }],
+    action: null,
+    details: null,
+    dismissible: false,
   }
 }

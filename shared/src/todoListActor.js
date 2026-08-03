@@ -31,7 +31,7 @@ import {
 /** @typedef {(snapshot: TodoListSnapshot) => void} SnapshotListener */
 /** @typedef {{resolve: (value: TransactionResult) => void, reject: (reason?: unknown) => void}} TransactionWaiter */
 /** @typedef {{transaction: Transaction}} VolatileTransaction */
-/** @typedef {{type: 'TRANSACT', transaction: Transaction} | {type: 'SYNC' | 'RETRY_PERSISTENCE' | 'RETRY_SYNC' | 'ONLINE' | 'OFFLINE' | 'RELOAD'}} TodoListActorEvent */
+/** @typedef {{type: 'TRANSACT', transaction: Transaction} | {type: 'DISMISS_REJECTION', transactionId: string} | {type: 'SYNC' | 'RETRY_PERSISTENCE' | 'RETRY_SYNC' | 'ONLINE' | 'OFFLINE' | 'RELOAD'}} TodoListActorEvent */
 /**
  * @typedef {object} TodoListActorOptions
  * @property {TodoStorage} storage
@@ -232,6 +232,12 @@ export class TodoListActor {
     switch (event.type) {
       case ACTOR_EVENT.TRANSACT:
         this.#acceptTransaction(event.transaction)
+        break
+      case ACTOR_EVENT.DISMISS_REJECTION:
+        this.rejected = this.rejected.filter(
+          (entry) => entry.id !== event.transactionId
+        )
+        this.#publish()
         break
       case ACTOR_EVENT.SYNC:
         this.flushRequested = this.volatile.length > 0 || this.writeRunning

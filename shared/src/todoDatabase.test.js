@@ -10,6 +10,7 @@ import {
 } from './todoDatabase.js'
 import {
   createTodoTransaction,
+  deleteTodoListTransaction,
   patchTodoTransaction,
   seedTransactionFromTodoLists,
 } from './transactions.js'
@@ -156,5 +157,32 @@ describe('todo datom database', () => {
 
     assert.equal(readModelAsOf([genesis, patch], 1).list.todos[0].text, 'Original')
     assert.equal(readModelAsOf([genesis, patch], 2).list.todos[0].text, 'Future')
+  })
+
+  it('hides a deleted Todo List and all of its Todos without retracting history', () => {
+    const database = databaseFromReadModel(seedLists, 1)
+    const transaction = deleteTodoListTransaction({
+      basis: 1,
+      clientId: 'test',
+      todoList: seedLists.list,
+    })
+
+    const result = applyTransaction(database, transaction)
+
+    assert.deepEqual(projectTodoLists(result.database), {})
+    assert.equal(result.database.facts.get('list')?.get('list/deleted'), true)
+    assert.equal(result.database.facts.get('todo')?.get('todo/list'), 'list')
+  })
+
+  it('replays a pre-feature journal transaction without list/deleted', () => {
+    const oldGenesis = serverTransaction(
+      seedTransactionFromTodoLists({ todoLists: seedLists }),
+      1
+    )
+    oldGenesis.datoms = oldGenesis.datoms.filter(
+      (datom) => datom[1] !== 'list/deleted'
+    )
+
+    assert.deepEqual(projectTodoLists(replayTransactions([oldGenesis])), seedLists)
   })
 })

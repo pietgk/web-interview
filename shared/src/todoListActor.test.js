@@ -1,8 +1,11 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { createTodoListActor } from './todoListActor.js'
-import { ERROR_CODE, SYNC_STATUS } from './todoProtocol.js'
-import { patchTodoTransaction } from './transactions.js'
+import { ACTOR_EVENT, ERROR_CODE, SYNC_STATUS } from './todoProtocol.js'
+import {
+  deleteTodoListTransaction,
+  patchTodoTransaction,
+} from './transactions.js'
 
 /** @typedef {import('./types.js').TodoStorage} TodoStorage */
 /** @typedef {import('./types.js').Transaction} Transaction */
@@ -131,6 +134,86 @@ describe('shared todo-list actor', () => {
     const retry = scheduled.at(-1)
     assert.ok(retry)
     assert.equal(retry.delay, 123)
+    await actor.stop()
+  })
+
+  it('dismisses a reviewed rejection without changing the authoritative read model', async () => {
+    /** @type {Array<() => void>} */
+    const scheduled = []
+    const storage = memoryStorage()
+    storage.sync = async ({ pendingTransactions }) => ({
+      basis: 1,
+      authoritativeReadModel: seedLists,
+      acceptedTransactionIds: [],
+      rejectedTransactions: pendingTransactions.map((transaction) => ({
+        id: transaction.id,
+        listId: 'list',
+        error: 'Rejected by policy',
+        code: ERROR_CODE.TRANSACTION_REJECTED,
+      })),
+    })
+    const actor = createTodoListActor({
+      storage,
+      clock: {
+        clearTimeout: () => {},
+        setTimeout: (callback) => {
+          scheduled.push(callback)
+          return scheduled.length
+        },
+      },
+    })
+    await actor.start()
+    const transaction = patchTodoTransaction({
+      basis: 1,
+      clientId: 'client-test',
+      listId: 'list',
+      todo: actor.getSnapshot().readModel.list.todos[0],
+      patch: { text: 'Rejected edit' },
+    })
+    assert.ok(transaction)
+    await actor.transact(transaction)
+    scheduled.at(-1)?.()
+    await new Promise((resolve) => setImmediate(resolve))
+
+    assert.equal(actor.getSnapshot().rejectedTransactions.length, 1)
+    assert.equal(actor.getSnapshot().readModel.list.todos[0].text, 'Original')
+    actor.send({
+      type: ACTOR_EVENT.DISMISS_REJECTION,
+      transactionId: transaction.id,
+    })
+
+    assert.equal(actor.getSnapshot().rejectedTransactions.length, 0)
+    assert.equal(actor.getSnapshot().readModel.list.todos[0].text, 'Original')
+    await actor.stop()
+  })
+
+  it('replays a locally durable offline Todo List deletion over the authoritative read model', async () => {
+    const pendingDeletion = deleteTodoListTransaction({
+      basis: 1,
+      clientId: 'offline-client',
+      todoList: seedLists.list,
+    })
+    const actor = createTodoListActor({
+      storage: {
+        async load() {
+          return {
+            hasReplica: true,
+            basis: 1,
+            authoritativeReadModel: seedLists,
+            pendingTransactions: [pendingDeletion],
+          }
+        },
+        async append(transaction) {
+          return { transaction }
+        },
+      },
+    })
+
+    await actor.start()
+
+    assert.deepEqual(actor.getSnapshot().authoritativeReadModel, seedLists)
+    assert.deepEqual(actor.getSnapshot().readModel, {})
+    assert.equal(actor.getSnapshot().pendingTransactions[0].id, pendingDeletion.id)
     await actor.stop()
   })
 })

@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import { isRealCalendarDate } from './calendarDate.js'
-import { ERROR_CODE, TODO_TEXT_MAX_LENGTH } from './todoProtocol.js'
+import {
+  ERROR_CODE,
+  TODO_LIST_TITLE_MAX_LENGTH,
+  TODO_TEXT_MAX_LENGTH,
+} from './todoProtocol.js'
 
 /** @typedef {import('./types.js').Todo} Todo */
 /** @typedef {import('./types.js').TodoList} TodoList */
@@ -53,7 +57,7 @@ export const todosSchema = z.array(todoSchema).superRefine((todos, ctx) => {
 export const todoListSchema = z
   .object({
     id: z.string().min(1),
-    title: z.string(),
+    title: z.string().trim().min(1).max(TODO_LIST_TITLE_MAX_LENGTH),
     todos: todosSchema,
   })
   .strict()

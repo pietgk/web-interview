@@ -12,8 +12,10 @@ import {
   TRANSACTION_VERSION,
 } from './todoProtocol.js'
 import {
+  createTodoListAtBottomTransaction,
   createTodoAtTopTransaction,
   createTransaction,
+  patchTodoListTitleTransaction,
 } from './transactions.js'
 
 /** @param {number} index */
@@ -95,5 +97,44 @@ describe('todo protocol constants', () => {
       transaction.datoms.find((datom) => datom[1] === ATTRIBUTE.TODO_ORDER),
       ['todo', ATTRIBUTE.TODO_ORDER, -1234, transaction.id, true]
     )
+  })
+
+  it('creates a Todo List atomically with title, order, and visible state', () => {
+    const transaction = createTodoListAtBottomTransaction({
+      basis: 3,
+      clientId: 'protocol-test',
+      listId: 'new-list',
+      title: 'Release checklist',
+      now: () => 1234,
+    })
+
+    assert.equal(transaction.origin.listId, 'new-list')
+    assert.deepEqual(transaction.datoms, [
+      ['new-list', ATTRIBUTE.LIST_TITLE, 'Release checklist', transaction.id, true],
+      ['new-list', ATTRIBUTE.LIST_ORDER, 1234, transaction.id, true],
+      ['new-list', ATTRIBUTE.LIST_DELETED, false, transaction.id, true],
+    ])
+  })
+
+  it('patches a Todo List title only when its trimmed value changes', () => {
+    const todoList = { id: 'list', title: 'Original', todos: [] }
+    assert.equal(patchTodoListTitleTransaction({
+      basis: 3,
+      clientId: 'protocol-test',
+      todoList,
+      title: '  Original  ',
+    }), null)
+
+    const transaction = patchTodoListTitleTransaction({
+      basis: 3,
+      clientId: 'protocol-test',
+      todoList,
+      title: '  Renamed  ',
+    })
+    assert.ok(transaction)
+    assert.equal(transaction.origin.listId, 'list')
+    assert.deepEqual(transaction.datoms, [
+      ['list', ATTRIBUTE.LIST_TITLE, 'Renamed', transaction.id, true],
+    ])
   })
 })

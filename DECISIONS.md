@@ -21,7 +21,9 @@ Playwright browsers on a clean checkout: `npx playwright install chromium`.
 - **Offline:** Durable IndexedDB outbox, reload recovery, and automatic reconnection
 - **Completed items:** Toggle per todo
 - **Completed lists:** Derived indicator when every item is completed
+- **Todo List lifecycle:** Create, rename, and tombstone-delete whole Todo Lists
 - **Due dates:** Remaining and overdue labels, with completed items shown as `Completed`
+- **StatusBar:** One global durability, synchronization, failure, and recovery surface
 - **Tests:** Shared core, API and journal integration, React components, and Playwright journeys
 
 ## Persistence: immutable transactions in a JSONL journal
@@ -85,6 +87,25 @@ List completion is never stored. A non-empty list is completed when every visibl
 completed. Both the navigation summary and active editor use the optimistic actor read model, so
 they update before server acknowledgement.
 
+## Todo List lifecycle uses stable identities and tombstones
+
+Todo Lists are created with an atomic title, creation order, and `list/deleted = false`
+transaction. Renames update only `list/title`; duplicate titles remain valid because list ids define
+identity. Deletion asserts `list/deleted = true`, which hides the Todo List and its Todos from the
+complete read model while retaining the historical facts in the JSONL journal.
+
+The navigation order is a pure projection of the optimistic read model. Incomplete Todo Lists
+with a Next Due Date come first by date, undated and empty Todo Lists retain creation order, and
+completed Todo Lists retain creation order at the end.
+
+## StatusBar is a pure projection of the shared actor
+
+The application creates one browser actor and passes the same runtime to StatusBar and Todo Lists.
+StatusBar does not own another state machine. A pure selector maps actor snapshots to one ordered
+status line with deterministic severity, wording, details, and layer-specific recovery actions.
+Only rejection notifications can be dismissed; persistence, synchronization, offline, and loading
+failures remain visible until their underlying condition changes.
+
 ## Todos use stable entity ids
 
 The UI read model remains:
@@ -124,7 +145,6 @@ completed due dates are first-class tests.
 ## Knowingly deferred
 
 - Authentication and authorization
-- Creating or deleting whole lists
 - Horizontal multi-process writers for one JSONL journal
 - Multi-tab coordination beyond server-sequence convergence
 - Selected-list persistence across refresh

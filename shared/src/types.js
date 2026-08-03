@@ -1,4 +1,4 @@
-/** @typedef {'list/title' | 'list/order' | 'todo/list' | 'todo/text' | 'todo/completed' | 'todo/dueDate' | 'todo/order' | 'todo/deleted'} Attribute */
+/** @typedef {'list/title' | 'list/order' | 'list/deleted' | 'todo/list' | 'todo/text' | 'todo/completed' | 'todo/dueDate' | 'todo/order' | 'todo/deleted'} Attribute */
 
 /** @typedef {string | number | boolean} FactValue */
 
@@ -63,6 +63,19 @@
 /** @typedef {'error' | 'idle' | 'loading' | 'ready'} ActorStatus */
 /** @typedef {'failed' | 'idle' | 'writing'} PersistenceStatus */
 /** @typedef {'disabled' | 'failed' | 'idle' | 'offline' | 'syncing'} SyncStatus */
+
+/** @typedef {'error' | 'info' | 'success' | 'warning'} StatusBarSeverity */
+/** @typedef {{id: string, text: string}} StatusBarPart */
+/** @typedef {{label: string, event: 'RELOAD' | 'RETRY_PERSISTENCE' | 'RETRY_SYNC' | 'REVIEW_REJECTION'}} StatusBarAction */
+/** @typedef {{reason: string, rejectionId?: string, listId?: string | null, issues?: unknown[], rolledBack?: boolean}} StatusBarDetails */
+/**
+ * @typedef {object} StatusBarModel
+ * @property {StatusBarSeverity} severity
+ * @property {StatusBarPart[]} parts
+ * @property {StatusBarAction | null} action
+ * @property {StatusBarDetails | null} details
+ * @property {boolean} dismissible
+ */
 
 /**
  * @typedef {object} TodoListSnapshot

@@ -73,6 +73,15 @@ const randomId = (prefix) => {
 }
 
 export const newTodoId = () => randomId('todo')
+export const newTodoListId = () => randomId('todo-list')
+
+let lastTodoListOrder = 0
+
+/** @param {() => number} now */
+const nextTodoListOrder = (now) => {
+  lastTodoListOrder = Math.max(now(), lastTodoListOrder + 1)
+  return lastTodoListOrder
+}
 
 /**
  * @param {TransactionOptions} options
@@ -141,6 +150,63 @@ export const createTodoAtTopTransaction = ({ now = Date.now, ...input }) =>
   createTodoTransaction({
     ...input,
     order: -now(),
+  })
+
+/**
+ * @param {{basis: number, clientId: string, listId: string, title: string, now?: () => number}} options
+ * @returns {Transaction}
+ */
+export const createTodoListAtBottomTransaction = ({
+  basis,
+  clientId,
+  listId,
+  title,
+  now = Date.now,
+}) =>
+  createTransaction({
+    basis,
+    clientId,
+    listId,
+    cause: TRANSACTION_CAUSE.TODO_LIST_CREATED,
+    datoms: [
+      [listId, ATTRIBUTE.LIST_TITLE, title],
+      [listId, ATTRIBUTE.LIST_ORDER, nextTodoListOrder(now)],
+      [listId, ATTRIBUTE.LIST_DELETED, false],
+    ],
+  })
+
+/**
+ * @param {{basis: number, clientId: string, todoList: TodoList, title: string}} options
+ * @returns {Transaction | null}
+ */
+export const patchTodoListTitleTransaction = ({
+  basis,
+  clientId,
+  todoList,
+  title,
+}) => {
+  const trimmedTitle = title.trim()
+  if (trimmedTitle === todoList.title) return null
+  return createTransaction({
+    basis,
+    clientId,
+    listId: todoList.id,
+    cause: TRANSACTION_CAUSE.TODO_LIST_TITLE_CHANGED,
+    datoms: [[todoList.id, ATTRIBUTE.LIST_TITLE, trimmedTitle]],
+  })
+}
+
+/**
+ * @param {{basis: number, clientId: string, todoList: TodoList}} options
+ * @returns {Transaction}
+ */
+export const deleteTodoListTransaction = ({ basis, clientId, todoList }) =>
+  createTransaction({
+    basis,
+    clientId,
+    listId: todoList.id,
+    cause: TRANSACTION_CAUSE.TODO_LIST_DELETED,
+    datoms: [[todoList.id, ATTRIBUTE.LIST_DELETED, true]],
   })
 
 /**
@@ -218,7 +284,8 @@ export const seedTransactionFromTodoLists = ({
   Object.values(todoLists).forEach((list, listOrder) => {
     datoms.push(
       [list.id, ATTRIBUTE.LIST_TITLE, list.title],
-      [list.id, ATTRIBUTE.LIST_ORDER, listOrder]
+      [list.id, ATTRIBUTE.LIST_ORDER, listOrder],
+      [list.id, ATTRIBUTE.LIST_DELETED, false]
     )
     list.todos.forEach((todo, todoOrder) => {
       datoms.push(

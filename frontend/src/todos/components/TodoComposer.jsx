@@ -9,10 +9,11 @@ import { TodoRow } from './TodoRow'
  *   text: string,
  *   onChange: (text: string) => void,
  *   onSubmit?: () => void,
- *   onCommit?: () => void
+ *   onCommit?: () => void,
+ *   focusRef?: React.MutableRefObject<HTMLInputElement | null>
  * }} props
  */
-export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
+export const TodoComposer = ({ text, onChange, onSubmit, onCommit, focusRef }) => {
   const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
 
   const submit = () => {
@@ -33,7 +34,10 @@ export const TodoComposer = ({ text, onChange, onSubmit, onCommit }) => {
         label='Add a todo'
         value={text}
         onChange={(event) => onChange(event.target.value)}
-        inputRef={inputRef}
+        inputRef={(node) => {
+          inputRef.current = node
+          if (focusRef) focusRef.current = node
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault()

@@ -1,5 +1,12 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  render,
+  screen,
+  waitFor,
+  waitForElementToBeRemoved,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { within } from '@testing-library/react'
 import {
   applyTransaction,
   databaseFromReadModel,
@@ -7,6 +14,7 @@ import {
 } from '@web-interview/todos/database'
 import { SYNC_DEBOUNCE_MS } from '@web-interview/todos/actor'
 import { TodoLists } from './TodoLists'
+import { useTodoLists } from '../useTodoLists'
 import * as api from '../../api/todoLists'
 import { createTodo } from '../todoModel'
 
@@ -82,6 +90,11 @@ const advanceAutosave = async () => {
   })
 }
 
+const TodoListsHarness = () => {
+  const runtime = useTodoLists()
+  return <TodoLists runtime={runtime} style={{}} />
+}
+
 describe('TodoLists shared replica actor', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
@@ -101,7 +114,7 @@ describe('TodoLists shared replica actor', () => {
       '0000000002': { ...seedLists['0000000002'], todos: [] },
     })
 
-    render(<TodoLists style={{}} />)
+    render(<TodoListsHarness />)
     await loadLists()
 
     expect(screen.getByText('0 of 1 completed')).toBeInTheDocument()
@@ -110,7 +123,7 @@ describe('TodoLists shared replica actor', () => {
 
   it('applies edits optimistically and synchronizes a transaction batch', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoLists style={{}} />)
+    render(<TodoListsHarness />)
     await loadLists()
     await user.click(screen.getByText('First List'))
 
@@ -123,12 +136,12 @@ describe('TodoLists shared replica actor', () => {
     await advanceAutosave()
 
     await waitFor(() => expect(api.syncTodoLists).toHaveBeenCalledTimes(1))
-    expect(await screen.findByText('All changes saved')).toBeInTheDocument()
+    expect(field).toHaveValue('Synced edit')
   })
 
   it('flushes pending transactions when focus leaves the editor', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoLists style={{}} />)
+    render(<TodoListsHarness />)
     await loadLists()
     await user.click(screen.getByText('First List'))
     await user.clear(screen.getByLabelText('What to do?'))
@@ -141,28 +154,6 @@ describe('TodoLists shared replica actor', () => {
     expect(screen.getByLabelText('What to do?')).toHaveValue('Switch now')
   })
 
-  it('retains an offline edit and retries synchronization', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    const successfulSync = syncTodoListsMock.getMockImplementation()
-    if (!successfulSync) throw new Error('Expected sync mock implementation')
-    syncTodoListsMock
-      .mockRejectedValueOnce(new Error('network down'))
-      .mockImplementation(successfulSync)
-    render(<TodoLists style={{}} />)
-    await loadLists()
-    await user.click(screen.getByText('First List'))
-    await user.clear(screen.getByLabelText('What to do?'))
-    await user.type(screen.getByLabelText('What to do?'), 'Retry me')
-    await advanceAutosave()
-
-    expect(await screen.findByText(/Save failed: network down/)).toBeInTheDocument()
-    expect(screen.getByLabelText('What to do?')).toHaveValue('Retry me')
-
-    await user.click(screen.getByRole('button', { name: 'Retry saving todo list' }))
-    await waitFor(() => expect(api.syncTodoLists).toHaveBeenCalledTimes(2))
-    expect(await screen.findByText('All changes saved')).toBeInTheDocument()
-  })
-
   it('updates list completion before server acknowledgement', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     /** @type {((value: Awaited<ReturnType<typeof api.syncTodoLists>>) => void) | undefined} */
@@ -170,14 +161,14 @@ describe('TodoLists shared replica actor', () => {
     syncTodoListsMock.mockImplementationOnce(
       () => new Promise((resolve) => { resolveSync = resolve })
     )
-    render(<TodoLists style={{}} />)
+    render(<TodoListsHarness />)
     await loadLists()
     await user.click(screen.getByText('First List'))
 
     await user.click(screen.getByLabelText('Mark completed: First todo of first list!'))
 
     expect(screen.getByText('1 of 1 completed')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /First List/ })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /^First List / })).toHaveAttribute(
       'aria-current',
       'true'
     )
@@ -199,7 +190,7 @@ describe('TodoLists shared replica actor', () => {
 
   it('materializes, commits, and dematerializes the ghost composer', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoLists style={{}} />)
+    render(<TodoListsHarness />)
     await loadLists()
     await user.click(screen.getByText('First List'))
 
@@ -216,14 +207,98 @@ describe('TodoLists shared replica actor', () => {
     expect(screen.queryByDisplayValue('Temporary')).not.toBeInTheDocument()
   })
 
-  it('exposes named regions for status, editor, and composer', async () => {
+  it('exposes named regions for the editor and composer', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
-    render(<TodoLists style={{}} />)
+    render(<TodoListsHarness />)
     await loadLists()
     await user.click(screen.getByText('First List'))
 
-    expect(screen.getByRole('status', { name: 'Save status' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Todo editor' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'New todo' })).toBeInTheDocument()
+  })
+
+  it('creates one focused blank draft and materializes it on first text', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    render(<TodoListsHarness />)
+    await loadLists()
+
+    const add = screen.getByRole('button', { name: 'Add Todo List' })
+    await user.click(add)
+    expect(screen.getByLabelText('Todo List name')).toHaveFocus()
+    expect(screen.queryByLabelText('Add a todo')).not.toBeInTheDocument()
+    await user.click(add)
+    expect(screen.getByLabelText('Todo List name')).toHaveFocus()
+    expect(screen.getAllByLabelText('Todo List name')).toHaveLength(1)
+
+    await user.type(screen.getByLabelText('Todo List name'), 'Release')
+    expect(screen.getByLabelText('Add a todo')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Release No todos yet$/ })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
+  })
+
+  it('deletes empty lists immediately and confirms a non-empty final list', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    installServer({
+      '0000000001': seedLists['0000000001'],
+      '0000000002': { ...seedLists['0000000002'], todos: [] },
+    })
+    render(<TodoListsHarness />)
+    await loadLists()
+
+    await user.click(screen.getByRole('button', {
+      name: 'Delete Todo List: Second List',
+    }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByText('Second List')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', {
+      name: 'Delete Todo List: First List',
+    }))
+    expect(screen.getByRole('dialog', { name: 'Delete First List?' })).toHaveTextContent(
+      '1 Todo will also disappear.'
+    )
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitForElementToBeRemoved(() => screen.queryByRole('dialog'))
+    expect(screen.getByText('First List')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', {
+      name: 'Delete Todo List: First List',
+    }))
+    await user.click(screen.getByRole('button', { name: 'Delete Todo List' }))
+    expect(screen.queryByText('First List')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', {
+      name: 'Add Todo List',
+    })).toHaveFocus())
+  })
+
+  it('re-sorts from optimistic due dates without losing active selection', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    installServer({
+      '0000000001': {
+        ...seedLists['0000000001'],
+        todos: [{ ...seedLists['0000000001'].todos[0], dueDate: '2099-02-01' }],
+      },
+      '0000000002': {
+        ...seedLists['0000000002'],
+        todos: [{ ...seedLists['0000000002'].todos[0], dueDate: '2099-01-01' }],
+      },
+    })
+    render(<TodoListsHarness />)
+    await loadLists()
+
+    const list = screen.getByRole('list', { name: 'Todo lists' })
+    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Second List')
+    await user.click(screen.getByText('First List'))
+    const dueDate = screen.getByDisplayValue('2099-02-01')
+    await user.clear(dueDate)
+    await user.type(dueDate, '2098-01-01')
+
+    expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('First List')
+    expect(screen.getByRole('button', { name: /^First List / })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
   })
 })

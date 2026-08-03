@@ -3,6 +3,7 @@ import { isRealCalendarDate } from './calendarDate.js'
 import {
   ERROR_CODE,
   SYNC_TRANSACTION_LIMIT,
+  TODO_LIST_TITLE_MAX_LENGTH,
   TODO_TEXT_MAX_LENGTH,
   TRANSACTION_VERSION,
 } from './todoProtocol.js'
@@ -22,6 +23,7 @@ import {
 const ATTRIBUTE_VALUES = /** @type {const} */ ([
   'list/title',
   'list/order',
+  'list/deleted',
   'todo/list',
   'todo/text',
   'todo/completed',
@@ -33,12 +35,13 @@ const ATTRIBUTE_VALUES = /** @type {const} */ ([
 export const ATTRIBUTE = Object.freeze({
   LIST_TITLE: ATTRIBUTE_VALUES[0],
   LIST_ORDER: ATTRIBUTE_VALUES[1],
-  TODO_LIST: ATTRIBUTE_VALUES[2],
-  TODO_TEXT: ATTRIBUTE_VALUES[3],
-  TODO_COMPLETED: ATTRIBUTE_VALUES[4],
-  TODO_DUE_DATE: ATTRIBUTE_VALUES[5],
-  TODO_ORDER: ATTRIBUTE_VALUES[6],
-  TODO_DELETED: ATTRIBUTE_VALUES[7],
+  LIST_DELETED: ATTRIBUTE_VALUES[2],
+  TODO_LIST: ATTRIBUTE_VALUES[3],
+  TODO_TEXT: ATTRIBUTE_VALUES[4],
+  TODO_COMPLETED: ATTRIBUTE_VALUES[5],
+  TODO_DUE_DATE: ATTRIBUTE_VALUES[6],
+  TODO_ORDER: ATTRIBUTE_VALUES[7],
+  TODO_DELETED: ATTRIBUTE_VALUES[8],
 })
 
 class TransactionValidationError extends Error {
@@ -58,7 +61,9 @@ class TransactionValidationError extends Error {
 const valueMatchesAttribute = (attribute, value) => {
   switch (attribute) {
     case ATTRIBUTE.LIST_TITLE:
-      return typeof value === 'string'
+      return typeof value === 'string' &&
+        value.trim().length > 0 &&
+        value.trim().length <= TODO_LIST_TITLE_MAX_LENGTH
     case ATTRIBUTE.LIST_ORDER:
     case ATTRIBUTE.TODO_ORDER:
       return typeof value === 'number' && Number.isFinite(value)
@@ -67,6 +72,7 @@ const valueMatchesAttribute = (attribute, value) => {
     case ATTRIBUTE.TODO_TEXT:
       return typeof value === 'string' && value.length <= TODO_TEXT_MAX_LENGTH
     case ATTRIBUTE.TODO_COMPLETED:
+    case ATTRIBUTE.LIST_DELETED:
     case ATTRIBUTE.TODO_DELETED:
       return typeof value === 'boolean'
     case ATTRIBUTE.TODO_DUE_DATE:
@@ -336,6 +342,7 @@ export const projectTodoLists = (database) => {
 
   for (const [id, attributes] of database.facts) {
     if (!attributes.has(ATTRIBUTE.LIST_TITLE)) continue
+    if (attributes.get(ATTRIBUTE.LIST_DELETED) ?? false) continue
     lists.push({
       id,
       title: /** @type {string} */ (attributes.get(ATTRIBUTE.LIST_TITLE)),
@@ -391,6 +398,7 @@ export const databaseFromReadModel = (todoLists, basis = 0) => {
   for (const list of Object.values(todoLists)) {
     setFact(facts, list.id, ATTRIBUTE.LIST_TITLE, list.title)
     setFact(facts, list.id, ATTRIBUTE.LIST_ORDER, listOrder)
+    setFact(facts, list.id, ATTRIBUTE.LIST_DELETED, false)
     list.todos.forEach((todo, todoOrder) => {
       setFact(facts, todo.id, ATTRIBUTE.TODO_LIST, list.id)
       setFact(facts, todo.id, ATTRIBUTE.TODO_TEXT, todo.text)

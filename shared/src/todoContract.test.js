@@ -101,4 +101,22 @@ describe('todo contract', () => {
     assert.ok(result.data)
     assert.equal(result.data.todos[0].dueDate, '2026-07-31')
   })
+
+  it('requires trimmed Todo List titles between 1 and 100 characters', () => {
+    for (const title of ['', '   ', 'x'.repeat(101)]) {
+      assert.equal(parseTodoList({ id: 'list', title, todos: [] }).ok, false)
+    }
+    const valid = parseTodoList({
+      id: 'list',
+      title: `  ${'x'.repeat(100)}  `,
+      todos: [],
+    })
+    assert.equal(valid.ok, true)
+    assert.equal(valid.data?.title, 'x'.repeat(100))
+    assert.equal(parseTodoList({
+      id: 'list',
+      title: 'x'.repeat(100),
+      todos: [],
+    }).ok, true)
+  })
 })
