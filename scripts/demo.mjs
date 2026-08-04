@@ -11,6 +11,13 @@ const BACKEND_PORT = 3001
 const PREVIEW_PORT = 4173
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}/`
 const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}/`
+/**
+ * The demo talks to the backend directly rather than through the preview proxy.
+ * The proxy holds a client connection open after the backend dies, so the
+ * browser's `EventSource` never fires `onerror` and the app keeps claiming it is
+ * connected. Going direct is also the path the end-to-end tests exercise.
+ */
+const DEMO_API_BASE = `http://localhost:${BACKEND_PORT}`
 const VITE = resolve(FRONTEND, 'node_modules/vite/bin/vite.js')
 
 /** @typedef {import('node:child_process').ChildProcess} ChildProcess */
@@ -90,7 +97,11 @@ const startBackend = async () => {
     cwd: BACKEND,
     // stdin stays with this script so the command prompt below owns the keyboard.
     stdio: ['ignore', 'inherit', 'inherit'],
-    env: { ...process.env, PORT: String(BACKEND_PORT) },
+    env: {
+      ...process.env,
+      PORT: String(BACKEND_PORT),
+      CORS_ORIGINS: PREVIEW_URL.slice(0, -1),
+    },
   })
   backend = child
 
@@ -98,10 +109,12 @@ const startBackend = async () => {
     if (shuttingDown) return
     console.log(
       backendStopRequested
-        ? '\nBackend stopped. The app should now report a lost connection and disable editing.'
-        : `\nBackend exited on its own (${signal ?? code}). The app should now report a lost connection.`
+        ? '\nBackend stopped. The app should now say "Connection lost".'
+        : `\nBackend exited on its own (${signal ?? code}). The app should now say "Connection lost".`
     )
-    console.log("Type 'start' to bring it back.")
+    // Editing stays enabled once the client has a server clock; edits queue in
+    // the in-memory outbox and drain on reconnect.
+    console.log("Edits still work and queue up. Type 'start' to bring it back and watch them drain.")
   })
 
   if (await waitForUrl(BACKEND_URL)) {
@@ -206,16 +219,21 @@ freePorts()
 
 // `vite preview` serves whatever is in dist/ and says nothing when dist/ is
 // missing or stale, so the demo always builds first.
-const build = spawn(process.execPath, [VITE, 'build'], { cwd: FRONTEND, stdio: 'inherit' })
+// `VITE_API_BASE` is substituted at build time, so the demo has to bake it in.
+const build = spawn(process.execPath, [VITE, 'build'], {
+  cwd: FRONTEND,
+  stdio: 'inherit',
+  env: { ...process.env, VITE_API_BASE: DEMO_API_BASE },
+})
 const buildExit = await new Promise((done) => build.once('exit', done))
 if (buildExit !== 0) {
   console.error(`Build failed (${buildExit}); not starting the demo.`)
   process.exit(1)
 }
 
+// The browser opens its datom stream as soon as the page loads, so the backend
+// comes up first.
 await startBackend()
-// The preview proxy forwards /api/datoms to the backend, so the datom stream
-// only opens once the backend above is answering.
 startPreview()
 
 const rl = createInterface({ input: process.stdin })
