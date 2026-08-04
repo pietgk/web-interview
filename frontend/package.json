@@ -17,6 +17,7 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "kill": "lsof -ti tcp:3000 -i tcp:4173 -i tcp:6006 -sTCP:LISTEN | xargs kill",
     "test": "vitest run",
     "test:watch": "vitest",
     "test-storybook": "vitest run --project=storybook",
