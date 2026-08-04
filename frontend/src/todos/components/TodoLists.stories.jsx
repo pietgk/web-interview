@@ -178,6 +178,31 @@ export const RemoteWriteAppears = {
 }
 
 /** @type {import('@storybook/react-vite').StoryObj} */
+export const ReplacedLogResetsClient = {
+  ...withServer(),
+  play: async ({ canvas, loaded }) => {
+    await waitUntilConnected(canvas, expect)
+    await expect(canvas.getAllByRole('listitem')).toHaveLength(2)
+
+    // A server whose journal was wiped re-seeds with fresh ids minted now, so
+    // they sort above the cursor this client already holds. Without the epoch the
+    // client would keep the old Todo Lists and show both logs at once.
+    const freshList = listId(at())
+    loaded.server.replaceLog([
+      [freshList, ATTRIBUTE.TITLE, 'Only List', ulid(at()), true],
+      [todoId(freshList, at()), ATTRIBUTE.TEXT, 'Only todo', ulid(at()), true],
+    ])
+
+    await waitFor(async () => {
+      await expect(canvas.getAllByRole('listitem')).toHaveLength(1)
+    })
+    await expect(canvas.getByText('Only List')).toBeInTheDocument()
+    await expect(canvas.queryByText('First List')).not.toBeInTheDocument()
+    await expect(canvas.queryByText('Second List')).not.toBeInTheDocument()
+  },
+}
+
+/** @type {import('@storybook/react-vite').StoryObj} */
 export const LocalCompletionUpdatesSummary = {
   ...withServer(),
   play: async ({ canvas }) => {

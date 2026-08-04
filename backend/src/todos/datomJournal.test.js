@@ -121,6 +121,43 @@ describe('datom journal', () => {
     assert.equal(journaled.filter((line) => line.includes('Loser')).length, 1)
   })
 
+  it('keeps its epoch across a restart, and takes a new one when the journal is wiped', async () => {
+    const first = await createDatomService({ filePath, seed: SEED, now: at })
+    const original = first.epoch
+    await first.close()
+
+    const restarted = await createDatomService({ filePath, seed: SEED, now: at })
+    const afterRestart = restarted.epoch
+    await restarted.close()
+
+    await rm(filePath)
+    const wiped = await createDatomService({ filePath, seed: SEED, now: at })
+    try {
+      assert.ok(original, 'a seeded journal has an epoch')
+      assert.equal(afterRestart, original, 'the same journal is the same log')
+      assert.notEqual(wiped.epoch, original, 'a wiped journal is a different log')
+    } finally {
+      await wiped.close()
+    }
+  })
+
+  it('has no epoch until an unseeded server is first written to', async () => {
+    const service = await createDatomService({ filePath, seed: [], now: at })
+    try {
+      assert.equal(service.epoch, null)
+
+      const list = listId(at())
+      const first = ulid(at())
+      await service.record([[list, ATTRIBUTE.TITLE, 'First ever write', first, true]])
+      assert.equal(service.epoch, first)
+
+      await service.record([[list, ATTRIBUTE.TITLE, 'Renamed', ulid(at()), true]])
+      assert.equal(service.epoch, first, 'the epoch is the first datom, not the latest')
+    } finally {
+      await service.close()
+    }
+  })
+
   it('starts empty when the journal is empty and nothing is seeded', async () => {
     const journal = new DatomJournal({ filePath })
     assert.deepEqual(await journal.open(), [])

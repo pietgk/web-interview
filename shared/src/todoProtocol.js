@@ -26,6 +26,13 @@ export const DATOM_API_PATH = Object.freeze({
 
 export const CLOCK_EVENT = 'clock'
 
+/**
+ * Identifies which log the stream is serving. A cursor names a position in a log
+ * but never which log, so without this a client whose server was reset would fold
+ * a fresh log on top of the one it already holds and never learn the difference.
+ */
+export const EPOCH_EVENT = 'epoch'
+
 export const ERROR_CODE = Object.freeze({
   INTERNAL: 'INTERNAL_ERROR',
   INVALID_DATOM: 'INVALID_DATOM',

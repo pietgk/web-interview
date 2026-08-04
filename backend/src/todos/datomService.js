@@ -39,11 +39,25 @@ export const createDatomService = async ({
     }
     await journal.append(seeded)
     for (const datom of seeded) store.apply(datom)
+    replayed.push(...seeded)
   }
+
+  /**
+   * The log is identified by its own first datom, so the epoch needs no separate
+   * storage and survives restarts for free. Recovery only ever truncates the last
+   * line, so the first one is stable; a wiped journal gets a new first datom and
+   * therefore a new epoch.
+   *
+   * @type {string | null}
+   */
+  let epoch = replayed[0]?.[3] ?? null
 
   return {
     store,
     now,
+    get epoch() {
+      return epoch
+    },
     /**
      * Journals every datom because the journal is the history, and returns only
      * the winners because no client needs a datom that lost.
@@ -53,6 +67,8 @@ export const createDatomService = async ({
      */
     async record(datoms) {
       await journal.append(datoms)
+      // An unseeded server has no epoch until something is written to it.
+      epoch ??= datoms[0]?.[3] ?? null
       return datoms.filter((datom) => store.apply(datom))
     },
     close: () => journal.close(),

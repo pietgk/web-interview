@@ -129,13 +129,26 @@ describe('datom API', () => {
     ])
   })
 
+  it('names its log before sending any datom from it', async () => {
+    const client = await stream()
+    await client.until((events) => events.some((event) => event.type === 'clock'))
+
+    assert.equal(client.events[0].type, 'epoch')
+    assert.equal(client.events[0].id, undefined)
+    assert.equal(JSON.parse(client.events[0].data).epoch, service.epoch)
+    assert.equal(service.epoch, service.store.datomsSince()[0][3])
+  })
+
   it('hands over server time only after the state that came with it', async () => {
     const client = await stream()
     await client.until((events) => events.some((event) => event.type === 'clock'))
 
     const firstClock = client.events.findIndex((event) => event.type === 'clock')
+    const datomsBeforeClock = client.events
+      .slice(0, firstClock)
+      .filter((event) => event.type === 'message')
     assert.equal(
-      client.events.slice(0, firstClock).length,
+      datomsBeforeClock.length,
       service.store.datomsSince().length,
       'every datom of the compacted set precedes the first clock tick'
     )

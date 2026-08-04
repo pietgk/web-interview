@@ -1,5 +1,5 @@
 import { DatomStore } from '@web-interview/todos/datom-store'
-import { CLOCK_EVENT } from '@web-interview/todos/protocol'
+import { CLOCK_EVENT, EPOCH_EVENT } from '@web-interview/todos/protocol'
 
 /** @typedef {import('@web-interview/todos/types').Datom} Datom */
 
@@ -16,6 +16,9 @@ export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 } = {}) =>
   const connections = new Set()
   let serverTime = startTime
   let reachable = true
+  // The log is identified by its own first datom, exactly as the server does it.
+  /** @type {string | null} */
+  let epoch = null
 
   /** @param {Datom[]} datoms */
   const broadcast = (datoms) => {
@@ -59,6 +62,7 @@ export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 } = {}) =>
       }
       this.readyState = FakeEventSource.OPEN
       this.onopen?.({ type: 'open' })
+      this.emitEpoch()
       const since = new URL(this.url, 'http://fake').searchParams.get('since')
       for (const datom of store.datomsSince(since ?? undefined)) this.emitDatom(datom)
       this.emitClock()
@@ -76,10 +80,19 @@ export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 } = {}) =>
       }
     }
 
+    emitEpoch() {
+      for (const listener of this.#typed.get(EPOCH_EVENT) ?? []) {
+        listener({ data: JSON.stringify({ epoch }) })
+      }
+    }
+
     drop() {
       this.readyState = FakeEventSource.CONNECTING
       connections.delete(this)
       this.onerror?.({ type: 'error' })
+      // A real EventSource retries on its own. `#connect` does not schedule a
+      // further retry when the server is unreachable, so this cannot spin.
+      queueMicrotask(() => this.#connect())
     }
 
     close() {
@@ -107,7 +120,20 @@ export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 } = {}) =>
     connections,
     /** @param {Datom[]} datoms */
     seed: (datoms) => {
+      epoch ??= datoms[0]?.[3] ?? null
       for (const datom of datoms) store.apply(datom)
+    },
+
+    /**
+     * Wipes the log and seeds a new one, as a server reset from empty would.
+     *
+     * @param {Datom[]} datoms
+     */
+    replaceLog: (datoms) => {
+      store.clear()
+      epoch = datoms[0]?.[3] ?? null
+      for (const datom of datoms) store.apply(datom)
+      for (const connection of [...connections]) connection.drop()
     },
     /** @param {Datom[]} datoms as if written by another client */
     push: (datoms) => {

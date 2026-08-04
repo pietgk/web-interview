@@ -3,6 +3,7 @@ import {
   CLOCK_EVENT,
   CONNECTION,
   DATOM_API_PATH,
+  EPOCH_EVENT,
   SAVING_INDICATOR_DELAY_MS,
 } from '@web-interview/todos/protocol'
 import { createUlidMinter } from '@web-interview/todos/ulid'
@@ -53,6 +54,12 @@ export const createTodoClient = ({
   let source = null
   /** @type {string | undefined} */
   let cursor
+  /**
+   * Which log the datoms in the store came from. Null until the stream says.
+   *
+   * @type {string | null}
+   */
+  let epoch = null
   let stopped = true
   let draining = false
   /** @type {ReturnType<typeof setTimeout> | null} */
@@ -207,6 +214,23 @@ export const createTodoClient = ({
       store.apply(datom)
       cursor = event.lastEventId || datom[3]
     }
+    next.addEventListener(EPOCH_EVENT, (event) => {
+      const received = JSON.parse(/** @type {MessageEvent} */ (event).data).epoch
+      if (typeof received !== 'string') return
+      if (epoch === null) {
+        epoch = received
+        return
+      }
+      if (epoch === received) return
+
+      // The server is serving a different log than the one this store was folded
+      // from. The cursor is a position, not an identity, so nothing else would
+      // ever reveal that the entities held here no longer exist.
+      epoch = received
+      cursor = undefined
+      store.clear()
+      resync()
+    })
     next.addEventListener(CLOCK_EVENT, (event) => {
       const { serverTime } = JSON.parse(/** @type {MessageEvent} */ (event).data)
       if (typeof serverTime !== 'number') return
@@ -221,6 +245,14 @@ export const createTodoClient = ({
           : CONNECTION.RECONNECTING
       )
     }
+  }
+
+  /** Rebuilds the stream from scratch, so it re-requests the whole current set. */
+  const resync = () => {
+    source?.close()
+    source = null
+    if (stopped) return
+    connect()
   }
 
   /**

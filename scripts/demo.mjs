@@ -30,6 +30,11 @@ let preview = null
 // Distinguishes "I stopped the backend" from "the backend fell over", which are
 // the same event to Node and very different things to say out loud.
 let backendStopRequested = false
+/** @type {import('node:readline').Interface | null} */
+let prompt = null
+
+/** The servers write to stdout whenever they like, so redraw after every one. */
+const reprompt = () => prompt?.prompt()
 
 /** @param {ChildProcess | null} child */
 const isAlive = (child) =>
@@ -115,6 +120,9 @@ const startBackend = async () => {
     // Editing stays enabled once the client has a server clock; edits queue in
     // the in-memory outbox and drain on reconnect.
     console.log("Edits still work and queue up. Type 'start' to bring it back and watch them drain.")
+    // A requested stop is still inside a command, which redraws the prompt once
+    // it finishes. Only an exit nobody asked for needs its own redraw.
+    if (!backendStopRequested) reprompt()
   })
 
   if (await waitForUrl(BACKEND_URL)) {
@@ -173,40 +181,68 @@ const shutdown = async (exitCode = 0) => {
   process.exit(exitCode)
 }
 
-const COMMANDS = `
-Demo controls (type a command and press enter):
-  stop     stop the backend, to show the lost-connection state
-  start    start the backend again and watch the app recover
-  restart  stop and start the backend
-  quit     stop everything and exit
-  help     show this list
-`
+/** @typedef {{name: string, aliases?: string[], help: string, run: () => unknown}} Command */
+
+/** @type {Command[]} */
+const COMMANDS = [
+  { name: 'stop', help: 'stop the backend, to show the lost-connection state', run: () => stopBackend() },
+  { name: 'start', help: 'start the backend again and watch the app recover', run: () => startBackend() },
+  {
+    name: 'restart',
+    help: 'stop and start the backend',
+    run: async () => {
+      await stopBackend()
+      await startBackend()
+    },
+  },
+  { name: 'quit', aliases: ['exit'], help: 'stop everything and exit', run: () => shutdown(0) },
+  { name: 'help', aliases: ['?'], help: 'show this list', run: () => printCommands() },
+]
+
+function printCommands() {
+  console.log('\nDemo controls. Any unambiguous prefix works, so q, r, sto and sta are enough:')
+  for (const { name, help } of COMMANDS) console.log(`  ${name.padEnd(8)}${help}`)
+  console.log('')
+}
+
+/**
+ * No command is a prefix of another, but an exact match still wins first so that
+ * adding one later cannot quietly make an existing command unreachable.
+ *
+ * @param {string} typed
+ * @returns {{command: Command} | {ambiguous: Command[]} | {unknown: true} | null}
+ */
+const resolveCommand = (typed) => {
+  if (!typed) return null
+  const exact = COMMANDS.find(
+    (command) => command.name === typed || command.aliases?.includes(typed)
+  )
+  if (exact) return { command: exact }
+
+  const matches = COMMANDS.filter((command) => command.name.startsWith(typed))
+  if (matches.length === 1) return { command: matches[0] }
+  if (matches.length > 1) return { ambiguous: matches }
+  return { unknown: true }
+}
 
 /** @param {string} line */
 const runCommand = async (line) => {
-  switch (line.trim().toLowerCase()) {
-    case 'stop':
-      return stopBackend()
-    case 'start':
-      return startBackend()
-    case 'restart':
-      await stopBackend()
-      return startBackend()
-    case 'quit':
-    case 'exit':
-    case 'q':
-      return shutdown(0)
-    case 'help':
-    case 'h':
-    case '?':
-      console.log(COMMANDS)
-      return undefined
-    case '':
-      return undefined
-    default:
-      console.log(`Unknown command. ${COMMANDS}`)
-      return undefined
+  const typed = line.trim().toLowerCase()
+  const resolved = resolveCommand(typed)
+  if (!resolved) return
+
+  if ('command' in resolved) {
+    await resolved.command.run()
+    return
   }
+  if ('ambiguous' in resolved) {
+    console.log(
+      `"${typed}" matches ${resolved.ambiguous.map((command) => command.name).join(' and ')}. Type more of it.`
+    )
+    return
+  }
+  console.log(`Unknown command "${typed}".`)
+  printCommands()
 }
 
 // A signal handler replaces the default terminate, so it has to exit explicitly
@@ -236,14 +272,18 @@ if (buildExit !== 0) {
 await startBackend()
 startPreview()
 
-const rl = createInterface({ input: process.stdin })
-rl.on('line', (line) => void runCommand(line))
+prompt = createInterface({ input: process.stdin, output: process.stdout, prompt: '> ' })
+prompt.on('line', async (line) => {
+  await runCommand(line)
+  if (!shuttingDown) reprompt()
+})
 
 if (process.stdin.isTTY) {
   // Closing a terminal's stdin (Ctrl-D) means quit. A redirected stdin reaches
   // EOF immediately and means nothing, so only a terminal gets that binding.
-  rl.once('close', () => void shutdown(0))
-  console.log(COMMANDS)
+  prompt.once('close', () => void shutdown(0))
+  printCommands()
 } else {
   console.log(`Preview on ${PREVIEW_URL}. Commands still read from stdin; Ctrl-C to stop.`)
 }
+reprompt()

@@ -59,6 +59,12 @@ Retraction tombstones stay in the compacted set. A client that was disconnected 
 deleted learns of the deletion only from that retraction; without it the Todo would be immortal on
 every client that missed it.
 
+Each connection opens by naming the log it serves. The epoch is the `tx` of the journal's first
+datom, so it needs no separate storage and survives restarts for free. A cursor names a position
+in a log but never which log, so a client whose server was reset would otherwise fold a freshly
+seeded log on top of the one it already held and show both sets of entities forever. On seeing a
+different epoch, a client drops its store and its cursor and resyncs from empty.
+
 `POST /api/datoms` sends the outbox and returns server time. The server journals every valid
 datom, including the ones that lost, because the journal is the history. It broadcasts only
 winners, because no client needs a datom that lost: a client whose write lost still converges,

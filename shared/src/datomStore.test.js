@@ -183,6 +183,24 @@ describe('DatomStore', () => {
     )
   })
 
+  it('forgets everything when cleared, so a replaced log cannot be folded onto an old one', () => {
+    const { store, list } = seededStore()
+    let notifications = 0
+    store.subscribe(() => (notifications += 1))
+
+    assert.equal(store.clear(), true)
+    assert.deepEqual(store.readModel(), {})
+    assert.deepEqual(store.datomsSince(), [])
+    assert.equal(notifications, 1)
+
+    assert.equal(store.clear(), false, 'an empty store has nothing to forget')
+    assert.equal(notifications, 1)
+
+    // A datom that lost against the cleared state applies again from scratch.
+    assert.equal(store.apply(datom(list, ATTRIBUTE.TITLE, 'Fresh log', tx())), true)
+    assert.equal(store.readModel()[list].title, 'Fresh log')
+  })
+
   it('notifies subscribers only for winning datoms', () => {
     const { store, list } = seededStore()
     let notifications = 0

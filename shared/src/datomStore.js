@@ -70,6 +70,21 @@ export class DatomStore {
   }
 
   /**
+   * Forgets everything. Only for a client that has learned its server's log was
+   * replaced: a cursor names a position in a log, never which log, so the datoms
+   * already folded in here can no longer be reconciled with what arrives next.
+   *
+   * @returns {boolean} whether there was anything to forget
+   */
+  clear() {
+    if (this.#facts.size === 0) return false
+    this.#facts.clear()
+    this.#readModel = null
+    for (const listener of this.#listeners) listener()
+    return true
+  }
+
+  /**
    * Memoized because `useSyncExternalStore` requires a referentially stable
    * snapshot; the memo is dropped whenever a datom wins.
    *

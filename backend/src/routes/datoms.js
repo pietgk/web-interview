@@ -3,6 +3,7 @@ import { constants as HTTP } from 'node:http2'
 import { datomsRequestSchema } from '@web-interview/todos/datom'
 import {
   CLOCK_EVENT,
+  EPOCH_EVENT,
   ERROR_CODE,
   HEARTBEAT_INTERVAL_MS,
   TX_FUTURE_TOLERANCE_MS,
@@ -50,6 +51,18 @@ export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_M
     )
   }
 
+  /**
+   * Says which log this stream is serving, so a client holding a replaced one can
+   * forget it. Carries no `id`, for the same reason the clock does not.
+   *
+   * @param {Response} res
+   */
+  const writeEpoch = (res) => {
+    res.write(
+      `event: ${EPOCH_EVENT}\ndata: ${JSON.stringify({ epoch: service.epoch })}\n\n`
+    )
+  }
+
   router.get('/stream', (req, res) => {
     // An auto-reconnect re-requests the original URL carrying its now-stale
     // `?since=` alongside a fresh header, so the header wins.
@@ -63,8 +76,11 @@ export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_M
     })
     res.flushHeaders()
 
-    // The clock comes last, so a client that has a server time also has the state
-    // that came with it and can enable editing without flashing an empty app.
+    // The epoch comes first, so a client can drop a replaced log before folding
+    // anything from this one into it. The clock comes last, so a client that has
+    // a server time also has the state that came with it and can enable editing
+    // without flashing an empty app.
+    writeEpoch(res)
     for (const datom of service.store.datomsSince(since)) writeDatom(res, datom)
     writeClock(res)
 

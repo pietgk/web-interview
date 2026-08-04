@@ -138,6 +138,18 @@ Transport and durability sit outside it.
   sent as `event: clock` and **must not carry an `id` field**. Any event with an `id` overwrites
   the browser's `Last-Event-ID`, and a clock tick is not a position in the datom log, so giving
   it one would make the client skip datoms on the next reconnect.
+- Each connection opens with `event: epoch`, naming the log being served. It carries no `id`, for
+  the same reason the clock does not. The epoch is the `tx` of the journal's first datom, so it
+  needs no separate storage and survives restarts for free; recovery only ever truncates the last
+  line, so the first one is stable.
+
+  A cursor names a position in a log but never *which* log. Without an epoch, a client whose
+  server was reset would reconnect, receive a freshly seeded log whose ULIDs were minted now and
+  therefore sort above its cursor, and fold that log **on top of** the one it already held. Both
+  sets of entities would then be visible forever, and nothing would ever reveal the mistake. On
+  seeing an epoch different from the one its store was folded from, a client drops its store and
+  its cursor and resyncs from empty. The epoch comes first in the connection so it can do that
+  before folding anything from the new log.
 - `POST /datoms` sends the outbox and returns a bare acknowledgement.
 
 `EventSource` accepts no request headers, so the cursor travels two ways. The first connect of a
