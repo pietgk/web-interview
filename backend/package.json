@@ -3,6 +3,7 @@
   "scripts": {
     "lint": "eslint src",
     "start": "node src/index.js",
+    "kill": "lsof -ti tcp:3001 -sTCP:LISTEN | xargs kill",
     "test": "node --test",
     "test:watch": "node --test --watch"
   },
