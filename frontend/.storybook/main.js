@@ -5,6 +5,7 @@ const config = {
     '@storybook/addon-vitest',
     '@storybook/addon-a11y',
     '@storybook/addon-docs',
+    '@storybook/addon-themes',
   ],
   framework: '@storybook/react-vite',
 }
