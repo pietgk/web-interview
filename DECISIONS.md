@@ -5,12 +5,18 @@ behavior; this file explains the trade-offs.
 
 ## How to verify
 
+Use **Node 22** in this repo (`mise.toml` / `.nvmrc`). Storybook’s Vitest watch is unreliable on Node 24.
+
 ```bash
 npm test
 npm run test:e2e
 npm run lint
 npm run build --prefix frontend
+npm run storybook --prefix frontend
 ```
+
+`npm test` runs shared/backend unit gates, frontend unit + Storybook Vitest (plays/a11y), and quality scripts.
+Storybook alone: `npm run storybook --prefix frontend`. Story plays only: `npm run test-storybook --prefix frontend`.
 
 Playwright browsers on a clean checkout: `npx playwright install chromium`.
 

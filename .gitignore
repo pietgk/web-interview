@@ -19,3 +19,6 @@ node_modules
 /blob-report/
 /lighthouse-reports/
 /playwright/.cache/
+
+*storybook.log
+storybook-static

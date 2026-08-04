@@ -23,7 +23,7 @@ const DeleteTodoListDialog = ({ todoList, onCancel, onConfirm }) => (
     </DialogContent>
     <DialogActions>
       <Button onClick={onCancel}>Cancel</Button>
-      <Button color='error' onClick={onConfirm}>
+      <Button color='error' variant='contained' onClick={onConfirm}>
         Delete Todo List
       </Button>
     </DialogActions>

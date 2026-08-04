@@ -4,8 +4,11 @@ import { StatusBar } from './todos/components/StatusBar'
 import { TodoLists } from './todos/components/TodoLists'
 import { useTodoLists } from './todos/useTodoLists'
 
-const App = () => {
-  const runtime = useTodoLists()
+/** @typedef {NonNullable<Parameters<typeof useTodoLists>[0]>} UseTodoListsOptions */
+
+/** @param {Pick<UseTodoListsOptions, 'createClient'>} [props] */
+const App = ({ createClient } = {}) => {
+  const runtime = useTodoLists(createClient ? { createClient } : {})
 
   return (
     <Box
