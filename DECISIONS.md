@@ -24,7 +24,7 @@ Playwright browsers on a clean checkout: `npx playwright install chromium`.
 - **Todo List lifecycle:** Create, rename, and delete whole Todo Lists in one datom each
 - **Due dates:** Remaining and overdue labels, with completed items shown as `Completed`
 - **StatusBar:** One global connection, delivery, and recovery surface
-- **Tests:** Shared model, API and journal integration, React components, and Playwright journeys
+- **Tests:** Seam-based coverage, Storybook play for components, shared/backend unit gates, thin Playwright — [`docs/adr/005-testing-and-storybook.md`](./docs/adr/005-testing-and-storybook.md)
 
 ## Persistence: one datom per line in a JSONL journal
 
