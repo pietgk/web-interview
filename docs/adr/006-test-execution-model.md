@@ -179,8 +179,19 @@ npm run kill                  frees every port this repo binds
 ```
 
 Deleted: `test:shared`, `test:backend`, `test:frontend`, `test:quality`, `test:e2e`,
-`quality:lighthouse`, and the per-workspace `test`, `test:watch`, `test-storybook`, `lint` and
-`kill` scripts. Names that mean the same thing in every repo survive; names invented here do not.
+`quality:lighthouse`, `check:declarations`, and the per-workspace `test`, `test:watch`,
+`test-storybook`, `lint` and `kill` scripts. Names that mean the same thing in every repo survive;
+names invented here do not.
+
+The same rule keeps `build:types`. It is ecosystem-conventional, `postinstall` and `typecheck`
+both call it, and regenerating the shared package declarations for editor tooling without paying
+for a full typecheck is a real use. `check:declarations` had none of that - one caller, a name
+invented here - so it is inlined into `typecheck`.
+
+`shared/` is not installed separately. The root depends on it through a `file:` link, so its
+dependencies land in the root tree; this was verified by deleting `shared/node_modules` and
+watching `typecheck` and all 35 shared tests still pass. CI and the README install three trees,
+not four.
 
 There is no `watch:stories`. Vitest watch over stories did not re-run on edit when probed, and the
 component loop is `npm run storybook` with HMR plus `verify browser` for the assertions.

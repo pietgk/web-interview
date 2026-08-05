@@ -42,7 +42,7 @@ Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
 Two commands. Leave the first open while you work; run the second before you commit.
 
 ```bash
-# from repo root (after npm ci in root, shared/, backend/, and frontend/)
+# from repo root (see Getting started for the one-time install)
 npm run watch     # ~2s per change: all Node + happy-dom tests and typecheck, one GREEN/RED line
 npm run verify    # ~70s: everything CI runs, in the order CI runs it
 ```
@@ -112,34 +112,42 @@ NodeJS - if you don't already have it installed, check out [nvm](https://github.
 ## Getting started
 Fork the repository (see top-right button on GitHub) and clone the fork to your computer.
 
-The shared package is pulled in via `file:` dependencies from backend and frontend. Install those packages after a clean clone:
+### Installing
+
+Three installs, from the repo root. This is exactly what CI runs:
+
+```bash
+npm ci
+npm ci --prefix backend
+npm ci --prefix frontend
+npx playwright install chromium   # first time / clean machine
+```
+
+`shared/` needs no install of its own. Backend and frontend pull it in through `file:`
+dependencies, and the root depends on it the same way, so its dependencies land in the root tree.
+The root `postinstall` then generates the shared package declarations that editors and
+`typecheck` rely on.
 
 ### To start the backend:
 
  - Navigate to the backend folder
- - Run `npm ci`
  - Run `npm start`
 
 ### To start the frontend:
 
  - Navigate to the frontend folder
- - Run `npm ci`
  - Run `npm start`
 
  A browser tab will automatically open and load the app.
 
 ### End-to-end tests
 
-From the repo root:
-
- - Run `npm ci`
- - Run `npx playwright install chromium` (first time / clean machine)
- - Run `npm run verify e2e`
+From the repo root, run `npm run verify e2e`.
 
 ### Development set-up
 If you don't have a favorite editor we highly recommend [VSCode](https://code.visualstudio.com). We've also had some ESLint rules set up which will help you catch bugs etc. If you're using VSCode, install the regular [ESLint plugin](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) and you should be good to go!
 
-Run `npm ci` from the repository root before opening the workspace. This installs the pinned TypeScript version and generates the shared package declarations used by editor tooling. Run `npm run build:types` whenever you want to regenerate them explicitly.
+Do the install above before opening the workspace. The root install pins the TypeScript version and generates the shared package declarations that editor tooling reads. Run `npm run build:types` whenever you want to regenerate them explicitly, or `npm run typecheck` to regenerate and verify in one step.
 
 You can open the root folder in one workspace, or `/frontend` and `/backend` in seperate workspaces - both should work fine.
 

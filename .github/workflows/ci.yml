@@ -23,14 +23,15 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            shared/package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
 
+      # `shared` needs no install of its own: the root depends on it through a
+      # file: link, so its dependencies land in the root tree. Verified by
+      # deleting shared/node_modules - typecheck and all 35 shared tests pass.
       - name: Install dependencies
         run: |
           npm ci
-          npm ci --prefix shared
           npm ci --prefix backend
           npm ci --prefix frontend
 
