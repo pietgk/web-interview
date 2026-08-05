@@ -1,8 +1,14 @@
+// Every category Lighthouse reports is gated at 100. `agentic-browsing` is
+// marked "under development and subject to change" upstream, which would be a
+// reason to leave it ungated if `lighthouse` were not pinned to an exact
+// version - it cannot move without a deliberate bump, and a bump is exactly
+// when the change should be seen.
 const CATEGORY_LABELS = Object.freeze({
   performance: 'Performance',
   accessibility: 'Accessibility',
   'best-practices': 'Best Practices',
   seo: 'SEO',
+  'agentic-browsing': 'Agentic Browsing',
 })
 
 /**

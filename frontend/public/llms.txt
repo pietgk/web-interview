@@ -1,0 +1,26 @@
+# Sellpy Todo Lists
+
+> A todo list application where every edit becomes a datom in an append-only log, persisted on the server and converged across browser tabs in real time.
+
+There is no save button. Text settles, one datom is minted per settled edit, and the server
+journals it to an append-only JSONL file before streaming it to every connected client over
+Server-Sent Events. Clients fold the log by last-write-wins, so there is no conflict path and no
+merge step. Deleting a Todo List takes its title away rather than tombstoning it, which is why
+giving the title back brings its Todos with it.
+
+## Documentation
+
+- [README](https://github.com/pietgk/web-interview/blob/master/README.md): Running the app, the four verification stages, and the full command surface
+- [Design decisions](https://github.com/pietgk/web-interview/blob/master/DECISIONS.md): Why the implementation makes its key choices, and what was knowingly deferred
+- [Domain glossary](https://github.com/pietgk/web-interview/blob/master/CONTEXT.md): What Todo List, Todo, and Next Due Date mean in this codebase
+
+## Architecture decisions
+
+- [ADR 001: Error handling across boundaries](https://github.com/pietgk/web-interview/blob/master/docs/adr/001-error-handling.md)
+- [ADR 004: One datom log](https://github.com/pietgk/web-interview/blob/master/docs/adr/004-single-datom-log.md)
+- [ADR 005: Testing seams and Storybook](https://github.com/pietgk/web-interview/blob/master/docs/adr/005-testing-and-storybook.md)
+- [ADR 006: How tests are run](https://github.com/pietgk/web-interview/blob/master/docs/adr/006-test-execution-model.md)
+
+## Optional
+
+- [Architecture overview](https://github.com/pietgk/web-interview/blob/master/docs/architecture.svg): UI to model to datoms, and how each layer is verified

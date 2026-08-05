@@ -86,8 +86,11 @@ Why it is shaped this way: [`docs/adr/006-test-execution-model.md`](./docs/adr/0
 
 `npm run verify quality` builds the frontend with source maps, starts isolated seeded backend
 and production-preview servers, and runs three desktop Lighthouse audits. The check requires
-Performance, Accessibility, Best Practices, and SEO to remain at 100. It also guards the initial
-JavaScript transfer and estimated unused JavaScript against explicit budgets.
+Performance, Accessibility, Best Practices, SEO, and Agentic Browsing to remain at 100. It also
+guards the initial JavaScript transfer and estimated unused JavaScript against explicit budgets.
+
+Agentic Browsing covers how readable the site is to AI agents. Keeping it at 100 means
+`frontend/public/llms.txt` must stay valid: a Markdown file with an H1 and links.
 
 The command writes a Markdown summary plus complete HTML and JSON reports to
 `lighthouse-reports/`. CI publishes the summary on the workflow run and retains the reports as a

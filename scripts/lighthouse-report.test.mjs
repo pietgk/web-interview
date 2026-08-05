@@ -5,12 +5,13 @@ import {
   evaluateLighthouseQuality,
 } from './lighthouse-report.mjs'
 
-/** @param {{performance: number, accessibility: number, bestPractices: number, seo: number, unusedJavaScript: number, scriptBytes?: number}} values */
+/** @param {{performance: number, accessibility: number, bestPractices: number, seo: number, agenticBrowsing?: number, unusedJavaScript: number, scriptBytes?: number}} values */
 const report = ({
   performance,
   accessibility,
   bestPractices,
   seo,
+  agenticBrowsing = 1,
   unusedJavaScript,
   scriptBytes = 130_000,
 }) => ({
@@ -19,6 +20,7 @@ const report = ({
     accessibility: { score: accessibility },
     'best-practices': { score: bestPractices },
     seo: { score: seo },
+    'agentic-browsing': { score: agenticBrowsing },
   },
   audits: {
     'unused-javascript': {
@@ -82,4 +84,24 @@ test('fails quality when a perfect category or JavaScript budget regresses', () 
   assert.match(quality.failures.join('\n'), /Performance.*99/)
   assert.match(quality.failures.join('\n'), /JavaScript transfer.*145000.*143360/)
   assert.match(quality.failures.join('\n'), /Unused JavaScript.*50176.*49152/)
+})
+
+test('gates Agentic Browsing like every other category', () => {
+  const quality = evaluateLighthouseQuality([
+    report({
+      performance: 1,
+      accessibility: 1,
+      bestPractices: 1,
+      seo: 1,
+      // What a missing or malformed llms.txt costs: two of three audits.
+      agenticBrowsing: 0.67,
+      unusedJavaScript: 40,
+    }),
+  ], {
+    maxScriptTransferBytes: 140 * 1024,
+    maxUnusedJavaScriptBytes: 48 * 1024,
+  })
+
+  assert.equal(quality.passed, false)
+  assert.match(quality.failures.join('\n'), /Agentic Browsing.*67/)
 })
