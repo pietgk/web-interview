@@ -88,7 +88,7 @@ export default defineConfig({
         '**/frontend/src/testing/fakeDatomServer.js': { statements: 100, lines: 100, functions: 95, branches: 95 },
         '**/frontend/src/todos/components/focusLeft.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/frontend/src/todos/legacyReplica.js': { statements: 90, lines: 90, functions: 100, branches: 75 },
-        '**/frontend/src/todos/todoClient.js': { statements: 94, lines: 94, functions: 93, branches: 83 },
+        '**/frontend/src/todos/todoClient.js': { statements: 100, lines: 100, functions: 96, branches: 88 },
         '**/frontend/src/todos/todoListCommands.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/frontend/src/todos/todoListsScreenView.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/frontend/src/todos/todoListsUiState.js': { statements: 97, lines: 97, functions: 100, branches: 92 },
