@@ -1,25 +1,29 @@
-# Sellpy web interview
+# Sellpy web interview: todo lists
 
-Welcome to Sellpy's web interview repo!
+A fork of Sellpy's web interview repo, completing the main task and all four additional tasks.
 
-## Assignment
-Your assignment is to improve this todo list application. At the moment the application is simple and can only create and remove todos.
-As is, nothing is persisted in the server. As a result all state is cleared when refreshing the page!
-Below follows one main task and 4 additional tasks. Your assignment is to complete the main task together with at least 2 out of 4 of the additional tasks.
-If you feel constrained by time (which is totally fine!), **prioritize quality over quantity**.
+Todo lists and todos persist on the server, autosave without a save button, and converge across
+browser tabs in real time. Every edit becomes one immutable datom in an append-only log, which is
+journalled to disk and streamed to every connected client.
 
-### Main Task
-Persist the todo lists on the server. Persisting in a database is not required, i.e. simple JS structures like objects/arrays that don't persist between server restarts are fine. If you do go for an actual DB (again not required), be sure to include instructions of how to get it up and running.
+## The assignment
 
-### Additional tasks
-- Don't require users to press save when an item is added/edited in the todo list. (Autosave functionality)
+Improve the todo list application. As given, it can only create and remove todos, and nothing is
+persisted, so all state is cleared on refresh. The brief asks for the main task plus **at least
+two** of the four additional tasks.
+
+**Main task.** Persist the todo lists on the server. A database is not required.
+
+**Additional tasks.**
+
+- Don't require users to press save when an item is added or edited. (Autosave)
 - Make it possible to indicate that a todo is completed.
 - Indicate that a todo list is completed if all todo items within are completed.
 - Add a date for completion to todo items. Indicate how much time is remaining or overdue.
 
-## Submission status (this fork)
+## What was built
 
-Completed **main task + all 4 additional tasks**, plus the follow-up correctness work from [`01-REVIEW.md`](./01-REVIEW.md):
+All five, plus the correctness work each one implied:
 
 - Shared browser/server datom store folding an append-only log by last-write-wins
 - Crash-safe, append-only JSONL persistence across server restarts
@@ -28,93 +32,16 @@ Completed **main task + all 4 additional tasks**, plus the follow-up correctness
 - Shared Zod runtime contract and deterministic read-model projection
 - Completion-aware due-date status
 
-Architecture overview (UI → model → datoms → how we verify)
+![Architecture: UI to model to datoms, and how each layer is verified](./docs/architecture.svg)
 
-```bash
-npm run whiteboard   # opens excalidraw.com; File → Open docs/architecture.excalidraw
-```
+The same diagram is editable as an Excalidraw scene: `npm run whiteboard` opens Excalidraw, then
+File → Open `docs/architecture.excalidraw`.
 
-Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
-[`docs/adr/004-single-datom-log.md`](./docs/adr/004-single-datom-log.md).
+## Running it
 
-### Running tests
+### Install
 
-Two commands. Leave the first open while you work; run the second before you commit.
-
-```bash
-# from repo root (see Getting started for the one-time install)
-npm run watch     # ~2s per change: all Node + happy-dom tests and typecheck, one GREEN/RED line
-npm run verify    # ~70s: everything CI runs, in the order CI runs it
-```
-
-`verify` goes through four stages and stops at the first one that fails, because a failure makes
-the stages after it meaningless:
-
-| Stage | Runs | Nothing runs until | Time |
-| --- | --- | --- | --- |
-| `static` | typecheck, lint, audit | - (nothing executes) | ~4s |
-| `unit` | shared, backend, frontend logic, scripts | Node | ~2s |
-| `browser` | Storybook play + a11y, Playwright | real Chromium | ~24s |
-| `quality` | build, Lighthouse, coverage | a production bundle | ~40s |
-
-Run any part of it by name, and ask it what it does:
-
-```bash
-npm run verify browser     # one stage
-npm run verify lint e2e    # any mix of stages and steps
-npm run verify help        # what every stage and step covers
-```
-
-Other commands:
-
-```bash
-npm run storybook   # component loop, with HMR
-npm run preview     # scripted demo of the running app
-npm run whiteboard  # open Excalidraw; edit docs/architecture.excalidraw there
-npm run kill        # free every port this repo binds
-```
-
-Coverage is merged from the `unit` and `browser` stages and judged in `quality`. The headline
-prints on the `coverage` row; `open coverage/index.html` for the per-file, per-line detail.
-
-This repo runs **Node 22** (`.nvmrc`). `verify` and `watch` refuse to run on anything else.
-Playwright on a clean checkout: `npx playwright install chromium`.
-
-Why it is shaped this way: [`docs/adr/006-test-execution-model.md`](./docs/adr/006-test-execution-model.md).
-
-### Lighthouse quality
-
-`npm run verify quality` builds the frontend with source maps, starts isolated seeded backend
-and production-preview servers, and runs three desktop Lighthouse audits. The check requires
-Performance, Accessibility, Best Practices, SEO, and Agentic Browsing to remain at 100. It also
-guards the initial JavaScript transfer and estimated unused JavaScript against explicit budgets.
-
-Agentic Browsing covers how readable the site is to AI agents. Keeping it at 100 means
-`frontend/public/llms.txt` must stay valid: a Markdown file with an H1 and links.
-
-The command writes a Markdown summary plus complete HTML and JSON reports to
-`lighthouse-reports/`. CI publishes the summary on the workflow run and retains the reports as a
-downloadable artifact for 14 days.
-
-## Submission
-Before submitting, read through all changes one last time - **code quality matters**!
-
-If you have developed without ESLint set up, run `npm run lint` from the repo root and fix any errors/warnings.
-
-Send a link to your forked repository to your contact at Sellpy. Don't forget to mention which tasks you completed.
-
-Don't forget to bring your computer to the interview, as you'll need it to make code changes during the session!
-
-## Prerequisites
-
-NodeJS - if you don't already have it installed, check out [nvm](https://github.com/nvm-sh/nvm).
-
-## Getting started
-Fork the repository (see top-right button on GitHub) and clone the fork to your computer.
-
-### Installing
-
-Three installs, from the repo root. This is exactly what CI runs:
+Three installs from the repo root. This is exactly what CI runs:
 
 ```bash
 npm ci
@@ -124,33 +51,100 @@ npx playwright install chromium   # first time / clean machine
 ```
 
 `shared/` needs no install of its own. Backend and frontend pull it in through `file:`
-dependencies, and the root depends on it the same way, so its dependencies land in the root tree.
-The root `postinstall` then generates the shared package declarations that editors and
-`typecheck` rely on.
+dependencies and the root depends on it the same way, so its dependencies land in the root tree.
+The root `postinstall` then generates the shared package declarations that editors and `typecheck`
+read. Regenerate them explicitly with `npm run build:types`.
 
-### To start the backend:
+### Start
 
- - Navigate to the backend folder
- - Run `npm start`
+Two processes, from `backend/` and `frontend/`:
 
-### To start the frontend:
+```bash
+npm start           # in backend/, then in frontend/
+```
 
- - Navigate to the frontend folder
- - Run `npm start`
+A browser tab opens automatically on the frontend.
 
- A browser tab will automatically open and load the app.
+```bash
+npm run storybook   # components in isolation, with HMR
+npm run preview     # interactive demo: drives the app and can stop the backend
+                    # mid-session to show reconnect and outbox drain
+npm run kill        # free every port this repo binds
+```
 
-### End-to-end tests
+## Verifying
 
-From the repo root, run `npm run verify e2e`.
+Two commands. Leave the first open while you work; run the second before you commit.
 
-### Development set-up
-If you don't have a favorite editor we highly recommend [VSCode](https://code.visualstudio.com). We've also had some ESLint rules set up which will help you catch bugs etc. If you're using VSCode, install the regular [ESLint plugin](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) and you should be good to go!
+```bash
+npm run watch     # ~2s per change: all Node + happy-dom tests and typecheck, one GREEN/RED line
+npm run verify    # ~70s: everything CI runs, in the order CI runs it
+```
 
-Do the install above before opening the workspace. The root install pins the TypeScript version and generates the shared package declarations that editor tooling reads. Run `npm run build:types` whenever you want to regenerate them explicitly, or `npm run typecheck` to regenerate and verify in one step.
+`verify` runs four stages and stops at the first that fails, because a failure makes the stages
+after it meaningless:
 
-You can open the root folder in one workspace, or `/frontend` and `/backend` in seperate workspaces - both should work fine.
+| Stage | Runs | Nothing runs until | Time |
+| --- | --- | --- | --- |
+| `static` | typecheck, lint, audit | - (nothing executes) | ~4s |
+| `unit` | shared, backend, frontend logic, scripts | Node | ~2s |
+| `browser` | Storybook play + a11y, Playwright | real Chromium | ~24s |
+| `quality` | build, Lighthouse, coverage | a production bundle | ~40s |
 
-Check `.nvmrc` to see what node version is required to run the project. Just run `nvm use` if you have `nvm` installed. Later versions of node might work fine as well, but probably not earlier versions.
+Run any part by name, and ask it what it covers:
 
-For those of you using Prettier (not a requirement), there's an .prettierrc file to ensure no unnecessary changes to the existing code. It should be picked up automatically by Prettier.
+```bash
+npm run verify browser     # one stage
+npm run verify lint e2e    # any mix of stages and steps
+npm run verify help        # what every stage and step covers
+```
+
+CI is a single step running this same file in the same order, so a green local run cannot be
+surprised by a red build.
+
+**Coverage** is merged from the `unit` and `browser` stages and judged in `quality`. The headline
+prints on the `coverage` row; `open coverage/index.html` for per-file, per-line detail. Only
+non-UI logic is gated; components are judged by story states, play functions and a11y.
+
+**Lighthouse** builds the frontend with source maps, starts isolated seeded backend and
+production-preview servers, and runs three desktop audits. Performance, Accessibility, Best
+Practices, SEO and Agentic Browsing must all stay at 100, and initial JavaScript transfer and
+estimated unused JavaScript are held to explicit budgets. Agentic Browsing covers how readable the
+site is to AI agents, which means `frontend/public/llms.txt` must stay valid Markdown with an H1
+and links. Reports land in `lighthouse-reports/`; CI publishes the summary on the workflow run and
+keeps the reports as an artifact for 14 days.
+
+`npm run lint` autofixes before it judges, so it will modify files.
+
+## Why it is built this way
+
+| Document | What it covers |
+| --- | --- |
+| [`DECISIONS.md`](./DECISIONS.md) | Why the implementation makes its key choices, and what was knowingly deferred |
+| [`CONTEXT.md`](./CONTEXT.md) | Domain glossary: what Todo List, Todo and Next Due Date mean here |
+
+Architecture decision records:
+
+- [ADR 001: Error handling across domain, HTTP, and frontend boundaries](./docs/adr/001-error-handling.md)
+- [ADR 004: Single-datom log with last-write-wins projection](./docs/adr/004-single-datom-log.md)
+- [ADR 005: Testing seams and Storybook](./docs/adr/005-testing-and-storybook.md)
+- [ADR 006: How tests are run](./docs/adr/006-test-execution-model.md)
+
+[ADR 002](./docs/adr/002-xstate-actors.md) and [ADR 003](./docs/adr/003-shared-datom-actor.md)
+are superseded and kept only as the record of how the model arrived at one datom log. XState is no
+longer a dependency.
+
+## Development set-up
+
+This repo runs **Node 22**, pinned in `.nvmrc` and `mise.toml`. `verify` and `watch` refuse to run
+on any other major rather than reporting results from a version the repo does not claim to
+support.
+
+ESLint is configured for every directory that is typechecked. In VS Code the standard
+[ESLint plugin](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) picks
+it up; `.vscode/settings.json` already sets the working directories. There is a `.prettierrc` so
+Prettier users make no unnecessary changes.
+
+You can open the repo root as one workspace, or `/frontend` and `/backend` separately. Both work.
+
+Agent-specific working notes live in [`CLAUDE.md`](./CLAUDE.md).
