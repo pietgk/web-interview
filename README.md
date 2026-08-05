@@ -1,9 +1,9 @@
 # Sellpy web interview: todo lists
 
-A fork of Sellpy's web interview repo, completing the main task and all four additional tasks.
+Sellpy's web interview repo with the main task and all four additional tasks completed.
 
 Todo lists and todos persist on the server, autosave without a save button, and converge across
-browser tabs in real time. Every edit becomes one immutable datom in an append-only log, which is
+browser tabs in real time. Every edit becomes one immutable [datom](https://docs.datomic.com/whatis/data-model.html#datoms) in an append-only log, which is
 journalled to disk and streamed to every connected client.
 
 ## The assignment
