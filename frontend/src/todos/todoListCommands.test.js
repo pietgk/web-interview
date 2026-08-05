@@ -1,0 +1,109 @@
+import { ATTRIBUTE } from '@web-interview/todos/datom'
+import { createTodoListCommands } from './todoListCommands'
+
+/**
+ * Records what reached the client, so a test asserts the datom a command wrote
+ * rather than that some method was called.
+ *
+ * @param {{assertReturns?: unknown}} [options]
+ */
+const fakeClient = ({ assertReturns = ['a', 'b', 'c', 'tx', true] } = {}) => {
+  /** @type {Array<[string, string, string, unknown]>} */
+  const writes = []
+  let minted = 0
+  return {
+    writes,
+    newListId: () => 'L-new',
+    /** @param {string} listEntity */
+    newTodoId: (listEntity) => `${listEntity}/T-${++minted}`,
+    /** @param {string} e @param {string} a @param {unknown} v */
+    assert: (e, a, v) => {
+      writes.push(['assert', e, a, v])
+      return assertReturns
+    },
+    /** @param {string} e @param {string} a @param {unknown} v */
+    retract: (e, a, v) => {
+      writes.push(['retract', e, a, v])
+      return assertReturns
+    },
+  }
+}
+
+/** @param {ReturnType<typeof fakeClient>} client */
+const commandsFor = (client) =>
+  createTodoListCommands(/** @type {never} */ (client))
+
+describe('Todo List commands', () => {
+  it('reserves a Todo List id without writing anything', () => {
+    const client = fakeClient()
+    expect(commandsFor(client).reserveListId()).toBe('L-new')
+    expect(client.writes).toEqual([])
+  })
+
+  it('brings a Todo List into existence by asserting its defining attribute', () => {
+    const client = fakeClient()
+    commandsFor(client).renameList('L1', 'Groceries')
+    expect(client.writes).toEqual([['assert', 'L1', ATTRIBUTE.TITLE, 'Groceries']])
+  })
+
+  it('deletes a Todo List with one retraction carrying the title it believed was there', () => {
+    const client = fakeClient()
+    commandsFor(client).deleteList({ id: 'L1', title: 'Groceries', todos: [] })
+    expect(client.writes).toEqual([['retract', 'L1', ATTRIBUTE.TITLE, 'Groceries']])
+  })
+
+  it('mints a Todo id under its Todo List and returns it', () => {
+    const client = fakeClient()
+    expect(commandsFor(client).addTodo('L1', 'Milk')).toBe('L1/T-1')
+    expect(client.writes).toEqual([['assert', 'L1/T-1', ATTRIBUTE.TEXT, 'Milk']])
+  })
+
+  it('returns no Todo id while editing is disabled, so nothing links to a Todo that was not written', () => {
+    const client = fakeClient({ assertReturns: null })
+    expect(commandsFor(client).addTodo('L1', 'Milk')).toBe(null)
+  })
+
+  it('retitles and completes a Todo', () => {
+    const client = fakeClient()
+    const todo = { id: 'L1/T1', text: 'Milk', completed: false, dueDate: null }
+    const commands = commandsFor(client)
+    commands.retitleTodo(todo, 'Oat milk')
+    commands.setTodoCompleted(todo, true)
+    expect(client.writes).toEqual([
+      ['assert', 'L1/T1', ATTRIBUTE.TEXT, 'Oat milk'],
+      ['assert', 'L1/T1', ATTRIBUTE.COMPLETED, true],
+    ])
+  })
+
+  it('asserts a due date, and retracts the one that was there when it is cleared', () => {
+    const client = fakeClient()
+    const commands = commandsFor(client)
+    const undated = { id: 'L1/T1', text: 'Milk', completed: false, dueDate: null }
+    commands.setTodoDueDate(undated, '2026-08-09')
+    commands.setTodoDueDate({ ...undated, dueDate: '2026-08-09' }, null)
+    expect(client.writes).toEqual([
+      ['assert', 'L1/T1', ATTRIBUTE.DUE_DATE, '2026-08-09'],
+      ['retract', 'L1/T1', ATTRIBUTE.DUE_DATE, '2026-08-09'],
+    ])
+  })
+
+  it('writes nothing when clearing a due date a Todo never had', () => {
+    const client = fakeClient()
+    commandsFor(client).setTodoDueDate(
+      { id: 'L1/T1', text: 'Milk', completed: false, dueDate: null },
+      null
+    )
+    expect(client.writes).toEqual([])
+  })
+
+  it('deletes a Todo by retracting the text that defines it', () => {
+    const client = fakeClient()
+    commandsFor(client).deleteTodo({
+      id: 'L1/T1',
+      text: 'Milk',
+      completed: false,
+      dueDate: null,
+    })
+    expect(client.writes).toEqual([['retract', 'L1/T1', ATTRIBUTE.TEXT, 'Milk']])
+  })
+})

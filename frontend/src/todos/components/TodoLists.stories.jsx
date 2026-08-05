@@ -281,8 +281,8 @@ export const LocalCompletionUpdatesSummary = {
 export const GhostComposerLifecycle = {
   ...withServer(),
   ...storyDocs([
-    '**Why:** The ghost composer materializes a Todo on settle/Enter and dematerializes when cleared blank.',
-    '**See:** Typing in Add a todo does not add a row until Enter; then a Todo appears. A temporary settled Todo disappears again when the composer is cleared.',
+    '**Why:** The ghost composer materializes a Todo on settle, retitles that same Todo on every later settle, and dematerializes it when cleared blank.',
+    '**See:** Typing in Add a todo adds no row; the Todo exists after a settle but stays hidden behind the field. Editing again retitles it in place rather than minting a second. Enter commits the row. A ghost cleared blank disappears again.',
   ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
@@ -292,17 +292,31 @@ export const GhostComposerLifecycle = {
     await userEvent.type(composer, 'Ghost born')
     await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(1)
     await settle()
+    // The Todo exists now, but the field is standing in for it, so no row yet.
     await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(1)
 
     await userEvent.keyboard('{Enter}')
     await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(2)
     await expect(canvas.getAllByLabelText('What to do?')[0]).toHaveValue('Ghost born')
 
+    // A second settle on a live ghost retitles it. The row count proves it wrote
+    // to the same Todo instead of minting a second one.
     await userEvent.type(composer, 'Temporary')
+    await settle()
+    await userEvent.type(composer, ' edit')
+    await settle()
+    await userEvent.keyboard('{Enter}')
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(3)
+    await expect(canvas.getAllByLabelText('What to do?')[0]).toHaveValue('Temporary edit')
+
+    // `text` is a Todo's defining attribute, so clearing a live ghost blank
+    // takes the Todo away with it.
+    await userEvent.type(composer, 'Throwaway')
     await settle()
     await userEvent.clear(composer)
     await settle()
-    await expect(canvas.queryAllByDisplayValue('Temporary')).toHaveLength(0)
+    await expect(canvas.queryAllByDisplayValue('Throwaway')).toHaveLength(0)
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(3)
   },
 }
 

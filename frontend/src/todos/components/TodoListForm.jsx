@@ -4,36 +4,35 @@ import { TodoComposer } from './TodoComposer'
 import { TodoEditor } from './TodoEditor'
 import { TodoItem } from './TodoItem'
 import { TodoListTitleField } from './TodoListTitleField'
-import { TODO_UI_EVENT } from '../todoUiProtocol'
+import { useGhostComposer } from '../useGhostComposer'
 
 /** @typedef {import('@web-interview/todos/types').TodoList} TodoList */
-/** @typedef {import('../todoUiProtocol').TodoUiEvent} TodoUiEvent */
+/** @typedef {import('../todoListCommands').TodoListCommands} TodoListCommands */
 
 /**
  * @param {{
  *   todoList: TodoList,
- *   composerText?: string,
+ *   commands: TodoListCommands,
  *   draft?: boolean,
  *   autoFocusTitle?: boolean,
  *   titleFocusRef?: React.MutableRefObject<HTMLInputElement | null>,
  *   onMaterialize: (title: string) => void,
  *   onTitleChange: (title: string) => void,
- *   onCancelDraft: () => void,
- *   send: (event: TodoUiEvent) => void
+ *   onCancelDraft: () => void
  * }} props
  */
 export const TodoListForm = ({
   todoList,
-  composerText = '',
+  commands,
   draft = false,
   autoFocusTitle = false,
   titleFocusRef,
   onMaterialize,
   onTitleChange,
   onCancelDraft,
-  send,
 }) => {
   const composerRef = useRef(/** @type {HTMLInputElement | null} */ (null))
+  const composer = useGhostComposer(todoList, commands)
 
   return (
     <Card
@@ -56,25 +55,28 @@ export const TodoListForm = ({
         {!draft && (
           <TodoEditor>
             <TodoComposer
-              text={composerText}
+              text={composer.text}
               focusRef={composerRef}
-              onChange={(text) => send({ type: TODO_UI_EVENT.COMPOSER_CHANGE, text })}
-              onSubmit={() => send({ type: TODO_UI_EVENT.COMPOSER_SUBMIT })}
-              onCommit={() => send({ type: TODO_UI_EVENT.COMPOSER_COMMIT })}
+              onChange={composer.change}
+              onSubmit={composer.commit}
+              onCommit={composer.commit}
             />
-            {todoList.todos.map((todo) => (
+            {composer.visibleTodos.map((todo) => (
               <TodoItem
                 key={todo.id}
                 todo={todo}
-                onChange={(patch) => send({
-                  type: TODO_UI_EVENT.TODO_PATCH,
-                  id: todo.id,
-                  patch,
-                })}
-                onRemove={() => send({
-                  type: TODO_UI_EVENT.TODO_REMOVE,
-                  id: todo.id,
-                })}
+                onChange={(patch) => {
+                  if ('text' in patch) {
+                    commands.retitleTodo(todo, /** @type {string} */ (patch.text))
+                  }
+                  if ('completed' in patch) {
+                    commands.setTodoCompleted(todo, /** @type {boolean} */ (patch.completed))
+                  }
+                  if ('dueDate' in patch) {
+                    commands.setTodoDueDate(todo, patch.dueDate ?? null)
+                  }
+                }}
+                onRemove={() => commands.deleteTodo(todo)}
               />
             ))}
           </TodoEditor>

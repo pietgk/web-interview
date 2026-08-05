@@ -33,11 +33,11 @@ const datomImport = {
     'ADR 007: components reach the model through commands, not datoms. Use todos/todoListCommands.js.',
 }
 
-// The one file ADR 007 has not migrated yet. This list is a lockfile, not a
-// target, in the same sense as the coverage thresholds in `vitest.config.js`: it
-// records what is true today so the gate lands green and can only ratchet down.
-// Never add an entry. Emptying it completes ADR 007.
-const notYetMigrated = ['src/todos/components/TodoLists.jsx']
+// Empty, and staying that way: every component now reaches the model through
+// `todoListCommands.js`. This list existed to hold `TodoLists.jsx` while it was
+// migrated, as a lockfile rather than a target. Never add an entry.
+/** @type {string[]} */
+const notYetMigrated = []
 
 export default [
   { ignores: ['dist/**', 'build/**', 'node_modules/**'] },

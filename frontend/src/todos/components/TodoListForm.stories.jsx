@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { expect, fn, userEvent } from 'storybook/test'
 import { TodoListForm } from './TodoListForm'
 
@@ -18,40 +17,37 @@ const baseList = {
 }
 
 /**
- * Keeps composerText in sync so typing accumulates (args alone stay at `''`).
- *
- * @param {import('react').ComponentProps<typeof TodoListForm>} props
+ * A stand-in for `todoListCommands`. `addTodo` answers with an id because the
+ * ghost composer links to whatever it minted.
  */
-const StatefulComposerForm = (props) => {
-  const [composerText, setComposerText] = useState(props.composerText ?? '')
-  return (
-    <TodoListForm
-      {...props}
-      composerText={composerText}
-      send={(event) => {
-        props.send(event)
-        if (event.type === 'COMPOSER_CHANGE') setComposerText(event.text ?? '')
-      }}
-    />
-  )
-}
+const fakeCommands = () => ({
+  reserveListId: fn(() => 'list'),
+  renameList: fn(),
+  deleteList: fn(),
+  addTodo: fn(() => 'new-todo'),
+  retitleTodo: fn(),
+  setTodoCompleted: fn(),
+  setTodoDueDate: fn(),
+  deleteTodo: fn(),
+})
 
 const meta = /** @type {import('@storybook/react-vite').Meta<typeof TodoListForm>} */ ({
   title: 'Todos/TodoListForm',
   component: TodoListForm,
   args: {
     todoList: baseList,
-    composerText: '',
     onMaterialize: fn(),
     onTitleChange: fn(),
     onCancelDraft: fn(),
-    send: fn(),
   },
+  // Fresh spies per story, so one play cannot see another's calls.
+  loaders: [() => ({ commands: fakeCommands() })],
+  render: (args, { loaded }) => <TodoListForm {...args} commands={loaded.commands} />,
   parameters: {
     docs: {
       description: {
         component: [
-          '**TodoListForm** is the active-list card: title field plus, when not a draft, the **Todo editor** (composer + Todo rows). It maps UI events through `send` / title callbacks — it does not own the datom client.',
+          '**TodoListForm** is the active-list card: title field plus, when not a draft, the **Todo editor** (composer + Todo rows). It owns the **ghost composer** through `useGhostComposer`, and reaches the model only through named **commands** (ADR 007) — never through datoms.',
           '**Draft** (`draft`): section **New Todo List**, title only — no composer/editor until the list materializes. **Populated**: section `Todo List: {title}`, Enter in the title focuses the composer (`onAccept`). Title-field settle/escape details live under TodoListTitleField; row/composer details under TodoItem / TodoComposer.',
         ].join('\n\n'),
       },
@@ -63,10 +59,10 @@ export default meta
 
 export const Populated = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
   ...storyDocs([
-    '**Why:** A materialized list must expose title + editor and route Todo patches through `send`.',
-    '**See:** Section Todo List: Release with Todo editor; settling What to do? to Updated sends TODO_PATCH; delete sends TODO_REMOVE.',
+    '**Why:** A materialized list must expose title + editor and turn Todo edits into commands.',
+    '**See:** Section Todo List: Release with Todo editor; settling What to do? to Updated calls `retitleTodo`; delete calls `deleteTodo`.',
   ].join(' ')),
-  play: async ({ canvas, args }) => {
+  play: async ({ canvas, loaded }) => {
     await expect(canvas.getByRole('region', { name: 'Todo List: Release' })).toBeInTheDocument()
     await expect(canvas.getByRole('region', { name: 'Todo editor' })).toBeInTheDocument()
     await expect(canvas.getAllByLabelText('Todo List name')).toHaveLength(1)
@@ -74,14 +70,13 @@ export const Populated = /** @type {import('@storybook/react-vite').StoryObj<typ
     await userEvent.clear(canvas.getByLabelText('What to do?'))
     await userEvent.type(canvas.getByLabelText('What to do?'), 'Updated')
     await userEvent.tab()
-    await expect(args.send).toHaveBeenCalledWith({
-      type: 'TODO_PATCH',
-      id: 'todo',
-      patch: { text: 'Updated' },
-    })
+    await expect(loaded.commands.retitleTodo).toHaveBeenCalledWith(
+      baseList.todos[0],
+      'Updated'
+    )
 
     await userEvent.click(canvas.getByLabelText('Delete todo: Original'))
-    await expect(args.send).toHaveBeenCalledWith({ type: 'TODO_REMOVE', id: 'todo' })
+    await expect(loaded.commands.deleteTodo).toHaveBeenCalledWith(baseList.todos[0])
   },
 })
 
@@ -115,16 +110,33 @@ export const TitleEnterFocusesComposer = /** @type {import('@storybook/react-vit
   },
 })
 
-export const GhostComposer = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
-  render: (args) => <StatefulComposerForm {...args} />,
+export const GhostComposerMaterializes = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
   ...storyDocs([
-    '**Why:** Composer keystrokes and plus/Enter must reach the parent as COMPOSER_* events via `send`.',
-    '**See:** Typing accumulates and sends COMPOSER_CHANGE ending in `New`; Add todo sends COMPOSER_SUBMIT. (Story keeps composer text stateful so the controlled field can accumulate.)',
+    '**Why:** The composer owns its own text now, so Add / Enter must mint the Todo itself rather than reporting keystrokes upward.',
+    '**See:** Typing accumulates in Add a todo without writing anything; Add todo then calls `addTodo` once with the whole text and clears the field.',
   ].join(' ')),
-  play: async ({ canvas, args }) => {
-    await userEvent.type(canvas.getByLabelText('Add a todo'), 'New')
-    await expect(args.send).toHaveBeenCalledWith({ type: 'COMPOSER_CHANGE', text: 'New' })
+  play: async ({ canvas, loaded }) => {
+    const composer = canvas.getByLabelText('Add a todo')
+    await userEvent.type(composer, 'New')
+    // Proof: keystrokes are in-flight text, not facts. Nothing is written until
+    // the field settles.
+    await expect(loaded.commands.addTodo).not.toHaveBeenCalled()
+
     await userEvent.click(canvas.getByRole('button', { name: 'Add todo' }))
-    await expect(args.send).toHaveBeenCalledWith({ type: 'COMPOSER_SUBMIT' })
+    await expect(loaded.commands.addTodo).toHaveBeenCalledWith('list', 'New')
+    await expect(loaded.commands.addTodo).toHaveBeenCalledTimes(1)
+    await expect(composer).toHaveValue('')
+  },
+})
+
+export const GhostComposerIgnoresBlank = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+  ...storyDocs([
+    '**Why:** `text` is a Todo’s defining attribute, so a blank composer has nothing to assert.',
+    '**See:** Pressing Add todo on an untouched composer writes nothing.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Add todo' }))
+    await expect(loaded.commands.addTodo).not.toHaveBeenCalled()
+    await expect(loaded.commands.deleteTodo).not.toHaveBeenCalled()
   },
 })

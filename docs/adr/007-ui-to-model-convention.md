@@ -110,9 +110,13 @@ Commands return nothing meaningful except `addTodo`, which returns the minted id
 composer must link to it. The read model updates because the client applied the datom, not because
 the caller was told anything.
 
-`TODO_UI_EVENT` and `sendToList` are therefore deleted. All five of their events resolve to a
-datom write with no state transition, which makes them commands wearing an event costume.
-`todoListsUiState.js` keeps its events, because it has actual states.
+`TODO_UI_EVENT`, `todoUiProtocol.js` and `sendToList` are therefore deleted. All five of those
+events resolved to a datom write with no state transition, which made them commands wearing an
+event costume. `todoListsUiState.js` keeps its events, because it has actual states.
+
+`TodoItem` keeps its `onChange(patch)` prop. That is a leaf component reporting what changed about
+its own Todo to its parent, not a component reaching the model, so the rule does not apply to it.
+`TodoListForm` turns the patch into commands.
 
 ### There is exactly one timer in the frontend
 
@@ -122,8 +126,9 @@ second, and there is no transaction envelope left to group them."* Debouncing wa
 the actor did; when the actor went, the job did not, and it was re-implemented rather than reused.
 
 **A `setTimeout` anywhere outside this layer is a defect in the architecture, not just in the
-file.** One exists today, `settleTimers` in `TodoLists.jsx`, and it goes when the ghost composer
-moves into `TodoListForm`.
+file.** There is now none: `settleTimers` in `TodoLists.jsx` was the last one, and it went when the
+ghost composer moved into `TodoListForm` as `useGhostComposer`, which delegates its timing rather
+than owning it.
 
 ### The complete inventory of state machines
 
@@ -225,7 +230,6 @@ of them back is a change to ADR 004's premise and needs its own ADR.
 | Module | Owns | Kind |
 | --- | --- | --- |
 | `components/*.jsx` | nothing | render |
-| `useTodoListsScreen.js` | nothing; composes the four below | seam |
 | `todoListsUiState.js` | screen state | events |
 | `todoListsScreenView.js` | nothing; pure projection of read model plus screen state | read |
 | `todoListCommands.js` | the only knowledge that datoms exist | commands |
@@ -256,44 +260,57 @@ Defence 3 applies this repo's own standard to itself. `AGENTS.md` argues it abou
 *"a path rule cannot be talked into being wrong, and reasoning can."* A convention living only in
 prose is reasoning.
 
-`TodoLists.jsx` is exempt from both rules through a `notYetMigrated` list, which is **a lockfile,
-not a target**, in the same sense as the coverage thresholds in `vitest.config.js`: it records the
-one file not yet migrated so the gate lands green and can only ratchet down. The entry is not
-cosmetic - removing it produces 12 errors, which is precisely the work the rest of this ADR
-describes. Never add an entry; emptying the list completes this ADR.
+Both rules carry a `notYetMigrated` list, which is **a lockfile, not a target**, in the same sense
+as the coverage thresholds in `vitest.config.js`. It held `TodoLists.jsx` for exactly as long as
+that file still wrote datoms: 12 errors, which was precisely the work this ADR describes. **It is
+now empty.** Never add an entry.
 
 A gate that ships red was considered and rejected. `AGENTS.md` defines done as a full green
 `verify`, so a permanently red gate would make every later run ambiguous and would train readers
-to skip past it, which is worse than no gate. The lockfile protects every other file from today.
+to skip past it, which is worse than no gate. The lockfile protected every other file from the day
+the rules landed.
 
 ## Consequences
 
-- `TodoLists.jsx` becomes render-only. `TODO_UI_EVENT`, `todoUiProtocol.js` and `sendToList` are
-  deleted.
+- `TodoLists.jsx` goes from 379 lines to 239. `TODO_UI_EVENT`, `todoUiProtocol.js` and
+  `sendToList` are deleted. What remains that is not rendering is navigation, projection and focus,
+  which is the subject of the deferred item below.
 - The composer's `composers` Record, `settleTimers` Map, `composersRef` and `readModelRef` stop
   existing rather than moving, because `TodoListForm` is keyed by list id, so exactly one composer
   is ever mounted and "which list" stops being a variable.
 - Composer behaviour becomes testable in `TodoListForm.stories.jsx`, at the component that owns it,
   which is what [ADR 005](./005-testing-and-storybook.md) asks for.
-- `todoListCommands.js` and `todoListsScreenView.js` are `.js`, so [ADR 006](./006-test-execution-model.md)'s
-  file-extension rule gates them at near-100% coverage the day they are written.
+- `todoListCommands.js`, `useGhostComposer.js` and any future `todoListsScreenView.js` are `.js`,
+  so [ADR 006](./006-test-execution-model.md)'s file-extension rule gates them the day they are
+  written. Extracting the ghost rules from a `.jsx` component into a `.js` hook is what made them
+  gateable at all, and it immediately exposed that retitling a live ghost had never been proven.
 - **One user-visible change.** Unsettled composer text no longer survives switching Todo Lists;
   unmount settles it, so the text becomes a Todo row instead of staying in the field. This aligns
   the composer with the rule `DECISIONS.md` already states for every other field: *"Leaving a field
-  by switching Todo Lists settles rather than discards, so the edit survives."* The composer is
-  currently the only field that does not follow it. No story pins the current behaviour, which is
-  why the divergence went unnoticed.
+  by switching Todo Lists settles rather than discards, so the edit survives."* The composer was
+  the only field that did not follow it. No story pinned the old behaviour, which is why the
+  divergence went unnoticed.
 - Two vocabularies remain rather than one. That is the cost of the rule, and why the rule has to be
   stated crisply enough to apply without argument.
 
 ## Deferred
 
+- **Two branches of `useGhostComposer` are unproven**, both requiring a state no UI reaches:
+  settling blank while unlinked, and settling while the linked Todo has been deleted by another
+  client mid-compose. Reaching either needs `addTodo` to return null, which happens only before
+  the client has a server clock. Worth a story once there is a way to drive editing-disabled
+  through the composed harness; not worth contorting one now.
 - **Two unguarded transitions in `todoListsUiState.js`.** `REQUEST_DELETE` from `drafting` and
   `ADD_LIST` from `confirmingDelete` are both accepted by the reducer. Neither is reachable today:
   the dialog is modal and a draft has no delete button. Drawing the machine is what exposed them.
   Guard them or record why not.
-- **Whether `useTodoListsScreen` is worth having.** Once the composer moves down, what remains in
-  `TodoLists.jsx` is navigation, projection and focus. Composing them behind one hook is the last
-  step and the least certain; it may read better as three plain calls.
+- **A `useTodoListsScreen` wrapper was considered and rejected.** Once the composer moved down and
+  the projection came out, what remained in `TodoLists.jsx` was a reducer, four refs and two focus
+  effects. A hook returning `{view, actions}` over that would be a **shallow module**: its
+  interface would carry nine names whose implementation is one-line delegation
+  (`selectList(id)` calling `dispatch({type: 'SELECT_LIST', listId: id})`). Deleting it makes no
+  complexity reappear at the call site, which is the test it fails. The projection was worth
+  extracting because it has real behaviour behind a one-function interface; wrapping `dispatch`
+  is not. Revisit if this screen gains a fourth mode.
 - **Whether this convention generalises past this screen.** It is stated for the Todos feature,
   which is currently the whole application.
