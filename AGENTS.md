@@ -54,6 +54,7 @@ can describe a different remote than `origin`. Check before acting on them.
 
 | Question | File |
 | --- | --- |
+| How a component talks to the model (events vs commands) | `docs/adr/007-ui-to-model-convention.md` |
 | Why the test setup is shaped this way | `docs/adr/006-test-execution-model.md` |
 | What each layer owns, Storybook authoring rules | `docs/adr/005-testing-and-storybook.md` |
 | Domain language (Todo List, Todo, Next Due Date) | `CONTEXT.md` - glossary only, no implementation |

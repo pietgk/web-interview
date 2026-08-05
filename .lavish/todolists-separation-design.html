@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TodoLists.jsx - separating rendering, model, and timing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  /* MUI 5 default light palette - frontend/src/theme.js creates the default
+     light/dark themes with no overrides, so these are the app's real tokens. */
+  :root {
+    --bg: #fafafa;
+    --paper: #ffffff;
+    --paper-2: #f5f5f5;
+    --text: rgba(0,0,0,0.87);
+    --text-2: rgba(0,0,0,0.6);
+    --text-3: rgba(0,0,0,0.38);
+    --divider: rgba(0,0,0,0.12);
+    --primary: #1976d2;
+    --primary-soft: rgba(25,118,210,0.08);
+    --secondary: #9c27b0;
+    --secondary-soft: rgba(156,39,176,0.08);
+    --error: #d32f2f;
+    --error-soft: rgba(211,47,47,0.08);
+    --success: #2e7d32;
+    --success-soft: rgba(46,125,50,0.08);
+    --warning: #ed6c02;
+    --warning-soft: rgba(237,108,2,0.08);
+    --info: #0288d1;
+    --info-soft: rgba(2,136,209,0.08);
+    --elev1: 0px 2px 1px -1px rgba(0,0,0,0.2), 0px 1px 1px 0px rgba(0,0,0,0.14), 0px 1px 3px 0px rgba(0,0,0,0.12);
+    --elev4: 0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12);
+    --radius: 4px;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --paper: #1e1e1e;
+      --paper-2: #262626;
+      --text: #ffffff;
+      --text-2: rgba(255,255,255,0.7);
+      --text-3: rgba(255,255,255,0.5);
+      --divider: rgba(255,255,255,0.12);
+      --primary: #90caf9;
+      --primary-soft: rgba(144,202,249,0.12);
+      --secondary: #ce93d8;
+      --secondary-soft: rgba(206,147,216,0.12);
+      --error: #f44336;
+      --error-soft: rgba(244,67,54,0.14);
+      --success: #66bb6a;
+      --success-soft: rgba(102,187,106,0.14);
+      --warning: #ffa726;
+      --warning-soft: rgba(255,167,38,0.14);
+      --info: #29b6f6;
+      --info-soft: rgba(41,182,246,0.14);
+      color-scheme: dark;
+    }
+  }
+
+  html { background: var(--bg); }
+
+  body {
+    margin: 0;
+    font-family: Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 40px 24px 96px; }
+
+  h1 { font-size: 2.125rem; font-weight: 400; letter-spacing: 0.00735em; margin: 0 0 8px; }
+  h2 { font-size: 1.5rem; font-weight: 400; letter-spacing: 0; margin: 0 0 4px; }
+  h3 { font-size: 1.125rem; font-weight: 500; margin: 0 0 8px; }
+  h4 { font-size: 0.9375rem; font-weight: 500; margin: 0 0 6px; }
+  p  { margin: 0 0 12px; }
+
+  .lede { font-size: 1.0625rem; color: var(--text-2); font-weight: 300; max-width: 78ch; }
+  .muted { color: var(--text-2); }
+  .small { font-size: 0.8125rem; }
+  .tiny  { font-size: 0.75rem; }
+
+  code, .mono {
+    font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.8125em;
+  }
+  :not(pre) > code {
+    background: var(--paper-2);
+    border: 1px solid var(--divider);
+    border-radius: 3px;
+    padding: 1px 5px;
+    overflow-wrap: anywhere;
+  }
+
+  section.block { margin-top: 56px; }
+
+  .eyebrow {
+    font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-3); margin: 0 0 10px;
+  }
+
+  .card {
+    background: var(--paper);
+    border-radius: var(--radius);
+    box-shadow: var(--elev1);
+    padding: 20px 22px;
+  }
+  .card--flat { box-shadow: none; border: 1px solid var(--divider); }
+
+  .grid { display: grid; gap: 16px; }
+  .grid > * { min-width: 0; }
+  .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  @media (max-width: 980px) { .cols-3, .cols-5 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 700px) { .cols-2, .cols-3, .cols-5 { grid-template-columns: minmax(0,1fr); } }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.75rem; font-weight: 500; line-height: 1;
+    padding: 5px 9px; border-radius: 16px; white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .chip-render  { background: var(--primary-soft);   color: var(--primary);   border-color: var(--primary); }
+  .chip-model   { background: var(--secondary-soft); color: var(--secondary); border-color: var(--secondary); }
+  .chip-timing  { background: var(--warning-soft);   color: var(--warning);   border-color: var(--warning); }
+  .chip-nav     { background: var(--info-soft);      color: var(--info);      border-color: var(--info); }
+  .chip-focus   { background: var(--error-soft);     color: var(--error);     border-color: var(--error); }
+  .chip-good    { background: var(--success-soft);   color: var(--success);   border-color: var(--success); }
+  .chip-plain   { background: var(--paper-2);        color: var(--text-2);    border-color: var(--divider); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--divider); vertical-align: top; }
+  th { font-weight: 500; color: var(--text-2); font-size: 0.8125rem; }
+  tbody tr:last-child td { border-bottom: none; }
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .rule { height: 1px; background: var(--divider); border: 0; margin: 0; }
+
+  .mermaid { background: var(--paper); border-radius: var(--radius); padding: 20px 12px; box-shadow: var(--elev1); overflow-x: auto; }
+  .mermaid svg { max-width: 100%; height: auto; }
+
+  /* option cards */
+  .opt { display: flex; flex-direction: column; background: var(--paper); border-radius: var(--radius); box-shadow: var(--elev1); overflow: hidden; }
+  .opt--pick { box-shadow: var(--elev4); outline: 2px solid var(--success); }
+  .opt__head { padding: 18px 20px 14px; border-bottom: 1px solid var(--divider); }
+  .opt__body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; flex: 1; }
+  .opt__letter {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%; font-size: 0.8125rem; font-weight: 500;
+    background: var(--primary); color: #fff; margin-right: 8px; flex: none;
+  }
+  @media (prefers-color-scheme: dark) { .opt__letter { color: rgba(0,0,0,0.87); } }
+
+  ul.tight { margin: 0; padding-left: 18px; }
+  ul.tight li { margin-bottom: 5px; }
+  ul.none { list-style: none; margin: 0; padding: 0; }
+  ul.none li { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-start; }
+  .mark { flex: none; font-weight: 500; line-height: 1.5; }
+  .mark-add { color: var(--success); }
+  .mark-cost { color: var(--warning); }
+
+  .callout { border-left: 3px solid var(--info); background: var(--info-soft); padding: 12px 16px; border-radius: 0 var(--radius) var(--radius) 0; }
+  .callout--warn { border-left-color: var(--warning); background: var(--warning-soft); }
+  .callout--ok   { border-left-color: var(--success); background: var(--success-soft); }
+
+  .filebox { border: 1px solid var(--divider); border-radius: var(--radius); overflow: hidden; background: var(--paper); }
+  .filebox__cap { padding: 9px 14px; border-bottom: 1px solid var(--divider); background: var(--paper-2); display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+
+  form.q { display: flex; flex-direction: column; gap: 10px; }
+  form.q label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--divider); border-radius: var(--radius); cursor: pointer; }
+  form.q label:hover { background: var(--paper-2); }
+  form.q input[type=radio], form.q input[type=checkbox] { margin-top: 3px; accent-color: var(--primary); flex: none; }
+  .btn {
+    font-family: inherit; font-size: 0.875rem; font-weight: 500; letter-spacing: 0.02857em;
+    text-transform: uppercase; padding: 8px 16px; border-radius: var(--radius);
+    background: var(--primary); color: #fff; border: none; cursor: pointer; box-shadow: var(--elev1);
+    align-self: flex-start;
+  }
+  @media (prefers-color-scheme: dark) { .btn { color: rgba(0,0,0,0.87); } }
+  .btn:hover { filter: brightness(0.92); }
+
+  :where(p, h1, h2, h3, h4, li, td, th) { overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Design only - nothing written yet</p>
+    <h1>How the UI talks to the model</h1>
+    <p class="lede">
+      You remembered a convention - events sent to an actor with a state machine - and you are right.
+      It existed, it was deliberately retired, and <strong>nothing was written down to replace it</strong>.
+      That gap is why <code class="mono">TodoLists.jsx</code> feels hard: three eras of convention are
+      running inside one function at the same time.
+    </p>
+    <div class="grid cols-3" style="margin-top:22px; gap:12px">
+      <div class="card card--flat" style="padding:14px 16px">
+        <p class="tiny mono" style="margin:0 0 4px; color:var(--text-3); font-weight:500">SECTIONS 1-2</p>
+        <p class="small" style="margin:0"><strong>What happened.</strong> The ADR chain, and the three conventions live in the file today.</p>
+      </div>
+      <div class="card card--flat" style="padding:14px 16px; border-left:3px solid var(--success)">
+        <p class="tiny mono" style="margin:0 0 4px; color:var(--success); font-weight:500">SECTIONS 3-6</p>
+        <p class="small" style="margin:0"><strong>The concept.</strong> The rule derived from first principles, the full hierarchy, every state diagram, and how to stop it eroding. <em>Start here if you only read one part.</em></p>
+      </div>
+      <div class="card card--flat" style="padding:14px 16px">
+        <p class="tiny mono" style="margin:0 0 4px; color:var(--text-3); font-weight:500">SECTIONS 7-15</p>
+        <p class="small" style="margin:0"><strong>The refactor.</strong> What it means for this one file, and the order to do it in.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================ DECIDED -->
+  <section class="block" style="margin-top:40px">
+    <div class="card" style="border-left:4px solid var(--success); box-shadow:var(--elev4)">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap">
+        <h2 style="margin:0; font-size:1.25rem">Decided</h2>
+        <span class="chip chip-good">answered in this session - nothing here is still open</span>
+      </div>
+      <p class="small muted" style="margin:10px 0 0; max-width:82ch">
+        Recorded here on purpose. The whole reason this conversation happened is that a decision was made once
+        and never written down, so these live at the top of the document rather than in a scrollback.
+      </p>
+
+      <div class="grid cols-2" style="margin-top:18px; gap:14px">
+        <div style="border-left:3px solid var(--success); padding:10px 14px; background:var(--success-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 5px; color:var(--success); font-weight:500">THE CONVENTION</p>
+          <p class="small" style="margin:0 0 6px"><strong>Demarcated hybrid</strong> - events and commands both survive, with a written rule deciding which.</p>
+          <p class="tiny muted" style="margin:0">You picked this from the label <em>"events where there are states, commands where there are none"</em>. Section 3 has since sharpened that to the ownership phrasing, because the original does not survive the composer. <strong>ADR 007 will record the sharpened one</strong> - flagging it so the change is deliberate rather than silent.</p>
+        </div>
+
+        <div style="border-left:3px solid var(--success); padding:10px 14px; background:var(--success-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 5px; color:var(--success); font-weight:500">THE DEFENCES - ALL THREE</p>
+          <p class="small" style="margin:0 0 6px"><strong>ADR 007</strong>, a row in the <code>AGENTS.md</code> <em>"Where things are"</em> table, and an <strong>ESLint gate</strong> so breaking the convention fails <code>npm run verify</code>.</p>
+          <p class="tiny muted" style="margin:0">Section 6. The gate is what makes this a path rule instead of a good intention.</p>
+        </div>
+
+        <div style="border-left:3px solid var(--success); padding:10px 14px; background:var(--success-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 5px; color:var(--success); font-weight:500">THE ORDER</p>
+          <p class="small" style="margin:0 0 6px"><strong>ADR 007 &rarr; gate &rarr; commands &rarr; option B &rarr; option A.</strong></p>
+          <p class="tiny muted" style="margin:0">Section 14. The gate goes in early and fails on purpose; it goes green when the commands module lands.</p>
+        </div>
+
+        <div style="border-left:3px solid var(--success); padding:10px 14px; background:var(--success-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 5px; color:var(--success); font-weight:500">THE COMPOSER, ACROSS A LIST SWITCH</p>
+          <p class="small" style="margin:0 0 6px"><strong>Settle on unmount</strong> - the typed text becomes a real Todo row.</p>
+          <p class="tiny muted" style="margin:0">Section 12. Brings the composer into line with the rule <code>DECISIONS.md</code> already states for every other field.</p>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:16px">
+        <p class="small" style="margin:0">
+          <strong>And on the history:</strong> you confirmed the convention fell through the cracks during the
+          ADR 004 deletion rather than being dropped deliberately. So ADR 007 is written as
+          <em>the successor that was missed</em>, and should say so plainly - a future reader following the
+          002 &rarr; 003 &rarr; 004 chain then lands on it instead of on a dead end.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ 0. THE CONVENTION -->
+  <section class="block" style="margin-top:40px">
+    <p class="eyebrow">1 &middot; Answering your question first</p>
+    <h2>What happened to the actor</h2>
+
+    <div class="grid" style="grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); gap:24px; margin-top:18px; align-items:start">
+      <div>
+        <div class="card">
+          <h3 style="font-size:1rem">The paper trail</h3>
+          <ul class="none small" style="margin-top:12px">
+            <li>
+              <span class="mark" style="color:var(--info)">1</span>
+              <span><strong><code>ADR 002: XState actors</code></strong> - <em>superseded</em>.
+              <code>todoListsMachine</code> owned selection and spawned one child actor per list.
+              Its exact words: <em>"React stays a thin boundary&hellip; <code>TodoListForm</code> still
+              emits intent events through a single <code>send</code> prop."</em>
+              That is the convention you are remembering, verbatim.</span>
+            </li>
+            <li>
+              <span class="mark" style="color:var(--info)">2</span>
+              <span><strong><code>ADR 003: Shared datom actor</code></strong> - <em>superseded</em>.
+              Kept the actor, moved it into <code>shared/</code>. This is the "separated the shared actor
+              into other parts" step you half-remember.</span>
+            </li>
+            <li>
+              <span class="mark" style="color:var(--error)">3</span>
+              <span><strong><code>ADR 004: Single datom log</code></strong> - <em>accepted</em>, supersedes 003.
+              <code>shared/src/todoListActor.js</code> (463 lines) and
+              <code>backend/src/todos/createServerTodoActor.js</code> were deleted outright -
+              see <code>docs/plans/single-datom-log.md:101-112</code>. The README now states plainly:
+              <em>"XState is no longer a dependency."</em></span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="callout callout--warn" style="margin-top:16px">
+          <h4 style="margin-bottom:4px">The gap</h4>
+          <p class="small" style="margin:0">
+            ADR 004 is exhaustive about the <em>model</em>: the datom, entity ids, attributes, eight numbered
+            rules, the wire protocol, the journal. Search it for how a <em>component</em> reaches that model and
+            you find one sentence - <em>"In-flight text stays in React state"</em> (line 185).
+            The actor convention was removed and no successor convention was ever recorded.
+            <code>DECISIONS.md</code> has sections for persistence, API, ids, lifecycle, edit granularity,
+            ghost composer and StatusBar - none for UI&rarr;model.
+          </p>
+        </div>
+      </div>
+
+      <div class="card" style="background:var(--paper)">
+        <h3 style="font-size:1rem">Three conventions, one function, today</h3>
+        <p class="small muted">All three of these are live in <code>TodoLists.jsx</code> right now.</p>
+
+        <div style="display:flex; flex-direction:column; gap:12px; margin-top:14px">
+          <div style="border-left:3px solid var(--info); padding:10px 14px; background:var(--info-soft); border-radius:0 4px 4px 0">
+            <p class="tiny mono" style="margin:0 0 4px; color:var(--info); font-weight:500">1. EVENTS TO A REDUCER</p>
+            <p class="small mono" style="margin:0 0 6px">dispatch({ type: 'SELECT_LIST', listId })</p>
+            <p class="tiny muted" style="margin:0">The ADR-002 shape. Survived for navigation only, in
+            <code>todoListsUiState.js</code>. <strong>It is the one part that reads cleanly.</strong></p>
+          </div>
+
+          <div style="border-left:3px solid var(--warning); padding:10px 14px; background:var(--warning-soft); border-radius:0 4px 4px 0">
+            <p class="tiny mono" style="margin:0 0 4px; color:var(--warning); font-weight:500">2. EVENTS TO A SWITCH</p>
+            <p class="small mono" style="margin:0 0 6px">send({ type: TODO_UI_EVENT.COMPOSER_CHANGE, text })</p>
+            <p class="tiny muted" style="margin:0">The actor's <code>send</code> prop, outliving its actor.
+            <code>sendToList</code> (<code>TodoLists.jsx:218-262</code>) is a switch statement standing where
+            a machine used to be - but it holds no state and has no transitions.</p>
+          </div>
+
+          <div style="border-left:3px solid var(--error); padding:10px 14px; background:var(--error-soft); border-radius:0 4px 4px 0">
+            <p class="tiny mono" style="margin:0 0 4px; color:var(--error); font-weight:500">3. NO CONVENTION</p>
+            <p class="small mono" style="margin:0 0 6px">client.assert(activeList.id, ATTRIBUTE.TITLE, title)</p>
+            <p class="tiny muted" style="margin:0">Raw datom writes inline in JSX props
+            (<code>TodoLists.jsx:355-362</code>). Whatever was quickest once the actor was gone.</p>
+          </div>
+        </div>
+
+        <p class="small" style="margin:16px 0 0; padding-top:14px; border-top:1px solid var(--divider)">
+          <strong>This is the actual answer to "why is this too complex."</strong> Not bad code -
+          three vocabularies for the same job, none of them wrong on its own.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:24px">
+      <h4 style="margin-bottom:6px">Why the actor died, and why that reasoning still binds</h4>
+      <p class="small" style="margin:0 0 8px">
+        ADR 004's central observation: <em>"Every user action changes exactly one attribute of exactly one
+        entity, so no user action needs more than one datom to be atomic."</em> Rule 2 then removes conflicts,
+        rejections and rebase entirely - <em>"Last write wins. There are no conflicts, no rejections, and no
+        rebase."</em>
+      </p>
+      <p class="small" style="margin:0">
+        A datom write therefore has <strong>no intermediate states</strong>. It cannot be pending, cannot fail,
+        cannot conflict, cannot roll back. There is nothing for a state machine to run over - which is precisely
+        why the actor became 463 lines of ceremony around a one-line function call, and why it was deleted.
+        <strong>But navigation still has real states</strong> - <code>browsing</code>, <code>drafting</code>,
+        <code>confirmingDelete</code> - which is why <code>todoListsUiReducer</code> survived the cull and is
+        still the cleanest thing in the file. The split was correct. It just never got written down as a rule.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 0b. THE CONVENTION OPTIONS -->
+  <section class="block">
+    <p class="eyebrow">2 &middot; The decision that comes before any refactor</p>
+    <h2>Which convention do we adopt, app-wide?</h2>
+    <p class="muted" style="max-width:80ch">
+      This is your real question, and it outranks everything below - the file layout follows from it.
+      It also deserves an ADR, because it is exactly the kind of thing whose absence caused this. Sections 3 to 6 unpack the recommended one in full.
+    </p>
+
+    <div class="grid cols-3" style="margin-top:20px; align-items:stretch">
+      <article class="opt">
+        <div class="opt__head">
+          <h3 style="margin:0; display:flex; align-items:center"><span class="opt__letter">1</span><span>Commands only</span></h3>
+          <p class="small muted" style="margin:8px 0 0">Every UI&rarr;model interaction is a named function call.
+          No events anywhere. Navigation state becomes <code>useState</code>.</p>
+        </div>
+        <div class="opt__body">
+          <p class="small mono" style="color:var(--text-2); margin:0">commands.renameList(id, title)<br/>commands.completeTodo(todo)</p>
+          <hr class="rule">
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span>One vocabulary. Shortest path from click to datom.</span></li>
+            <li><span class="mark mark-cost">-</span><span>Throws away the one thing that currently works. <code>drafting</code> and <code>confirmingDelete</code> are genuinely stateful; scattering them into booleans re-creates the illegal states the reducer prevents.</span></li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="opt">
+        <div class="opt__head">
+          <h3 style="margin:0; display:flex; align-items:center"><span class="opt__letter" style="background:var(--secondary)">2</span><span>Events only</span></h3>
+          <p class="small muted" style="margin:8px 0 0">Restore the actor spirit without XState. UI only ever calls
+          <code>send(event)</code>; a reducer returns <code>[state, effects]</code>; a runner writes the datoms.</p>
+        </div>
+        <div class="opt__body">
+          <p class="small mono" style="color:var(--text-2); margin:0">send({ type: 'RENAME_LIST', ... })</p>
+          <hr class="rule">
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span>True continuity with the convention you remember. One door in, everything assertable as data.</span></li>
+            <li><span class="mark mark-cost">-</span><span>Rebuilds by hand what ADR 004 concluded was unnecessary. Most events would carry no state transition at all - just "write this datom" wrapped in an envelope, which is the ceremony that got deleted.</span></li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="opt opt--pick">
+        <div class="opt__head">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap">
+            <h3 style="margin:0; display:flex; align-items:center"><span class="opt__letter" style="background:var(--success)">3</span><span>Demarcated hybrid</span></h3>
+            <span class="chip chip-good">Recommended</span>
+          </div>
+          <p class="small muted" style="margin:8px 0 0">Keep both, and write down the rule that decides which:
+          <strong>events where there are states, commands where there are none.</strong></p>
+        </div>
+        <div class="opt__body">
+          <p class="small mono" style="color:var(--text-2); margin:0">dispatch(&hellip;)&nbsp;&rarr; navigation<br/>commands.&hellip;()&nbsp;&rarr; datoms</p>
+          <hr class="rule">
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span>It is what the codebase already converged on by instinct - this makes it deliberate and reviewable.</span></li>
+            <li><span class="mark mark-add">+</span><span>Follows straight from ADR 004: no conflicts and no rollback means a write has no states, so it needs no machine.</span></li>
+            <li><span class="mark mark-add">+</span><span>Kills convention #3 (raw <code>client.assert</code> in JSX) and #2 (the stateless <code>sendToList</code> switch), leaving exactly two.</span></li>
+            <li><span class="mark mark-cost">-</span><span>Two vocabularies, so the rule must be stated crisply or it erodes again. That is the ADR's job.</span></li>
+          </ul>
+        </div>
+      </article>
+    </div>
+
+  </section>
+
+  <!-- ============================================ 3. THE RULE -->
+  <section class="block">
+    <p class="eyebrow">3 &middot; The rule, from first principles</p>
+    <h2>Ask one question: what changed?</h2>
+    <p class="muted" style="max-width:80ch">
+      My first phrasing was "events where there are states, commands where there are none". That is too loose -
+      <em>everything</em> has state, including the composer. Here is the version that actually holds up, and it
+      turns on <strong>ownership</strong>, not on the presence of state.
+    </p>
+
+    <div class="card" style="margin-top:20px; border-left:3px solid var(--success)">
+      <h4 style="margin-bottom:12px">The rule</h4>
+      <p style="margin:0 0 14px; font-size:1.0625rem">
+        After an interaction, ask <strong>what changed, and who owns it.</strong>
+      </p>
+      <div class="grid cols-3" style="gap:14px">
+        <div style="border-left:3px solid var(--secondary); padding:10px 14px; background:var(--secondary-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 6px; color:var(--secondary); font-weight:500">A FACT ABOUT THE DOMAIN</p>
+          <p class="small" style="margin:0 0 6px">A title, a text, a completion, a due date, whether something exists.</p>
+          <p class="small" style="margin:0"><strong>&rarr; command.</strong> The datom log owns it.</p>
+        </div>
+        <div style="border-left:3px solid var(--info); padding:10px 14px; background:var(--info-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 6px; color:var(--info); font-weight:500">WHAT THE SCREEN IS OFFERING</p>
+          <p class="small" style="margin:0 0 6px">Which list is open, whether we are drafting, whether a dialog is up.</p>
+          <p class="small" style="margin:0"><strong>&rarr; event.</strong> The screen owns it, and only for this session.</p>
+        </div>
+        <div style="border-left:3px solid var(--warning); padding:10px 14px; background:var(--warning-soft); border-radius:0 4px 4px 0">
+          <p class="tiny mono" style="margin:0 0 6px; color:var(--warning); font-weight:500">NOTHING - YET</p>
+          <p class="small" style="margin:0 0 6px">Characters typed into a field that has not settled.</p>
+          <p class="small" style="margin:0"><strong>&rarr; neither.</strong> In-flight text is a <em>third</em> thing, and it is the bridge.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px">The whole concept in one picture</h3>
+    <p class="muted small" style="max-width:80ch">
+      Rebuilt after your note. Two things were missing: <strong>events were invisible</strong>, and the
+      <em>"decides which field is mounted"</em> edge asserted something without showing why. Both are fixed by
+      putting the person at the top - because <strong>events and commands are both things a component does</strong>,
+      they just arrive at different owners.
+    </p>
+
+    <div class="mermaid" style="margin-top:16px">
+flowchart TD
+  U(["The person, through a component"])
+
+  S["<b>Screen state</b><br/>what the UI is offering<br/><i>owned by todoListsUiState</i>"]
+  T["<b>In-flight text</b><br/>becoming a fact, not one yet<br/><i>owned by useSettledText</i>"]
+  D["<b>Domain facts</b><br/>what is true<br/><i>owned by the datom log</i>"]
+
+  U ==>|"<b>EVENT</b><br/>click a row, click Add,<br/>cancel a dialog"| S
+  U ==>|"<b>COMMAND</b><br/>tick a checkbox, pick a due date,<br/>delete - nothing to debounce"| D
+  U -->|"keystrokes<br/><i>not a fact yet</i>"| T
+
+  T ==>|"<b>COMMAND</b>, on settle<br/>500ms idle, blur, Enter, unmount"| D
+
+  D -.->|"projects back as<br/>the settled value"| T
+  S -.->|"names the active list, and<br/>TodoListForm is keyed by it<br/><b>so fields unmount and remount</b>"| T
+
+  classDef person fill:#546e7a,stroke:#546e7a,color:#fff
+  classDef screen fill:#0288d1,stroke:#0288d1,color:#fff
+  classDef text fill:#ed6c02,stroke:#ed6c02,color:#fff
+  classDef fact fill:#9c27b0,stroke:#9c27b0,color:#fff
+  class U person
+  class S screen
+  class T text
+  class D fact
+    </div>
+
+    <div class="grid cols-3" style="margin-top:16px">
+      <div class="card card--flat">
+        <h4>Reading the arrows</h4>
+        <ul class="none small muted" style="margin-top:10px">
+          <li><span class="mark" style="color:var(--text)">&#8658;</span><span><strong>Thick</strong> - the two vocabularies. Every one is labelled EVENT or COMMAND, and there are only ever those two.</span></li>
+          <li><span class="mark" style="color:var(--text)">&#8594;</span><span><strong>Thin</strong> - keystrokes. Deliberately unlabelled: typing is neither, until it settles.</span></li>
+          <li><span class="mark" style="color:var(--text)">&#8943;</span><span><strong>Dotted</strong> - not a user action at all. Consequences that flow back down.</span></li>
+        </ul>
+      </div>
+
+      <div class="card card--flat">
+        <h4>Where events went in the old picture</h4>
+        <p class="small muted" style="margin:0">
+          They were a self-loop on the screen-state box, which drew as an arrow pointing at nothing -
+          so the picture showed the command path and hid the event path. Your read was correct.
+          Events are not a layer; they are <em>how you reach one of the layers</em>, exactly as commands are
+          how you reach another.
+        </p>
+      </div>
+
+      <div class="card card--flat" style="border-left:3px solid var(--warning)">
+        <h4>The dotted edge you asked about</h4>
+        <p class="small muted" style="margin:0">
+          <strong>How:</strong> screen state names the active list. <code>TodoListForm</code> is mounted with
+          <code>key={activeList.id}</code> (<code>TodoLists.jsx:349</code>), and React destroys and rebuilds a
+          subtree when its key changes. So a <em>navigation event</em> can unmount a field that still has
+          unsettled text in it.
+          <strong>Why it matters:</strong> that is the entire subject of section 12.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:16px">
+      <p class="small" style="margin:0">
+        <strong>Why this is elegant, and not merely tidy:</strong> the middle layer is the only place in the
+        entire app where timing lives. Above it nothing is debounced; below it nothing is debounced. That is
+        why <code>useSettledText</code> can be 62 lines and still cover every text field in the product -
+        and why a second timer appearing anywhere else is a bug in the architecture, not just in the file.
+      </p>
+    </div>
+
+    <div class="grid cols-2" style="gap:24px; margin-top:28px; align-items:start">
+      <div class="card">
+        <h3 style="font-size:1rem">Why "in-flight text" needs its own layer</h3>
+        <p class="small muted" style="margin-bottom:12px">
+          It is tempting to call typing a command and be done. ADR 004 explains why that fails:
+        </p>
+        <div style="border-left:3px solid var(--divider); padding:4px 0 4px 14px; margin-bottom:14px">
+          <p class="small" style="margin:0; font-style:italic">
+            "Without this, typing a twenty-character Todo would mint twenty datoms on <code>text</code>,
+            nineteen of them superseded within a second, and there is no transaction envelope left to group them."
+          </p>
+          <p class="tiny muted" style="margin:6px 0 0">ADR 004, <em>Edit granularity</em></p>
+        </div>
+        <p class="small" style="margin:0 0 10px">
+          The actor used to absorb this - debouncing was one of the things <code>todoListMachine</code> did.
+          When the actor was deleted, that job did not disappear; it moved into <code>useSettledText</code>
+          for two fields, and was <strong>re-implemented from scratch</strong> for the composer.
+          Naming this layer is what stops that happening a third time.
+        </p>
+        <div class="callout callout--warn" style="margin-top:14px">
+          <p class="small" style="margin:0">
+            <strong>The tell:</strong> if you ever find a <code>setTimeout</code> outside this layer, the
+            convention has been broken. There is exactly one in the app today that should not be there -
+            <code>settleTimers</code> in <code>TodoLists.jsx:119</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:1rem">One interaction, walked through the picture</h3>
+        <p class="small muted" style="margin-bottom:14px">
+          The hardest case in the product, traced edge by edge. If this reads clearly, the concept is doing
+          its job.
+        </p>
+        <p class="tiny mono" style="margin:0 0 10px; color:var(--text-3); font-weight:500">
+          YOU TYPE "BUY MILK" IN THE COMPOSER, THEN CLICK ANOTHER TODO LIST
+        </p>
+        <ol style="margin:0; padding-left:20px" class="small">
+          <li style="margin-bottom:8px">
+            <span class="chip chip-timing" style="margin-right:6px">thin arrow</span>
+            Keystrokes reach <strong>in-flight text</strong>. Nothing is a fact yet, nothing is written,
+            no event fires. The screen has not changed what it is offering.
+          </li>
+          <li style="margin-bottom:8px">
+            <span class="chip chip-nav" style="margin-right:6px">EVENT</span>
+            The click sends <code>SELECT_LIST</code> to <strong>screen state</strong>. What changed is
+            which list is on screen - a fact about the session, not about the domain.
+          </li>
+          <li style="margin-bottom:8px">
+            <span class="chip chip-plain" style="margin-right:6px">dotted</span>
+            Screen state names a different active list, so <code>TodoListForm</code>'s key changes and React
+            unmounts the composer. <strong>This is the edge you asked about, doing real work.</strong>
+          </li>
+          <li style="margin-bottom:8px">
+            <span class="chip chip-model" style="margin-right:6px">COMMAND</span>
+            Unmount is one of settling's four exits, so the in-flight text settles on the way out and emits
+            <code>addTodo("Buy milk")</code>. A fact now exists.
+          </li>
+          <li>
+            <span class="chip chip-plain" style="margin-right:6px">dotted</span>
+            The datom projects back down, and every mounted field shows the new truth.
+          </li>
+        </ol>
+        <div class="callout callout--ok" style="margin-top:14px">
+          <p class="small" style="margin:0">
+            Five steps, three owners, two vocabularies, and <strong>no step where it is unclear which one
+            applies.</strong> Today this same interaction is spread across a Record, a Map, two ref mirrors
+            and five functions in one component - which is the same behaviour, just with nowhere to point at
+            while explaining it.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:32px">Every interaction in the app, classified</h3>
+    <p class="muted small" style="max-width:80ch">
+      The rule is only worth having if it decides every real case without argument. This is all of them.
+      Note the rows marked <strong>both</strong> - they are the proof that the rule classifies
+      <em>changes</em>, not clicks.
+    </p>
+
+    <div class="card" style="padding:4px 0 0; margin-top:14px">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30%">Interaction</th>
+            <th style="width:32%">What changed</th>
+            <th style="width:16%">Kind</th>
+            <th>Reaches the model as</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Click a Todo List row</td><td class="muted">which list is on screen</td><td><span class="chip chip-nav">event</span></td><td class="mono tiny">SELECT_LIST</td></tr>
+          <tr><td>Click Add</td><td class="muted">the screen now offers a draft</td><td><span class="chip chip-nav">event</span></td><td class="mono tiny">ADD_LIST</td></tr>
+          <tr><td>Escape a draft</td><td class="muted">the screen stops offering it</td><td><span class="chip chip-nav">event</span></td><td class="mono tiny">ESCAPE_DRAFT</td></tr>
+          <tr><td>Delete a list that has Todos</td><td class="muted">the screen offers a confirmation</td><td><span class="chip chip-nav">event</span></td><td class="mono tiny">REQUEST_DELETE</td></tr>
+          <tr><td>Cancel the dialog</td><td class="muted">the screen stops offering it</td><td><span class="chip chip-nav">event</span></td><td class="mono tiny">CANCEL_DELETE</td></tr>
+          <tr style="background:var(--primary-soft)"><td><strong>Name a draft list</strong> (title settles)</td><td class="muted">a Todo List starts existing, <em>and</em> the screen leaves drafting</td><td><span class="chip chip-good">both</span></td><td class="mono tiny">renameList()<br/>+ MATERIALIZE</td></tr>
+          <tr style="background:var(--primary-soft)"><td><strong>Confirm the dialog</strong></td><td class="muted">the list stops existing, <em>and</em> selection moves on</td><td><span class="chip chip-good">both</span></td><td class="mono tiny">deleteList()<br/>+ CONFIRM_DELETE</td></tr>
+          <tr style="background:var(--primary-soft)"><td><strong>Delete an empty list</strong></td><td class="muted">same, minus the confirmation</td><td><span class="chip chip-good">both</span></td><td class="mono tiny">deleteList()<br/>+ CONFIRM_DELETE</td></tr>
+          <tr><td>Rename an existing list</td><td class="muted">a fact, once the field settles</td><td><span class="chip chip-timing">in-flight</span> &rarr; <span class="chip chip-model">command</span></td><td class="mono tiny">renameList()</td></tr>
+          <tr><td>Type in a Todo's text</td><td class="muted">a fact, once the field settles</td><td><span class="chip chip-timing">in-flight</span> &rarr; <span class="chip chip-model">command</span></td><td class="mono tiny">retitleTodo()</td></tr>
+          <tr><td>Type in the composer, settles non-blank, no linked Todo</td><td class="muted">a Todo starts existing</td><td><span class="chip chip-timing">in-flight</span> &rarr; <span class="chip chip-model">command</span></td><td class="mono tiny">addTodo()</td></tr>
+          <tr><td>&hellip; settles non-blank, already linked</td><td class="muted">that Todo's text</td><td><span class="chip chip-timing">in-flight</span> &rarr; <span class="chip chip-model">command</span></td><td class="mono tiny">retitleTodo()</td></tr>
+          <tr><td>&hellip; settles blank, already linked</td><td class="muted">that Todo stops existing</td><td><span class="chip chip-timing">in-flight</span> &rarr; <span class="chip chip-model">command</span></td><td class="mono tiny">deleteTodo()</td></tr>
+          <tr><td>Toggle a Todo's checkbox</td><td class="muted">a fact, immediately - nothing to debounce</td><td><span class="chip chip-model">command</span></td><td class="mono tiny">setTodoCompleted()</td></tr>
+          <tr><td>Pick or clear a due date</td><td class="muted">a fact, immediately</td><td><span class="chip chip-model">command</span></td><td class="mono tiny">setTodoDueDate()</td></tr>
+          <tr><td>Delete a Todo</td><td class="muted">that Todo stops existing</td><td><span class="chip chip-model">command</span></td><td class="mono tiny">deleteTodo()</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:18px">
+      <p class="small" style="margin:0">
+        <strong>Read the table top to bottom and the shape appears:</strong> events are always about the
+        <em>screen</em>, commands are always about <em>facts</em>, and the only thing sitting between them is
+        text that has not settled. Sixteen interactions, no arguments, no leftover category.
+        That is the test of whether a rule is worth writing into an ADR.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 4. HIERARCHY -->
+  <section class="block">
+    <p class="eyebrow">4 &middot; The hierarchy</p>
+    <h2>Who owns what, top to bottom</h2>
+    <p class="muted" style="max-width:80ch">
+      One module per box, one owner per module. The colour tells you which of the three layers it belongs to,
+      so a module whose colour is ambiguous is a module in the wrong place.
+    </p>
+
+    <div class="mermaid" style="margin-top:18px">
+flowchart TD
+  App["App.jsx"]
+  RT["useTodoLists<br/><i>one client for the session</i>"]
+  SB["StatusBar<br/><i>pure projection</i>"]
+  TL["TodoLists.jsx<br/><b>render only</b>"]
+
+  HOOK["useTodoListsScreen<br/><i>composes, decides nothing</i>"]
+  NAV["todoListsUiState.js<br/><b>screen state</b> - events"]
+  VIEW["todoListsScreenView.js<br/><b>projection</b> - pure read"]
+  CMD["todoListCommands.js<br/><b>domain facts</b> - commands"]
+  FOCUS["useTodoListsFocus<br/><i>caret nudges</i>"]
+
+  ROW["TodoListRow"]
+  FORM["TodoListForm"]
+  TITLE["TodoListTitleField"]
+  COMP["TodoComposer"]
+  ITEM["TodoItem"]
+
+  GHOST["useGhostComposer<br/><b>in-flight text</b> + materialization"]
+  SETTLE["useSettledText<br/><b>in-flight text</b><br/><i>the only timer in the app</i>"]
+
+  CLIENT["todoClient<br/><i>outbox, SSE, POST</i>"]
+  STORE["DatomStore<br/><i>shared, verbatim both sides</i>"]
+
+  App --> RT
+  App --> SB
+  App --> TL
+  TL --> HOOK
+  HOOK --> NAV
+  HOOK --> VIEW
+  HOOK --> CMD
+  HOOK --> FOCUS
+  TL --> ROW
+  TL --> FORM
+  FORM --> TITLE
+  FORM --> COMP
+  FORM --> ITEM
+  TITLE --> SETTLE
+  COMP --> GHOST
+  ITEM --> SETTLE
+  GHOST --> SETTLE
+  GHOST --> CMD
+  SETTLE -.->|"on settle"| CMD
+  CMD --> CLIENT
+  VIEW -.->|"reads"| CLIENT
+  CLIENT --> STORE
+
+  classDef render fill:#1976d2,stroke:#1976d2,color:#fff
+  classDef screen fill:#0288d1,stroke:#0288d1,color:#fff
+  classDef text fill:#ed6c02,stroke:#ed6c02,color:#fff
+  classDef fact fill:#9c27b0,stroke:#9c27b0,color:#fff
+  classDef infra fill:#546e7a,stroke:#546e7a,color:#fff
+
+  class App,TL,SB,ROW,FORM,TITLE,COMP,ITEM render
+  class NAV,FOCUS,HOOK screen
+  class GHOST,SETTLE text
+  class CMD,VIEW fact
+  class CLIENT,STORE,RT infra
+    </div>
+
+    <div class="grid cols-3" style="margin-top:18px">
+      <div class="card card--flat">
+        <h4>What the picture proves</h4>
+        <ul class="tight small muted" style="margin-top:8px">
+          <li>Exactly <strong>one</strong> arrow reaches <code>todoClient</code> for writes, and it comes from <code>todoListCommands</code>.</li>
+          <li>Exactly <strong>one</strong> module owns a timer.</li>
+          <li>No blue render box touches a purple fact box directly.</li>
+        </ul>
+      </div>
+      <div class="card card--flat">
+        <h4>What changes from today</h4>
+        <ul class="tight small muted" style="margin-top:8px">
+          <li><code>TodoLists.jsx</code> loses every non-blue responsibility.</li>
+          <li><code>useGhostComposer</code> appears, and delegates its timer rather than owning one.</li>
+          <li><code>TODO_UI_EVENT</code> and <code>sendToList</code> are gone.</li>
+        </ul>
+      </div>
+      <div class="card card--flat">
+        <h4>What deliberately stays</h4>
+        <ul class="tight small muted" style="margin-top:8px">
+          <li><code>todoListsUiState.js</code>, untouched. It was always right.</li>
+          <li><code>useSettledText.js</code>, untouched, now used by three callers instead of two.</li>
+          <li><code>todoClient</code> and <code>DatomStore</code>, untouched.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ 5. STATE DIAGRAMS -->
+  <section class="block">
+    <p class="eyebrow">5 &middot; The state machines</p>
+    <h2>All the state there is</h2>
+    <p class="muted" style="max-width:80ch">
+      Three machines, and that is the complete inventory - if the convention holds, no fourth one can appear,
+      because facts have no states and rendering has no memory. Every transition below is read off code that
+      exists today; nothing here is aspirational.
+    </p>
+
+    <div class="grid cols-2" style="margin-top:20px; align-items:start">
+      <div>
+        <h3 style="font-size:1rem"><span class="chip chip-nav">screen state</span> Navigation</h3>
+        <p class="small muted">Read from <code>todoListsUiState.js</code> as it is written today. This is the
+        machine that survived the actor, and it is the one you should judge the others against.</p>
+        <div class="mermaid">
+stateDiagram-v2
+  direction TB
+  [*] --> browsing: SET_ACTIVE, first lists arrive
+  browsing --> drafting: ADD_LIST
+  browsing --> browsing: SELECT_LIST
+  drafting --> browsing: MATERIALIZE, title settled
+  drafting --> browsing: ESCAPE_DRAFT
+  drafting --> drafting: ADD_LIST ignored, focuses the field
+  browsing --> confirmingDelete: REQUEST_DELETE
+  confirmingDelete --> browsing: CANCEL_DELETE
+  confirmingDelete --> browsing: CONFIRM_DELETE, selection moves on
+        </div>
+        <div class="callout callout--warn" style="margin-top:12px">
+          <p class="small" style="margin:0">
+            <strong>Two edges the code allows but the diagram omits, because no UI reaches them:</strong>
+            <code>REQUEST_DELETE</code> from <code>drafting</code>, and <code>ADD_LIST</code> from
+            <code>confirmingDelete</code>. The reducer guards neither. Harmless today because the dialog is
+            modal and a draft has no delete button - but it is exactly the kind of latent hole a state
+            diagram is for. Worth a guard, or worth a comment saying why not.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-size:1rem"><span class="chip chip-timing">in-flight text</span> Settling</h3>
+        <p class="small muted">Read from <code>useSettledText.js</code>. Every text field in the product runs
+        this machine - and under the convention, so would the composer.</p>
+        <div class="mermaid">
+stateDiagram-v2
+  direction TB
+  [*] --> Settled
+  Settled --> Pending: change, starts the timer
+  Pending --> Pending: change, restarts the timer
+  Pending --> Settled: 500ms idle
+  Pending --> Settled: blur
+  Pending --> Settled: Enter
+  Pending --> Settled: unmount
+  Pending --> Settled: reset on Escape, emits nothing
+  Settled --> Settled: new value from the model
+
+  note right of Pending
+    Every exit except reset
+    emits exactly one command
+  end note
+        </div>
+        <div class="callout" style="margin-top:12px">
+          <p class="small" style="margin:0">
+            <strong>The one subtle rule, worth knowing by heart:</strong> in <code>Pending</code>, an incoming
+            value from the model is <em>ignored</em> - <em>"an edit in flight outranks an incoming one; last
+            write wins either way"</em> (<code>useSettledText.js:25</code>). That is the only place the app
+            resolves a race, and it resolves it in favour of the person typing.
+            Every transition out of <code>Pending</code> except <code>reset</code> emits one command.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:28px">
+      <h3 style="font-size:1rem"><span class="chip chip-timing">in-flight text</span> The ghost composer, layered on top of settling</h3>
+      <p class="small muted" style="max-width:80ch">
+        This is the hardest thing in the product and the reason the file grew. It is <em>not</em> a fourth
+        machine - it is the settling machine plus a rule about what each settle <em>means</em>. Read from
+        <code>TodoLists.jsx:164-197</code> as written today; the states are implicit there, which is precisely
+        the problem.
+      </p>
+      <div class="grid" style="grid-template-columns: minmax(0,1.25fr) minmax(0,1fr); gap:20px; margin-top:14px; align-items:start">
+        <div class="mermaid">
+stateDiagram-v2
+  direction LR
+  [*] --> Empty
+  Empty --> Typing: change
+  Typing --> Empty: settles blank, nothing written
+  Typing --> Linked: settles non-blank, addTodo()
+  Linked --> Linked: settles non-blank, retitleTodo()
+  Linked --> Empty: settles blank, deleteTodo()
+  Linked --> Empty: Enter or Add, commits the row
+  Linked --> Typing: linked Todo deleted elsewhere
+
+  note right of Linked
+    While Linked the Todo is hidden
+    from the list, because the field
+    is already showing it
+  end note
+        </div>
+        <div style="display:flex; flex-direction:column; gap:14px">
+          <div class="card card--flat">
+            <h4>Why it earns its complexity</h4>
+            <p class="small muted" style="margin:0">
+              A Todo's defining attribute is <code>text</code> (ADR 004). So "a Todo with no text" is not a
+              valid state in the model - it is <em>unrepresentable</em>. The composer therefore cannot create
+              the Todo when you start typing; it has to wait until there is something to assert. The three
+              states above are the minimum needed to express that, and each maps to exactly one command.
+            </p>
+          </div>
+          <div class="card card--flat">
+            <h4>What naming it buys</h4>
+            <p class="small muted" style="margin:0">
+              Today these states exist only as the combination of <code>text</code>, <code>linkedId</code> and
+              a Map lookup, spread across five functions. As <code>useGhostComposer</code> they become three
+              named states in one file with one timer, testable in
+              <code>TodoListForm.stories.jsx</code> where the behaviour actually lives.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:24px">
+      <p class="small" style="margin:0">
+        <strong>Sanity check on the whole concept:</strong> notice what is <em>not</em> here. There is no machine
+        for saving, none for conflicts, none for retries, none for offline. ADR 004 removed all four by
+        construction, and StatusBar reports connection health as a <em>pure projection</em> of client status
+        rather than as a state machine of its own. If a future change wants to add one of those machines back,
+        that is the signal that ADR 004's premise has changed - and it should be an ADR, not a hook.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 6. KEEPING IT -->
+  <section class="block">
+    <p class="eyebrow">6 &middot; Keeping it from falling through the cracks again</p>
+    <h2>Three defences, in increasing order of strength</h2>
+    <p class="muted" style="max-width:80ch">
+      This is the part you asked for directly, and it matters more than the refactor. The convention was lost
+      once because it lived only in a superseded ADR and in people's heads. Prose alone will lose it again.
+    </p>
+
+    <div class="grid cols-3" style="margin-top:20px; align-items:stretch">
+      <div class="card">
+        <span class="chip chip-plain">Weakest</span>
+        <h3 style="font-size:1rem; margin-top:12px">1. Write ADR 007</h3>
+        <p class="small muted" style="margin-bottom:10px">
+          One page: the rule, the three owners, the classification table, and the state diagrams above.
+          Crucially, it should say <em>"this is the successor ADR 004 did not write"</em> and link back to
+          002 and 003, so the next reader finds the whole chain.
+        </p>
+        <p class="tiny muted" style="margin:0"><strong>Fails when:</strong> nobody reads it. Which is what happened last time.</p>
+      </div>
+
+      <div class="card">
+        <span class="chip chip-plain">Better</span>
+        <h3 style="font-size:1rem; margin-top:12px">2. Point <code>AGENTS.md</code> at it</h3>
+        <p class="small muted" style="margin-bottom:10px">
+          The working agreement already has a <em>"Where things are"</em> table that agents and people
+          actually consult. One row - <em>"How the UI talks to the model &rarr; ADR 007"</em> - puts the rule
+          in the path of anyone about to write a component.
+        </p>
+        <p class="tiny muted" style="margin:0"><strong>Fails when:</strong> someone is in a hurry. Better odds, still human.</p>
+      </div>
+
+      <div class="card" style="outline:2px solid var(--success)">
+        <span class="chip chip-good">Strongest</span>
+        <h3 style="font-size:1rem; margin-top:12px">3. Make it a lint gate</h3>
+        <p class="small muted" style="margin-bottom:10px">
+          An ESLint <code>no-restricted-imports</code> rule: nothing under <code>components/</code> may import
+          <code>@web-interview/todos/datom</code>, and nothing outside <code>todoListCommands.js</code> may
+          name <code>client.assert</code> or <code>client.retract</code>.
+          Breaking the convention then fails <code>npm run verify</code>.
+        </p>
+        <p class="tiny" style="margin:0"><strong>Cannot fail quietly.</strong> It is checked on every run, by machine.</p>
+      </div>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:18px">
+      <p class="small" style="margin:0">
+        Defence 3 is your own principle, applied to yourself. <code>AGENTS.md</code> already argues it about
+        the verify gate: <em>"Never reason 'this change could not possibly affect Lighthouse' - a path rule
+        cannot be talked into being wrong, and reasoning can."</em> A convention that only lives in prose is
+        reasoning. A convention with a lint rule behind it is a path rule.
+        <strong>That sentence is the answer to "how do we stop this falling through the cracks."</strong>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 1. INVENTORY -->
+  <section class="block">
+    <p class="eyebrow">7 &middot; What is actually in the file</p>
+    <h2>Seven concerns, one function</h2>
+    <p class="muted" style="max-width:78ch">
+      Every row below is code that lives inside the <code>TodoLists</code> component body today.
+      Line numbers are from the current <code>frontend/src/todos/components/TodoLists.jsx</code>.
+    </p>
+
+    <div class="card" style="padding:4px 0 0; margin-top:18px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:140px">Concern</th>
+            <th>What it does</th>
+            <th style="width:150px">Lines today</th>
+            <th style="width:130px">Has a home?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="chip chip-render">Rendering</span></td>
+            <td>The catalog card, <code>ListRecap</code>, <code>TodoListRow</code>, mounting the form and the delete dialog</td>
+            <td class="num small">45-96, 294-378</td>
+            <td class="small"><span class="chip chip-good">yes</span> already JSX-only</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-nav">Navigation</span></td>
+            <td><code>browsing</code> / <code>drafting</code> / <code>confirmingDelete</code>, which list is active</td>
+            <td class="num small">101-104</td>
+            <td class="small"><span class="chip chip-good">yes</span> <code>todoListsUiState.js</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-model">Model read</span></td>
+            <td><code>summaries</code>, <code>hydrated</code>, <code>activeList</code>, <code>confirmingList</code>, <code>visibleTodos</code></td>
+            <td class="num small">123-126, 211-216, 286-292</td>
+            <td class="small"><span class="chip chip-plain">partly</span> only <code>selectTodoListSummaries</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-model">Model write</span></td>
+            <td><code>sendToList</code>'s switch, <code>removeList</code>, plus <code>client.assert</code> calls inline in JSX props</td>
+            <td class="num small">218-262, 264-284, 355-362</td>
+            <td class="small"><span class="chip chip-plain">no</span></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-timing">Timing</span></td>
+            <td>The <code>settleTimers</code> Map, <code>scheduleComposerSettle</code>, <code>TEXT_SETTLE_MS</code>, unmount cleanup</td>
+            <td class="num small">119-121, 142-146, 157-162, 199-209</td>
+            <td class="small"><span class="chip chip-plain">no</span> - see below</td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-timing">Composer draft</span></td>
+            <td><code>composers</code> Record, the ghost Todo's materialize / dematerialize rules</td>
+            <td class="num small">105-107, 148-197</td>
+            <td class="small"><span class="chip chip-plain">no</span></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-focus">Focus</span></td>
+            <td><code>titleInputRef</code>, <code>addButtonRef</code>, <code>initialSelectionMade</code>, <code>focusAddWhenEmpty</code> and two effects</td>
+            <td class="num small">108-111, 128-140</td>
+            <td class="small"><span class="chip chip-plain">no</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--warn" style="margin-top:20px">
+      <h4 style="margin-bottom:4px">The finding that shapes every option below</h4>
+      <p style="margin:0" class="small">
+        <code>useSettledText.js</code> already <em>is</em> the timing module. <code>TodoItem</code> and
+        <code>TodoListTitleField</code> both use it: text stays in React state and settles into one datom after
+        <code>TEXT_SETTLE_MS</code>, on blur, on Enter, or on unmount. The composer inside <code>TodoLists</code>
+        does not use it - it reimplements settling from scratch, keyed by list id, with its own
+        <code>Map</code> of timers and two ref mirrors (<code>composersRef</code>, <code>readModelRef</code>)
+        that exist only so a timer callback can read fresh values. That duplication is most of the perceived
+        complexity, and it is the thing worth deleting rather than relocating.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 2. VOCABULARY -->
+  <section class="block">
+    <p class="eyebrow">8 &middot; Layer membership tests</p>
+    <h2>How to tell which layer a line belongs to</h2>
+    <p class="muted" style="max-width:78ch">
+      Each layer gets a one-sentence membership test. If a line fails the test, it is in the wrong file.
+      Names are chosen so the file name alone answers "what is in here".
+    </p>
+
+    <div class="grid cols-5" style="margin-top:18px">
+      <div class="card">
+        <span class="chip chip-render">Rendering</span>
+        <h4 style="margin-top:12px">Pixels only</h4>
+        <p class="small muted" style="margin-bottom:10px">
+          Takes plain values, returns JSX, calls callbacks by name.
+        </p>
+        <p class="tiny" style="margin:0"><strong>Test:</strong> it never mentions <code>client</code>,
+        <code>readModel</code>, <code>ATTRIBUTE</code> or <code>setTimeout</code>. Same props, same pixels, every time.</p>
+      </div>
+
+      <div class="card">
+        <span class="chip chip-model">Model read</span>
+        <h4 style="margin-top:12px">Projection</h4>
+        <p class="small muted" style="margin-bottom:10px">
+          Turns <code>readModel</code> + navigation state into exactly what the screen needs.
+        </p>
+        <p class="tiny" style="margin:0"><strong>Test:</strong> a pure function. No hooks, no refs, no writes.
+        Callable from a unit test with a literal object.</p>
+      </div>
+
+      <div class="card">
+        <span class="chip chip-model">Model write</span>
+        <h4 style="margin-top:12px">Domain verbs</h4>
+        <p class="small muted" style="margin-bottom:10px">
+          The only place <code>client.assert</code> / <code>client.retract</code> and <code>ATTRIBUTE</code> appear.
+        </p>
+        <p class="tiny" style="margin:0"><strong>Test:</strong> every export reads like something a user did -
+        <code>renameList</code>, <code>completeTodo</code> - not like a datom.</p>
+      </div>
+
+      <div class="card">
+        <span class="chip chip-timing">Timing</span>
+        <h4 style="margin-top:12px">When, not what</h4>
+        <p class="small muted" style="margin-bottom:10px">
+          Decides <em>when</em> a keystroke becomes a write. Owns every <code>setTimeout</code>.
+        </p>
+        <p class="tiny" style="margin:0"><strong>Test:</strong> deleting it would make writes happen on
+        every keystroke instead of once - it changes the schedule, never the content.</p>
+      </div>
+
+      <div class="card">
+        <span class="chip chip-focus">Focus</span>
+        <h4 style="margin-top:12px">The DOM nudges</h4>
+        <p class="small muted" style="margin-bottom:10px">
+          Refs and effects that move the caret after something changed.
+        </p>
+        <p class="tiny" style="margin:0"><strong>Test:</strong> removing it breaks keyboard flow only -
+        no data changes, no rendering changes.</p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:20px">
+      <p class="small" style="margin:0">
+        <strong>Navigation</strong> is the sixth, and it is the one already done well:
+        <code>todoListsUiReducer</code> is a pure state machine with its own tests. Every option below keeps it
+        exactly as it is. Worth naming explicitly so it does not get absorbed back into "the hook".
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 3. DIAGRAMS -->
+  <section class="block">
+    <p class="eyebrow">9 &middot; The shape of the problem</p>
+    <h2>Today's wiring vs. the target</h2>
+
+    <div class="grid cols-2" style="margin-top:18px; align-items:start">
+      <div>
+        <h3 style="font-size:0.9375rem">Today - one body talks to everything</h3>
+        <p class="small muted">Every concern reaches the client and the read model directly, and two ref
+        mirrors exist purely to feed a timer.</p>
+        <div class="mermaid">
+flowchart TD
+  JSX["TodoLists.jsx body<br/>194 lines"]
+  R["render: catalog, form, dialog"]
+  C["client<br/>assert / retract"]
+  M["readModel"]
+  T["settleTimers Map"]
+  F["focus refs"]
+  MIR["composersRef<br/>readModelRef<br/><i>mirrors for the timer</i>"]
+
+  JSX --> R
+  JSX --> C
+  JSX --> M
+  JSX --> T
+  JSX --> F
+  JSX --> MIR
+  T --> MIR
+  MIR --> C
+  R -.-> C
+
+  classDef hot fill:#d32f2f,stroke:#d32f2f,color:#fff
+  classDef warn fill:#ed6c02,stroke:#ed6c02,color:#fff
+  class JSX hot
+  class MIR,T warn
+        </div>
+      </div>
+
+      <div>
+        <h3 style="font-size:0.9375rem">Target - one hook, layered inside</h3>
+        <p class="small muted">The component learns two names. Each layer is a file you can unit test on its own.</p>
+        <div class="mermaid">
+flowchart TD
+  V["TodoLists.jsx<br/>pure render"]
+  H["useTodoListsScreen(runtime)<br/>returns { view, actions }"]
+  N["todoListsUiReducer<br/><i>navigation</i>"]
+  S["selectTodoListsScreen<br/><i>model read, pure</i>"]
+  W["createTodoListCommands<br/><i>model write</i>"]
+  G["useGhostComposer<br/><i>timing</i>"]
+  FO["useTodoListsFocus<br/><i>focus</i>"]
+  ST["useSettledText<br/><i>existing</i>"]
+
+  V --> H
+  H --> N
+  H --> S
+  H --> W
+  H --> G
+  H --> FO
+  G --> ST
+  G --> W
+
+  classDef good fill:#2e7d32,stroke:#2e7d32,color:#fff
+  classDef reuse fill:#0288d1,stroke:#0288d1,color:#fff
+  class H good
+  class ST reuse
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ 4. THE SHARED PIECE -->
+  <section class="block">
+    <p class="eyebrow">10 &middot; The piece every option shares</p>
+    <h2>First, give the writes a name</h2>
+    <p class="muted" style="max-width:78ch">
+      This is not one of the three options - it is a prerequisite all three want, and it is the single
+      highest-value extraction on its own. Right now <code>ATTRIBUTE.TITLE</code> and <code>client.assert</code>
+      appear inside JSX props (<code>TodoLists.jsx:355-362</code>). After this, they appear in exactly one file.
+    </p>
+
+    <div class="grid cols-2" style="margin-top:18px; align-items:start">
+      <div class="filebox">
+        <div class="filebox__cap">
+          <span class="mono small"><strong>proposed</strong> todos/todoListCommands.js</span>
+          <span class="chip chip-model">Model write</span>
+        </div>
+        <div id="file-commands"></div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <div class="card card--flat">
+          <h4>What this earns</h4>
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span><code>ATTRIBUTE</code> stops leaking into components entirely.</span></li>
+            <li><span class="mark mark-add">+</span><span>The "read before you write" rule (<em>find the todo, check it exists, retract the old dueDate before asserting a new one</em>) lives in one place instead of being restated at each call site.</span></li>
+            <li><span class="mark mark-add">+</span><span>Unit testable against a fake client - no React, no DOM. Matches the coverage policy in <code>docs/adr/005</code>, which gates non-UI logic near 100%.</span></li>
+            <li><span class="mark mark-add">+</span><span>The <code>TODO_UI_EVENT</code> switch in <code>sendToList</code> collapses: the events already map one-to-one onto these verbs.</span></li>
+          </ul>
+        </div>
+        <div class="card card--flat" style="border-left:3px solid var(--success)">
+          <h4>What this settles about <code>TODO_UI_EVENT</code></h4>
+          <p class="small muted" style="margin:0">
+            Under the rule in section 3 it goes away. All five of its events -
+            <code>COMPOSER_CHANGE</code>, <code>COMPOSER_SUBMIT</code>, <code>COMPOSER_COMMIT</code>,
+            <code>TODO_PATCH</code>, <code>TODO_REMOVE</code> - resolve to a datom write with no state
+            transition, so they are commands wearing an event costume. <code>sendToList</code>'s switch
+            (<code>TodoLists.jsx:218-262</code>) is the last visible piece of the deleted actor: a
+            dispatcher with nothing to dispatch to.
+            <code>todoListsUiState.js</code> keeps its events, because it has actual states.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ 5. OPTIONS -->
+  <section class="block">
+    <p class="eyebrow">11 &middot; Where to put the composer</p>
+    <h2>Three ways to place the seam</h2>
+    <p class="muted" style="max-width:78ch">
+      Given the convention from section 2, this is the smaller question: <em>where</em> the composer's state and timers live.
+      That single choice drives how much code disappears versus merely moves.
+      Note that option C is convention #2 in disguise - if you pick "events only" in section 2, you are picking C.
+    </p>
+
+    <div class="grid cols-3" style="margin-top:20px; align-items:stretch">
+
+      <!-- A -->
+      <article class="opt">
+        <div class="opt__head">
+          <h3 style="margin:0; display:flex; align-items:center">
+            <span class="opt__letter">A</span>
+            <span>One screen hook</span>
+          </h3>
+          <p class="small muted" style="margin:8px 0 0">
+            Everything non-visual moves up into <code>useTodoListsScreen</code>, layered internally.
+            The composer stays keyed by list id.
+          </p>
+        </div>
+        <div class="opt__body">
+          <div>
+            <h4 class="tiny" style="color:var(--text-3); letter-spacing:0.08em; text-transform:uppercase">Files</h4>
+            <ul class="tight small mono" style="margin-top:6px">
+              <li>useTodoListsScreen.js</li>
+              <li>todoListsScreenView.js</li>
+              <li>todoListCommands.js</li>
+              <li>useComposerDrafts.js</li>
+              <li>useTodoListsFocus.js</li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="tiny" style="color:var(--text-3); letter-spacing:0.08em; text-transform:uppercase">Component becomes</h4>
+            <p class="small mono" style="margin:6px 0 0; color:var(--text-2)">const { view, actions } =<br/>&nbsp;&nbsp;useTodoListsScreen(runtime)</p>
+          </div>
+          <hr class="rule">
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span>Component drops to pure render - the two typedef-heavy sections and all 194 body lines leave.</span></li>
+            <li><span class="mark mark-add">+</span><span>Zero behaviour change. Existing stories should pass untouched, which makes it the safest to verify.</span></li>
+            <li><span class="mark mark-cost">-</span><span><strong>The Map, the Record and both ref mirrors survive</strong> - they just live somewhere else. Complexity relocates rather than dissolves.</span></li>
+            <li><span class="mark mark-cost">-</span><span>Real risk of a new god-hook if the five files are not genuinely independent.</span></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- B -->
+      <article class="opt opt--pick">
+        <div class="opt__head">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap">
+            <h3 style="margin:0; display:flex; align-items:center">
+              <span class="opt__letter" style="background:var(--success)">B</span>
+              <span>Push the composer down</span>
+            </h3>
+            <span class="chip chip-good">Recommended</span>
+          </div>
+          <p class="small muted" style="margin:8px 0 0">
+            The composer's state and timer move <em>into</em> <code>TodoListForm</code> as
+            <code>useGhostComposer</code>, built on the existing <code>useSettledText</code>.
+          </p>
+        </div>
+        <div class="opt__body">
+          <div>
+            <h4 class="tiny" style="color:var(--text-3); letter-spacing:0.08em; text-transform:uppercase">Files</h4>
+            <ul class="tight small mono" style="margin-top:6px">
+              <li>useGhostComposer.js</li>
+              <li>todoListCommands.js</li>
+              <li>useTodoListsFocus.js</li>
+              <li><span style="color:var(--text-3)">(optionally A's hook too)</span></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="tiny" style="color:var(--text-3); letter-spacing:0.08em; text-transform:uppercase">Why it works</h4>
+            <p class="small muted" style="margin:6px 0 0">
+              <code>TodoListForm</code> already has <code>key={activeList.id}</code>, so exactly one composer is
+              ever mounted. "Which list" stops being a variable.
+            </p>
+          </div>
+          <hr class="rule">
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span><strong>Deletes rather than moves:</strong> the <code>composers</code> Record, the <code>settleTimers</code> Map, <code>composersRef</code>, <code>readModelRef</code>, the cleanup effect and the <code>visibleTodos</code> filter all stop existing.</span></li>
+            <li><span class="mark mark-add">+</span><span>Composer settling becomes the same mechanism as Todo text and list title - one timing story in the codebase, not two.</span></li>
+            <li><span class="mark mark-add">+</span><span>Composer behaviour becomes testable in <code>TodoListForm.stories.jsx</code>, at the component that owns it - which is exactly what ADR 005 asks for.</span></li>
+            <li><span class="mark mark-cost">-</span><span><strong>One behaviour change, described below.</strong> Needs your call.</span></li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- C -->
+      <article class="opt">
+        <div class="opt__head">
+          <h3 style="margin:0; display:flex; align-items:center">
+            <span class="opt__letter" style="background:var(--secondary)">C</span>
+            <span>One reducer, effects as data</span>
+          </h3>
+          <p class="small muted" style="margin:8px 0 0">
+            One <code>send(event)</code> for the whole screen. The reducer returns
+            <code>[state, effects]</code>; a runner performs the writes and timers.
+          </p>
+        </div>
+        <div class="opt__body">
+          <div>
+            <h4 class="tiny" style="color:var(--text-3); letter-spacing:0.08em; text-transform:uppercase">Files</h4>
+            <ul class="tight small mono" style="margin-top:6px">
+              <li>todoListsScreenReducer.js</li>
+              <li>runTodoListsEffects.js</li>
+              <li>todoListCommands.js</li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="tiny" style="color:var(--text-3); letter-spacing:0.08em; text-transform:uppercase">Component becomes</h4>
+            <p class="small mono" style="margin:6px 0 0; color:var(--text-2)">const [state, send] =<br/>&nbsp;&nbsp;useTodoListsScreen(runtime)</p>
+          </div>
+          <hr class="rule">
+          <ul class="none small">
+            <li><span class="mark mark-add">+</span><span>One door in. Every state transition and every write is a value you can assert on in a plain unit test, including the timing decisions.</span></li>
+            <li><span class="mark mark-add">+</span><span>Scales best if this screen keeps growing.</span></li>
+            <li><span class="mark mark-cost">-</span><span>Heaviest machinery by a wide margin: an effect vocabulary, a runner, and cancellation semantics for timers, all hand-rolled.</span></li>
+            <li><span class="mark mark-cost">-</span><span>Debugging goes through an interpreter. For a screen this size that reads as more indirection, not less - the opposite of the stated goal.</span></li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============================================ 6. B's behaviour change -->
+  <section class="block">
+    <p class="eyebrow">12 &middot; A behaviour question, already answered</p>
+    <h2>What option B changes for the user</h2>
+    <p class="muted" style="max-width:78ch">
+      Today the composer's unsettled text lives in the parent, so it survives switching lists.
+      If the composer moves into <code>TodoListForm</code>, unmount settles it instead - the same thing
+      <code>useSettledText</code> already does for Todo text and list titles.
+      No typing is lost either way; it lands in a different place.
+    </p>
+    <div class="callout callout--ok" style="margin-bottom:18px">
+      <p class="small" style="margin:0">
+        <strong>Checked before asking:</strong> <code>DECISIONS.md</code>, under <em>"Edit granularity: mint on
+        settle"</em>, already says <em>"Leaving a field by switching Todo Lists settles rather than discards, so
+        the edit survives."</em> That is the documented rule, and the composer is the one field that does not
+        follow it. So option B is not a behaviour change to be argued for - it brings the composer into line
+        with a decision the repo already made.
+      </p>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:18px">
+      <div class="card">
+        <span class="chip chip-plain">Today</span>
+        <h4 style="margin-top:12px">Type "Buy milk", switch list, switch back</h4>
+        <p class="small muted" style="margin:0">
+          The composer still reads <code>Buy milk</code>. A ghost Todo may have been created behind it by the
+          timer that kept running in the parent's Map - but it is filtered out of the visible rows,
+          so you see no new Todo row.
+        </p>
+      </div>
+      <div class="card">
+        <span class="chip chip-good">With option B</span>
+        <h4 style="margin-top:12px">Same three actions</h4>
+        <p class="small muted" style="margin:0">
+          Unmount settles immediately, so <code>Buy milk</code> becomes a real Todo row.
+          Switching back shows an empty composer and <code>Buy milk</code> in the list.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:16px">
+      <p class="small" style="margin:0">
+        <strong>Still worth your eyes:</strong> the documented rule was written about <em>fields</em>, and the
+        composer is a field with an extra job - it also decides whether a Todo exists at all. Reading the rule
+        as covering it is a judgement, not a quote. No story pins today's behaviour either way, so if you read
+        it differently, option B still works with the draft left lifted; the win just shrinks to deleting the
+        timer Map while keeping the Record.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 7. Interfaces -->
+  <section class="block">
+    <p class="eyebrow">13 &middot; The proposed interfaces</p>
+    <h2>What the new files would look like</h2>
+    <p class="muted small" style="max-width:78ch">
+      Signatures and doc comments only - these are the interfaces to react to, not finished implementations.
+    </p>
+
+    <div class="grid" style="margin-top:18px; gap:22px">
+      <div class="filebox">
+        <div class="filebox__cap">
+          <span class="mono small"><strong>proposed</strong> todos/useGhostComposer.js</span>
+          <span class="chip chip-timing">Timing - option B's core</span>
+        </div>
+        <div id="file-composer"></div>
+      </div>
+
+      <div class="grid cols-2" style="gap:22px; align-items:start">
+        <div class="filebox">
+          <div class="filebox__cap">
+            <span class="mono small"><strong>proposed</strong> todos/todoListsScreenView.js</span>
+            <span class="chip chip-model">Model read</span>
+          </div>
+          <div id="file-view"></div>
+        </div>
+
+        <div class="filebox">
+          <div class="filebox__cap">
+            <span class="mono small"><strong>proposed</strong> todos/useTodoListsScreen.js</span>
+            <span class="chip chip-render">The one hook</span>
+          </div>
+          <div id="file-screen"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ 8. RECOMMENDATION -->
+  <section class="block">
+    <p class="eyebrow">14 &middot; Recommendation</p>
+    <h2>Write the convention down, then B, then A</h2>
+
+    <div class="card" style="margin-top:16px">
+      <ol style="margin:0; padding-left:20px; line-height:1.8">
+        <li><strong>Write <code>ADR 007: how the UI talks to the model</code>.</strong> One page. It records the
+        rule from section 3, the hierarchy from section 4 and the state diagrams from section 5, and states outright that it is the successor ADR 004 never wrote after retiring the
+        actor. Without this the next refactor re-invents a fourth convention. <em>This is the step your question
+        was actually asking for.</em></li>
+        <li><strong>Add the <code>AGENTS.md</code> row and the lint gate</strong> (section 6, defences 2 and 3)
+        <em>before</em> the refactor, not after. The gate will fail immediately - that is correct, it is
+        measuring the work still to do, and it goes green exactly when step 4 lands.</li>
+        <li><strong>Extract <code>todoListCommands.js</code>.</strong> The command half of the rule, made real.
+        No behaviour change, gets <code>ATTRIBUTE</code> out of JSX, and collapses <code>sendToList</code> -
+        the actor's last remnant.</li>
+        <li><strong>Then option B.</strong> The step that removes complexity instead of relocating it: the Map,
+        the Record and both ref mirrors stop existing because the composer is mounted once.</li>
+        <li><strong>Then option A's <code>useTodoListsScreen</code>,</strong> over what is left - navigation,
+        projection, focus. By then it is a thin composition, not a god-hook, because the hard part already
+        moved down.</li>
+        <li><strong>Leave C on the shelf.</strong> It is convention #2 in disguise; revisit only if this screen
+        grows genuinely stateful writes, which ADR 004 rule 2 says it will not.</li>
+      </ol>
+    </div>
+
+    <div class="callout" style="margin-top:16px">
+      <p class="small" style="margin:0">
+        <strong>One thing I could not verify:</strong> whether dropping the actor convention without a successor
+        was a conscious call at the time or simply fell through the cracks during a large deletion.
+        <code>docs/plans/single-datom-log.md</code> tracks the files removed, not the conventions.
+        You would know better than the repo does - and if it was deliberate, step 1 should record <em>that</em>
+        reasoning instead of mine.
+      </p>
+    </div>
+
+    <div class="callout callout--warn" style="margin-top:16px">
+      <p class="small" style="margin:0">
+        <strong>How to keep this honest:</strong> the repo's own rule is to reproduce behaviour before touching code.
+        Before any of this, the composer behaviours worth keeping - ghost materialize on settle, dematerialize on
+        blank, the switch-lists case - should be pinned by story plays. <code>GhostComposerLifecycle</code> in
+        <code>TodoLists.stories.jsx:281</code> covers the first two; the switch-lists case is not covered today,
+        which is exactly why step 6 is a question rather than a fact.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ 9. INPUT -->
+  <section class="block">
+    <p class="eyebrow">15 &middot; Your call</p>
+    <h2>Pick a direction</h2>
+
+    <div class="grid cols-2" style="margin-top:18px; align-items:start">
+      <div class="card">
+        <h3 style="margin-bottom:4px">First: the convention</h3>
+        <p class="small muted" style="margin:0 0 12px">This one outranks the rest - the file layout follows from it.</p>
+        <form class="q" data-lavish-question="convention" style="margin-bottom:22px" onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('convention'); if (!v) return; window.lavish.queuePrompt('App-wide UI-to-model convention: ' + v, { tag: 'choice', text: 'Convention: ' + v, element: event.currentTarget, data: { question: 'convention', answer: v } });">
+          <label><input type="radio" name="convention" value="demarcated hybrid - events where there are states, commands where there are none - and write ADR 007 (recommended)"><span class="small"><strong>Demarcated hybrid</strong><br><span class="muted">events where there are states, commands where there are none + ADR 007</span></span></label>
+          <label><input type="radio" name="convention" value="commands only - no events anywhere, navigation becomes plain state"><span class="small"><strong>Commands only</strong><br><span class="muted">no events anywhere</span></span></label>
+          <label><input type="radio" name="convention" value="events only - restore the actor spirit with a reducer returning state plus effects"><span class="small"><strong>Events only</strong><br><span class="muted">restore the actor spirit, no XState</span></span></label>
+          <label><input type="radio" name="convention" value="the concept is not clear enough yet - I have questions on sections 3 to 6 before choosing"><span class="small"><strong>Not clear enough yet</strong><br><span class="muted">questions on sections 3-6 first</span></span></label>
+          <button class="btn" type="submit">Queue this answer</button>
+        </form>
+
+        <h3 style="margin-bottom:4px; padding-top:18px; border-top:1px solid var(--divider)">And: how hard do we defend it?</h3>
+        <form class="q" data-lavish-question="defence" style="margin-bottom:22px" onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).getAll('defence'); if (!v.length) return; window.lavish.queuePrompt('Defences to put in place: ' + v.join('; '), { tag: 'choice', text: 'Defences: ' + v.join('; '), element: event.currentTarget, data: { question: 'defence', answer: v } });">
+          <label><input type="checkbox" name="defence" value="ADR 007 recording the rule, hierarchy and state diagrams"><span class="small">ADR 007 <span class="muted">- the rule, hierarchy, diagrams</span></span></label>
+          <label><input type="checkbox" name="defence" value="a row in the AGENTS.md 'Where things are' table pointing at ADR 007"><span class="small"><code>AGENTS.md</code> row <span class="muted">- puts it in the path</span></span></label>
+          <label><input type="checkbox" name="defence" value="an ESLint no-restricted-imports gate so breaking the convention fails npm run verify"><span class="small">ESLint gate <span class="muted">- cannot fail quietly</span></span></label>
+          <button class="btn" type="submit">Queue these</button>
+        </form>
+
+        <h3 style="margin-bottom:4px; padding-top:18px; border-top:1px solid var(--divider)">Then: the file shape</h3>
+        <form class="q" data-lavish-question="shape" onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('shape'); if (!v) return; window.lavish.queuePrompt('Go with: ' + v, { tag: 'choice', text: 'Shape: ' + v, element: event.currentTarget, data: { question: 'shape', answer: v } });">
+          <label><input type="radio" name="shape" value="ADR 007, then commands, then option B, then option A (recommended)"><span class="small"><strong>Recommended path</strong><br><span class="muted">ADR 007 &rarr; commands &rarr; B &rarr; A</span></span></label>
+          <label><input type="radio" name="shape" value="option A only - one screen hook, no behaviour change"><span class="small"><strong>Option A only</strong><br><span class="muted">safest, complexity relocates</span></span></label>
+          <label><input type="radio" name="shape" value="option B only - push the composer into TodoListForm"><span class="small"><strong>Option B only</strong><br><span class="muted">biggest deletion, smallest diff</span></span></label>
+          <label><input type="radio" name="shape" value="option C - one reducer with effects as data"><span class="small"><strong>Option C</strong><br><span class="muted">effects as data</span></span></label>
+          <button class="btn" type="submit">Queue this answer</button>
+        </form>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div class="card">
+          <h3>The composer-across-list-switch behaviour</h3>
+          <form class="q" data-lavish-question="composer-behaviour" onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('behaviour'); if (!v) return; window.lavish.queuePrompt('Composer across list switch: ' + v, { tag: 'choice', text: 'Behaviour: ' + v, element: event.currentTarget, data: { question: 'composer-behaviour', answer: v } });">
+            <label><input type="radio" name="behaviour" value="settle on unmount - the typed text becomes a real Todo row"><span class="small">Settle on unmount, text becomes a Todo <span class="muted">(matches the rest of the app)</span></span></label>
+            <label><input type="radio" name="behaviour" value="keep today's behaviour - unsettled composer text survives the switch"><span class="small">Keep today's behaviour <span class="muted">(draft text survives the switch)</span></span></label>
+            <label><input type="radio" name="behaviour" value="pin the current behaviour in a story first, then decide"><span class="small">Pin it in a story first, then decide</span></label>
+            <button class="btn" type="submit">Queue this answer</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Was dropping the actor convention deliberate?</h3>
+          <p class="small muted" style="margin:0 0 10px">The repo records the deleted <em>files</em>, not the
+          deleted <em>convention</em>. Your answer changes what ADR 007 says.</p>
+          <form class="q" data-lavish-question="history" onsubmit="event.preventDefault(); const v = new FormData(event.currentTarget).get('history'); if (!v) return; window.lavish.queuePrompt('On dropping the actor convention: ' + v, { tag: 'choice', text: 'History: ' + v, element: event.currentTarget, data: { question: 'history', answer: v } });">
+            <label><input type="radio" name="history" value="it fell through the cracks during the ADR 004 deletion - write the successor now"><span class="small">Fell through the cracks <span class="muted">- write the successor now</span></span></label>
+            <label><input type="radio" name="history" value="deliberate - ADR 007 should record the original reasoning, not mine"><span class="small">Deliberate <span class="muted">- record the original reasoning, not mine</span></span></label>
+            <label><input type="radio" name="history" value="I do not remember - reconstruct it from the ADRs and commits"><span class="small">Don't remember <span class="muted">- reconstruct from ADRs and commits</span></span></label>
+            <button class="btn" type="submit">Queue this answer</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <p class="small muted" style="margin-top:20px">
+      Anything else - annotate the exact card, table row or line you want changed and send it back.
+    </p>
+  </section>
+
+</div>
+
+<!-- Mermaid -->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs";
+
+  const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const paint = document.createElement("canvas").getContext("2d");
+  function toRgba(color) {
+    paint.clearRect(0, 0, 1, 1);
+    paint.fillStyle = "#000";
+    paint.fillStyle = color;
+    paint.fillRect(0, 0, 1, 1);
+    return paint.getImageData(0, 0, 1, 1).data;
+  }
+  function compositeRgba(foreground, background) {
+    const fa = foreground[3] / 255;
+    const ba = background[3] / 255;
+    const alpha = fa + ba * (1 - fa);
+    if (alpha === 0) return [0, 0, 0, 0];
+    return [
+      (foreground[0] * fa + background[0] * ba * (1 - fa)) / alpha,
+      (foreground[1] * fa + background[1] * ba * (1 - fa)) / alpha,
+      (foreground[2] * fa + background[2] * ba * (1 - fa)) / alpha,
+      alpha * 255,
+    ];
+  }
+  function pageIsDark() {
+    const root = document.documentElement;
+    const rootBackground = toRgba(getComputedStyle(root).backgroundColor);
+    const bodyBackground = document.body ? toRgba(getComputedStyle(document.body).backgroundColor) : [0, 0, 0, 0];
+    const [r, g, b, a] = compositeRgba(bodyBackground, rootBackground);
+    if (a > 0) return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 < 0.5;
+    const cs = getComputedStyle(root).colorScheme;
+    if (cs.includes("dark") && !cs.includes("light")) return true;
+    if (cs.includes("light") && !cs.includes("dark")) return false;
+    return darkQuery.matches;
+  }
+
+  const diagrams = [...document.querySelectorAll(".mermaid")].map((el) => ({ el, src: el.textContent }));
+  let applied, rendering = false, queued = false;
+  function queueRender() { queued = true; if (rendering) return; void render(); }
+  async function render() {
+    rendering = true;
+    try {
+      while (queued) {
+        queued = false;
+        const theme = pageIsDark() ? "dark" : "default";
+        if (theme === applied) continue;
+        mermaid.initialize({ startOnLoad: false, theme, securityLevel: "strict" });
+        for (const { el, src } of diagrams) { el.removeAttribute("data-processed"); el.textContent = src; }
+        try { await mermaid.run({ nodes: diagrams.map((d) => d.el) }); }
+        catch (error) { console.error("Mermaid diagram render failed:", error); return; }
+        applied = theme;
+      }
+    } finally { rendering = false; if (queued) queueRender(); }
+  }
+  if (document.readyState === "complete") queueRender();
+  else window.addEventListener("load", queueRender, { once: true });
+  const themeObserver = new MutationObserver(queueRender);
+  for (const el of [document.documentElement, document.body]) {
+    if (!el) continue;
+    themeObserver.observe(el, { attributes: true, attributeFilter: ["data-theme", "class", "style"] });
+  }
+  darkQuery.addEventListener("change", queueRender);
+</script>
+
+<!-- Code renders -->
+<script type="module">
+  import { File } from "https://esm.sh/@pierre/diffs@1.2.10?bundle";
+
+  const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const options = () => ({
+    theme: { light: "github-light", dark: "github-dark" },
+    themeType: darkQuery.matches ? "dark" : "light",
+    overflow: "wrap",
+  });
+
+  const files = {
+    "file-commands": {
+      name: "frontend/src/todos/todoListCommands.js",
+      contents: `/**
+ * The only module that knows datoms exist. Every export is named after
+ * something a person did, and returns nothing - the read model updates
+ * because the client applied the datom.
+ *
+ * @param {TodoClient} client
+ */
+export const createTodoListCommands = (client) => ({
+  /** Reserves an id for a Todo List that has no title yet. */
+  reserveListId: () => client.newListId(),
+
+  /** @param {string} listId @param {string} title */
+  renameList: (listId, title) =>
+    client.assert(listId, ATTRIBUTE.TITLE, title),
+
+  /**
+   * One datom deletes a Todo List holding any number of Todos: they stop
+   * projecting because the Todo List named by their ids no longer exists.
+   *
+   * @param {TodoList} todoList
+   */
+  deleteList: (todoList) =>
+    client.retract(todoList.id, ATTRIBUTE.TITLE, todoList.title),
+
+  /** @param {string} listId @param {string} text @returns {string} the new Todo's id */
+  addTodo: (listId, text) => {
+    const id = client.newTodoId(listId)
+    return client.assert(id, ATTRIBUTE.TEXT, text) ? id : null
+  },
+
+  /** @param {Todo} todo @param {string} text */
+  retitleTodo: (todo, text) =>
+    client.assert(todo.id, ATTRIBUTE.TEXT, text),
+
+  /** @param {Todo} todo @param {boolean} completed */
+  setTodoCompleted: (todo, completed) =>
+    client.assert(todo.id, ATTRIBUTE.COMPLETED, completed),
+
+  /**
+   * Clearing a due date retracts the value the client believed was there,
+   * which is why this needs the Todo and not just its id.
+   *
+   * @param {Todo} todo @param {string | null} dueDate
+   */
+  setTodoDueDate: (todo, dueDate) => {
+    if (dueDate) return client.assert(todo.id, ATTRIBUTE.DUE_DATE, dueDate)
+    if (todo.dueDate) client.retract(todo.id, ATTRIBUTE.DUE_DATE, todo.dueDate)
+  },
+
+  /** \`text\` is a Todo's defining attribute, so retracting it removes the Todo. */
+  /** @param {Todo} todo */
+  deleteTodo: (todo) =>
+    client.retract(todo.id, ATTRIBUTE.TEXT, todo.text),
+})
+`,
+    },
+
+    "file-composer": {
+      name: "frontend/src/todos/useGhostComposer.js",
+      contents: `/**
+ * The "Add a todo" field, for the one Todo List currently on screen.
+ *
+ * Mounted inside TodoListForm, which is keyed by list id - so exactly one of
+ * these exists at a time. That is what lets it hold a single draft and a single
+ * timer instead of a Record and a Map keyed by list.
+ *
+ * Timing is delegated wholesale to useSettledText, the same 500ms-idle /
+ * blur / Enter / unmount rule that TodoItem and TodoListTitleField already use.
+ * This hook adds only the ghost rule on top:
+ *
+ *   no linked Todo + non-blank settle  ->  materialize a new Todo
+ *   linked Todo    + non-blank settle  ->  retitle it
+ *   linked Todo    + blank settle      ->  dematerialize it, clear the field
+ *
+ * @param {TodoList} todoList        the live list, straight from the read model
+ * @param {TodoListCommands} commands
+ * @returns {{
+ *   text: string,
+ *   visibleTodos: Todo[],   // the list minus the ghost, which the field is already showing
+ *   change: (text: string) => void,
+ *   submit: () => void,     // Enter
+ *   commit: () => void,     // blur
+ * }}
+ */
+export const useGhostComposer = (todoList, commands) => { /* ... */ }
+`,
+    },
+
+    "file-view": {
+      name: "frontend/src/todos/todoListsScreenView.js",
+      contents: `/**
+ * Everything the screen renders, and nothing else. Pure: no hooks, no refs,
+ * no writes. Callable from a unit test with two literal objects.
+ *
+ * @param {TodoLists} readModel
+ * @param {TodoListsUiState} uiState
+ * @param {TodoClientStatus} status
+ * @returns {{
+ *   rows: TodoListSummary[],
+ *   activeList: TodoList | null,
+ *   confirmingList: TodoList | null,
+ *   drafting: boolean,
+ *   canEdit: boolean,
+ *   // The stream sends the compacted set before it sends server time, so
+ *   // \`canEdit\` also means "the Todo Lists have arrived".
+ *   hydrated: boolean,
+ *   emptyMessage: string | null,
+ * }}
+ */
+export const selectTodoListsScreen = (readModel, uiState, status) => { /* ... */ }
+
+/**
+ * Which Todo List should take selection when \`todoList\` is deleted:
+ * the one after it, else the one before it, else none.
+ *
+ * @param {TodoListSummary[]} rows
+ * @param {string} deletedListId
+ * @returns {string | null}
+ */
+export const selectListAfterDeletion = (rows, deletedListId) => { /* ... */ }
+`,
+    },
+
+    "file-screen": {
+      name: "frontend/src/todos/useTodoListsScreen.js",
+      contents: `/**
+ * The screen's one non-visual seam. TodoLists.jsx learns two names.
+ *
+ * This file composes; it does not decide. Every rule it needs lives in a
+ * module it can be tested without:
+ *
+ *   todoListsUiReducer    navigation - browsing / drafting / confirmingDelete
+ *   selectTodoListsScreen model read - pure projection
+ *   createTodoListCommands model write - the only place ATTRIBUTE appears
+ *   useTodoListsFocus     the imperative caret nudges
+ *
+ * Composer timing is deliberately absent: it lives in useGhostComposer,
+ * inside TodoListForm, because only the mounted list has one.
+ *
+ * @param {TodoRuntime} runtime
+ * @returns {{ view: TodoListsScreenView, actions: TodoListsScreenActions }}
+ */
+export const useTodoListsScreen = (runtime) => { /* ... */ }
+
+/**
+ * @typedef {object} TodoListsScreenActions
+ * @property {(listId: string) => void} selectList
+ * @property {() => void} startNewList        // Add button; focuses the draft if one is open
+ * @property {(title: string) => void} nameNewList
+ * @property {() => void} cancelNewList       // Escape
+ * @property {(listId: string, title: string) => void} renameList
+ * @property {(todoList: TodoList) => void} requestDelete  // routes straight through if empty
+ * @property {() => void} cancelDelete
+ * @property {() => void} confirmDelete
+ */
+`,
+    },
+  };
+
+  function renderAll() {
+    for (const [id, file] of Object.entries(files)) {
+      const container = document.getElementById(id);
+      if (!container) continue;
+      container.innerHTML = "";
+      new File(options()).render({ containerWrapper: container, file });
+    }
+  }
+
+  if (document.readyState === "complete") renderAll();
+  else window.addEventListener("load", renderAll, { once: true });
+  darkQuery.addEventListener("change", renderAll);
+</script>
+</body>
+</html>
