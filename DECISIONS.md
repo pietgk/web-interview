@@ -5,20 +5,22 @@ behavior; this file explains the trade-offs.
 
 ## How to verify
 
-Use **Node 22** in this repo (`mise.toml` / `.nvmrc`). Storybook’s Vitest watch is unreliable on Node 24.
+Use **Node 22** in this repo (`mise.toml` / `.nvmrc`); `verify` and `watch` refuse to run on
+anything else.
 
 ```bash
-npm test
-npm run test:e2e
-npm run lint
-npm run build --prefix frontend
-npm run storybook --prefix frontend
+npm run watch     # leave open while working
+npm run verify    # everything CI runs, in the order CI runs it
 ```
 
-`npm test` runs shared/backend unit gates, frontend unit + Storybook Vitest (plays/a11y), and quality scripts.
-Storybook alone: `npm run storybook --prefix frontend`. Story plays only: `npm run test-storybook --prefix frontend`.
+`verify` runs four stages - `static`, `unit`, `browser`, `quality` - and stops at the first that
+fails. Run one by name (`npm run verify browser`), or ask what each covers with
+`npm run verify help`. Storybook for component work: `npm run storybook`.
 
 Playwright browsers on a clean checkout: `npx playwright install chromium`.
+
+The reasoning behind the stages, the coverage gate and the Node pin is in
+[`docs/adr/006-test-execution-model.md`](./docs/adr/006-test-execution-model.md).
 
 ## Scope completed
 

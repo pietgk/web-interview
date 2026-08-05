@@ -33,17 +33,47 @@ Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
 
 ### Running tests
 
+Two commands. Leave the first open while you work; run the second before you commit.
+
 ```bash
-# from repo root (after npm ci in shared/, backend/, frontend/, and root)
-npm test          # shared contract + backend + frontend unit
-npm run test:e2e  # Playwright (starts both servers)
-npm run typecheck # check JavaScript and generated shared-package declarations
-npm run lint
-npm run build --prefix frontend
-npm run quality:lighthouse # production desktop audit, scores, diagnostics, and budgets
+# from repo root (after npm ci in root, shared/, backend/, and frontend/)
+npm run watch     # ~2s per change: all Node + happy-dom tests and typecheck, one GREEN/RED line
+npm run verify    # ~70s: everything CI runs, in the order CI runs it
 ```
 
-Playwright (clean checkout): `npx playwright install chromium`
+`verify` goes through four stages and stops at the first one that fails, because a failure makes
+the stages after it meaningless:
+
+| Stage | Runs | Nothing runs until | Time |
+| --- | --- | --- | --- |
+| `static` | typecheck, lint, audit | - (nothing executes) | ~4s |
+| `unit` | shared, backend, frontend logic, scripts | Node | ~2s |
+| `browser` | Storybook play + a11y, Playwright | real Chromium | ~24s |
+| `quality` | build, Lighthouse, coverage | a production bundle | ~40s |
+
+Run any part of it by name, and ask it what it does:
+
+```bash
+npm run verify browser     # one stage
+npm run verify lint e2e    # any mix of stages and steps
+npm run verify help        # what every stage and step covers
+```
+
+Other commands:
+
+```bash
+npm run storybook   # component loop, with HMR
+npm run preview     # scripted demo of the running app
+npm run kill        # free every port this repo binds
+```
+
+Coverage is merged from the `unit` and `browser` stages and judged in `quality`. The headline
+prints on the `coverage` row; `open coverage/index.html` for the per-file, per-line detail.
+
+This repo runs **Node 22** (`.nvmrc`). `verify` and `watch` refuse to run on anything else.
+Playwright on a clean checkout: `npx playwright install chromium`.
+
+Why it is shaped this way: [`docs/adr/006-test-execution-model.md`](./docs/adr/006-test-execution-model.md).
 
 ### Lighthouse quality
 

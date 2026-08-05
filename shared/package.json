@@ -42,7 +42,6 @@
   "scripts": {
     "build:types": "tsc -p tsconfig.types.json",
     "prepack": "npm run build:types",
-    "test": "node --test",
     "typecheck": "tsc -p jsconfig.json"
   },
   "dependencies": {

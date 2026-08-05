@@ -30,11 +30,29 @@ const withServer = (seed = []) => ({
   ),
 })
 
+/** @param {string} story */
+const storyDocs = (story) => ({
+  parameters: {
+    docs: {
+      description: { story },
+    },
+  },
+})
+
 const meta = /** @type {import('@storybook/react-vite').Meta<typeof App>} */ ({
   title: 'App',
   component: App,
   parameters: {
     layout: 'fullscreen',
+    docs: {
+      description: {
+        component: [
+          '**App** is the production shell: StatusBar + TodoLists sharing one runtime, with the real layout (sticky status, scrollable main). Stories wire an in-memory datom server through `createClient`.',
+          '**Docs vs story Canvas:** Each preview on this Docs page is the **before-`play` setup** (seed / loaders only). Open the matching **story** in the sidebar to see the **after-`play` result** — that is what Why/See describe, and what Interactions asserts. Docs does not autoplay: running every `play` on one page races focus and typing across stories.',
+          'Wire-level proofs are noted under **Proof** only when they are not obvious on the canvas.',
+        ].join('\n\n'),
+      },
+    },
   },
 })
 
@@ -42,6 +60,10 @@ export default meta
 
 export const Empty = /** @type {import('@storybook/react-vite').StoryObj<typeof App>} */ ({
   ...withServer(),
+  ...storyDocs([
+    '**Why:** The empty catalog is a first-class shell state — heading and status still mount when there are no Todo Lists.',
+    '**See:** After the stream connects, the h1 is Things to do and the lists panel shows `No Todo Lists yet.`',
+  ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
     await expect(canvas.getByRole('heading', { level: 1, name: 'Things to do' })).toBeInTheDocument()
@@ -51,6 +73,10 @@ export const Empty = /** @type {import('@storybook/react-vite').StoryObj<typeof 
 
 export const Populated = /** @type {import('@storybook/react-vite').StoryObj<typeof App>} */ ({
   ...withServer(seededLists()),
+  ...storyDocs([
+    '**Why:** A seeded journal must project into the shell — list summaries and a healthy status line.',
+    '**See:** First List with `0 of 1 completed`, and Application status shows All changes saved.',
+  ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
     await expect(canvas.getByText('First List')).toBeInTheDocument()

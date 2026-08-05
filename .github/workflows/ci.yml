@@ -19,7 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -34,23 +34,13 @@ jobs:
           npm ci --prefix backend
           npm ci --prefix frontend
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Production build
-        run: npm run build --prefix frontend
-
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Lighthouse quality
-        run: npm run quality:lighthouse
+      # One step, one script, one order. CI runs exactly what `npm run verify`
+      # runs locally, so a green local run cannot be surprised by a red build.
+      - name: Verify
+        run: npm run verify
 
       - name: Upload Lighthouse reports
         if: always()
@@ -60,6 +50,3 @@ jobs:
           path: lighthouse-reports
           if-no-files-found: warn
           retention-days: 14
-
-      - name: End-to-end tests
-        run: npm run test:e2e

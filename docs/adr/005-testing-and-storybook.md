@@ -1,8 +1,13 @@
 # ADR 005: Testing seams and Storybook
 
-- Status: Accepted
+- Status: Accepted, superseded in part by [ADR 006](./006-test-execution-model.md)
 - Date: 2026-08-04
 - Scope: Coverage policy, test-layer ownership, Storybook, React version
+
+> **Superseded in part.** The coverage gate described below never existed in the code, and the
+> a11y flip to `'error'` had not happened. ADR 006 records what is actually gated, at what
+> numbers, and when each check runs. Layer ownership and the Storybook authoring rules here still
+> stand.
 
 ## Context
 

@@ -53,9 +53,9 @@ const meta = /** @type {import('@storybook/react-vite').Meta} */ ({
     docs: {
       description: {
         component: [
-          '**TodoLists** is the composed Todo Lists UI (summaries, active list editor, delete confirm). Stories mount the real **App** layout against an in-memory datom server so status, lists, and editor stay wired as in production.',
-          '**Docs vs story Canvas:** Each preview on this Docs page is the **before-`play` setup** (seed / loaders only). Open the matching **story** in the sidebar to see the **after-`play` result** — that is what Why/See describe, and what Interactions asserts. Docs does not autoplay: running every `play` on one page races focus and typing across stories.',
-          'Wire-level proofs (POSTs, settle coalescing) are noted under **Proof** only when they are not obvious on the canvas.',
+          '**TodoLists** is the composed catalog + active-list editor (and delete confirm). Stories mount the real **App** shell against an in-memory datom server so StatusBar, summaries, and the form stay wired as in production.',
+          'These plays own **composition** outcomes: projection summaries, clock/offline editing gates, settle/POST coalescing, remote/epoch sync, draft lifecycle, delete confirm routing, and selection across resort. Field-level behavior is covered under TodoListForm / TodoItem / StatusBar / dialogs.',
+          '**Docs vs story Canvas:** Docs previews are **before-`play`** (seed/loaders only). Open the story for the **after-`play`** result (Why/See). No Docs autoplay — concurrent plays race focus and typing. **Proof** marks checks that are not visible on the canvas (e.g. POST body).',
         ].join('\n\n'),
       },
     },
@@ -74,8 +74,9 @@ export const SummariesFromProjection = {
   play: async ({ canvas, loaded }) => {
     loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
     await waitUntilConnected(canvas, expect)
-    await expect(canvas.getByText('0 of 1 completed')).toBeInTheDocument()
-    await expect(canvas.getByText('No todos yet')).toBeInTheDocument()
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(lists).getByText('0 of 1 completed')).toBeInTheDocument()
+    await expect(within(lists).getByText('No todos yet')).toBeInTheDocument()
   },
 }
 
@@ -83,7 +84,7 @@ export const SummariesFromProjection = {
 export const EditingDisabledUntilClock = {
   ...storyDocs([
     '**Why:** Editing stays off until the client has a server clock — no edits against an unsynced stream.',
-    '**See:** Add Todo List is disabled; status shows Connection lost. Lists stay empty because the stream never opened.',
+    '**See:** Add Todo List is disabled; Application status alert shows Connection lost. Lists stay empty because the stream never opened.',
   ].join(' ')),
   loaders: [
     async () => {
@@ -97,7 +98,10 @@ export const EditingDisabledUntilClock = {
   ),
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole('button', { name: 'Add Todo List' })).toBeDisabled()
-    await expect(canvas.getByRole('alert')).toHaveTextContent('Connection lost')
+    await expect(canvas.getByRole('alert', { name: 'Application status' })).toHaveTextContent(
+      'Connection lost'
+    )
+    await expect(canvas.queryAllByRole('listitem')).toHaveLength(0)
   },
 }
 
@@ -120,7 +124,9 @@ export const EditingStaysEnabledOffline = {
     await settle()
 
     await expect(field).toHaveValue('Written while offline')
-    await expect(canvas.getByRole('alert')).toHaveTextContent('Waiting for connection')
+    await expect(canvas.getByRole('alert', { name: 'Application status' })).toHaveTextContent(
+      'Waiting for connection'
+    )
   },
 }
 
@@ -158,6 +164,7 @@ export const OneDatomPerSettledEdit = {
     await expect(datoms).toEqual([
       [FIRST_TODO, ATTRIBUTE.TEXT, 'Settled once', expect.any(String), true],
     ])
+    await expect(field).toHaveValue('Settled once')
     await expect(loaded.server.store.readModel()[FIRST_LIST].todos[0].text).toBe('Settled once')
   },
 }
@@ -193,14 +200,13 @@ export const SavingAppearsAfterDelay = {
     await userEvent.type(canvas.getByLabelText('What to do?'), '!')
     await settle()
 
-    await expect(canvas.getByRole('status')).toHaveTextContent('All changes saved')
+    const status = canvas.getByRole('status', { name: 'Application status' })
+    await expect(status).toHaveTextContent('All changes saved')
     await new Promise((resolve) => setTimeout(resolve, SAVING_INDICATOR_DELAY_MS + 50))
-    await expect(canvas.getByRole('status')).toHaveTextContent('Saving…')
+    await expect(status).toHaveTextContent('Saving…')
 
     releasePost?.()
-    await waitFor(() =>
-      expect(canvas.getByRole('status')).toHaveTextContent('All changes saved')
-    )
+    await waitFor(() => expect(status).toHaveTextContent('All changes saved'))
   },
 }
 
@@ -216,7 +222,8 @@ export const RemoteWriteAppears = {
     loaded.server.push([
       [todoId(FIRST_LIST, at()), ATTRIBUTE.TEXT, 'From another tab', ulid(at()), true],
     ])
-    await expect(await canvas.findByText('0 of 2 completed')).toBeInTheDocument()
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(await within(lists).findByText('0 of 2 completed')).toBeInTheDocument()
   },
 }
 
@@ -225,11 +232,12 @@ export const ReplacedLogResetsClient = {
   ...withServer(),
   ...storyDocs([
     '**Why:** A replaced journal (new epoch) must reset the client so old and new logs never merge on screen.',
-    '**See:** Two lists become a single `Only List`; First List and Second List disappear.',
+    '**See:** Two lists become a single `Only List`; First List and Second List are gone.',
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
-    await expect(canvas.getAllByRole('listitem')).toHaveLength(2)
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(lists).getAllByRole('listitem')).toHaveLength(2)
 
     // A server whose journal was wiped re-seeds with fresh ids minted now, so
     // they sort above the cursor this client already holds. Without the epoch the
@@ -241,11 +249,11 @@ export const ReplacedLogResetsClient = {
     ])
 
     await waitFor(async () => {
-      await expect(canvas.getAllByRole('listitem')).toHaveLength(1)
+      await expect(within(lists).getAllByRole('listitem')).toHaveLength(1)
     })
-    await expect(canvas.getByText('Only List')).toBeInTheDocument()
-    await expect(canvas.queryByText('First List')).not.toBeInTheDocument()
-    await expect(canvas.queryByText('Second List')).not.toBeInTheDocument()
+    await expect(within(lists).getByText('Only List')).toBeInTheDocument()
+    await expect(within(lists).queryAllByText('First List')).toHaveLength(0)
+    await expect(within(lists).queryAllByText('Second List')).toHaveLength(0)
   },
 }
 
@@ -260,7 +268,8 @@ export const LocalCompletionUpdatesSummary = {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
     await userEvent.click(canvas.getByLabelText('Mark completed: First todo of first list!'))
-    await expect(canvas.getByText('1 of 1 completed')).toBeInTheDocument()
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(lists).getByText('1 of 1 completed')).toBeInTheDocument()
     await expect(canvas.getByRole('button', { name: /^First List / })).toHaveAttribute(
       'aria-current',
       'true'
@@ -293,7 +302,7 @@ export const GhostComposerLifecycle = {
     await settle()
     await userEvent.clear(composer)
     await settle()
-    await expect(canvas.queryByDisplayValue('Temporary')).not.toBeInTheDocument()
+    await expect(canvas.queryAllByDisplayValue('Temporary')).toHaveLength(0)
   },
 }
 
@@ -301,14 +310,14 @@ export const GhostComposerLifecycle = {
 export const NamedRegions = {
   ...withServer(),
   ...storyDocs([
-    '**Why:** The active list exposes stable accessible regions so assistive tech (and tests) can find editor vs composer.',
-    '**See:** With First List open, the canvas has a `Todo editor` region and a `New todo` group — check the accessibility tree if it is not obvious visually.',
+    '**Why:** Opening a list in the composed app must expose the same editor landmarks as the form stories.',
+    '**See:** With First List open, Todo editor region and New todo group are present (a11y tree).',
   ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
-    await expect(canvas.getByRole('region', { name: 'Todo editor' })).toBeInTheDocument()
-    await expect(canvas.getByRole('group', { name: 'New todo' })).toBeInTheDocument()
+    const editor = canvas.getByRole('region', { name: 'Todo editor' })
+    await expect(within(editor).getByRole('group', { name: 'New todo' })).toBeInTheDocument()
   },
 }
 
@@ -325,13 +334,13 @@ export const DraftMaterializesOnSettle = {
     const add = canvas.getByRole('button', { name: 'Add Todo List' })
     await userEvent.click(add)
     await expect(canvas.getByLabelText('Todo List name')).toHaveFocus()
-    await expect(canvas.queryByLabelText('Add a todo')).not.toBeInTheDocument()
+    await expect(canvas.queryAllByLabelText('Add a todo')).toHaveLength(0)
     await userEvent.click(add)
     await expect(canvas.getByLabelText('Todo List name')).toHaveFocus()
     await expect(canvas.getAllByLabelText('Todo List name')).toHaveLength(1)
 
     await userEvent.type(canvas.getByLabelText('Todo List name'), 'Release')
-    await expect(canvas.queryByLabelText('Add a todo')).not.toBeInTheDocument()
+    await expect(canvas.queryAllByLabelText('Add a todo')).toHaveLength(0)
     await settle()
 
     await expect(canvas.getByLabelText('Add a todo')).toBeInTheDocument()
@@ -352,22 +361,23 @@ export const DeleteEmptyAndConfirmPopulated = {
   play: async ({ canvas, loaded }) => {
     loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
     await waitUntilConnected(canvas, expect)
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
 
     await userEvent.click(canvas.getByRole('button', { name: 'Delete Todo List: Second List' }))
-    await expect(canvas.queryByRole('dialog')).not.toBeInTheDocument()
-    await expect(canvas.queryByText('Second List')).not.toBeInTheDocument()
+    await expect(screen.queryAllByRole('dialog')).toHaveLength(0)
+    await expect(within(lists).queryAllByText('Second List')).toHaveLength(0)
 
     await userEvent.click(canvas.getByRole('button', { name: 'Delete Todo List: First List' }))
-    await expect(await screen.findByRole('dialog', { name: 'Delete First List?' })).toHaveTextContent(
-      '1 Todo will also disappear.'
-    )
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    await expect(canvas.getByText('First List')).toBeInTheDocument()
+    const dialog = await screen.findByRole('dialog', { name: 'Delete First List?' })
+    await expect(dialog).toHaveTextContent('1 Todo will also disappear.')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await expect(screen.queryAllByRole('dialog')).toHaveLength(0)
+    await expect(within(lists).getByText('First List')).toBeInTheDocument()
 
     await userEvent.click(canvas.getByRole('button', { name: 'Delete Todo List: First List' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Delete Todo List' }))
-    await expect(canvas.queryByText('First List')).not.toBeInTheDocument()
+    const confirm = await screen.findByRole('dialog', { name: 'Delete First List?' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete Todo List' }))
+    await expect(within(lists).queryAllByText('First List')).toHaveLength(0)
     await waitFor(() =>
       expect(canvas.getByRole('button', { name: 'Add Todo List' })).toHaveFocus()
     )

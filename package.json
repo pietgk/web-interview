@@ -4,27 +4,34 @@
   "private": true,
   "description": "Sellpy web interview assignment",
   "scripts": {
-    "test": "npm test --prefix shared && npm test --prefix backend && npm test --prefix frontend && npm run test:quality",
-    "test:shared": "npm test --prefix shared",
-    "test:backend": "npm test --prefix backend",
-    "test:frontend": "npm test --prefix frontend",
-    "test:quality": "node --test scripts/*.test.mjs",
-    "test:e2e": "playwright test",
-    "kill": "lsof -ti tcp:3000 -i tcp:3001 -i tcp:4173 -i tcp:6006 -sTCP:LISTEN | xargs kill",
+    "watch": "node scripts/watch.mjs",
+    "verify": "node scripts/verify.mjs",
+    "test": "node scripts/verify.mjs",
+    "lint": "node scripts/verify.mjs lint",
+    "typecheck": "npm run build:types && npm run check:declarations && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
+    "storybook": "npm run storybook --prefix frontend",
     "preview": "node scripts/demo.mjs",
-    "quality:lighthouse": "npm run build --prefix frontend -- --sourcemap && node scripts/run-lighthouse.mjs",
+    "kill": "lsof -ti tcp:3000 -i tcp:3001 -i tcp:3100 -i tcp:3101 -i tcp:3200 -i tcp:3201 -i tcp:4173 -i tcp:6006 -sTCP:LISTEN | xargs kill",
     "build:types": "npm run build:types --prefix shared",
     "check:declarations": "node scripts/check-declarations.mjs",
-    "postinstall": "npm run build:types",
-    "typecheck": "npm run build:types && npm run check:declarations && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
-    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend"
+    "postinstall": "npm run build:types"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
     "@types/punycode": "^2.1.4",
+    "@vitest/browser": "^3.2.7",
+    "@vitest/coverage-v8": "^3.2.7",
     "@web-interview/todos": "file:shared",
+    "eslint": "^9.39.5",
+    "globals": "^17.9.0",
+    "happy-dom": "^20.11.1",
     "lighthouse": "13.4.1",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "^3.2.7"
   }
 }

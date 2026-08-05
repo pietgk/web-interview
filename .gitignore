@@ -14,6 +14,8 @@ shared/dist
 
 # Root / e2e
 node_modules
+/coverage/
+/.vitest-reports/
 /test-results/
 /playwright-report/
 /blob-report/

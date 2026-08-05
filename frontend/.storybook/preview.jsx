@@ -14,8 +14,9 @@ const preview = {
       },
     },
     a11y: {
-      // Flip to 'error' when the inventory is green (violations only).
-      test: 'todo',
+      // Violations fail the build. The story inventory was green when this was
+      // turned on, and keeping it on is what stops the next story regressing it.
+      test: 'error',
       config: {
         rules: [
           {
