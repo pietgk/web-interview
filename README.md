@@ -46,12 +46,12 @@ Three installs from the repo root, plus a browser. This is exactly what CI runs:
 npm ci
 npm ci --prefix backend
 npm ci --prefix frontend
-npx playwright install chromium   # first time / clean machine
+npx playwright install chromium
 ```
 
 Backend and frontend keep their own lockfiles, so the root install does not reach them: `react`,
-`@mui/material` and `express` live only in those trees. Chromium is what the Storybook and
-Playwright stages run in.
+`@mui/material` and `express` live only in those trees. The last line installs the browser the
+Storybook and Playwright stages run in, and is only needed on a clean machine.
 
 `shared/` needs no install of its own. Backend and frontend pull it in through `file:`
 dependencies and the root depends on it the same way, so its dependencies land in the root tree.
@@ -60,29 +60,23 @@ read. Regenerate them explicitly with `npm run build:types`.
 
 ### Start
 
-Two processes, from `backend/` and `frontend/`:
+Run `npm start` in `backend/`, then in `frontend/`. A browser tab opens automatically on the
+frontend.
 
-```bash
-npm start           # in backend/, then in frontend/
-```
-
-A browser tab opens automatically on the frontend.
-
-```bash
-npm run storybook   # components in isolation, with HMR
-npm run preview     # interactive demo: drives the app and can stop the backend
-                    # mid-session to show reconnect and outbox drain
-npm run kill        # free every port this repo binds
-```
+| From the repo root | What it does |
+| --- | --- |
+| `npm run storybook` | Components in isolation, with HMR |
+| `npm run preview` | Interactive demo: drives the app, and can stop the backend mid-session to show reconnect and outbox drain |
+| `npm run kill` | Frees every port this repo binds |
 
 ## Verifying
 
 Two commands. Leave the first open while you work; run the second before you commit.
 
-```bash
-npm run watch     # ~2s per change: all Node + happy-dom tests and typecheck, one GREEN/RED line
-npm run verify    # ~70s: everything CI runs, in the order CI runs it
-```
+| Command | Cost | What it does |
+| --- | --- | --- |
+| `npm run watch` | ~2s per change | All Node + happy-dom tests and typecheck, as one GREEN/RED line |
+| `npm run verify` | ~70s | Everything CI runs, in the order CI runs it |
 
 `verify` runs four stages and stops at the first that fails, because a failure makes the stages
 after it meaningless:
@@ -96,11 +90,11 @@ after it meaningless:
 
 Run any part by name, and ask it what it covers:
 
-```bash
-npm run verify browser     # one stage
-npm run verify lint e2e    # any mix of stages and steps
-npm run verify help        # what every stage and step covers
-```
+| Command | Runs |
+| --- | --- |
+| `npm run verify browser` | One stage |
+| `npm run verify lint e2e` | Any mix of stages and steps |
+| `npm run verify help` | Prints what every stage and step covers |
 
 CI is a single step running this same file in the same order, so a green local run cannot be
 surprised by a red build.

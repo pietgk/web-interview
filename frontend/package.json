@@ -56,5 +56,8 @@
   "allowScripts": {
     "esbuild": true,
     "fsevents": true
+  },
+  "overrides": {
+    "glob": "^13.0.0"
   }
 }
