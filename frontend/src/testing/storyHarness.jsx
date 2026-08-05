@@ -1,9 +1,7 @@
 import React from 'react'
+import App from '../App'
 import { createFakeDatomServer } from './fakeDatomServer'
 import { createTodoClient } from '../todos/todoClient'
-import { useTodoLists } from '../todos/useTodoLists'
-import { StatusBar } from '../todos/components/StatusBar'
-import { TodoLists } from '../todos/components/TodoLists'
 
 /** @typedef {ReturnType<typeof createStoryServer>} StoryServer */
 
@@ -49,21 +47,13 @@ export const createStoryServer = ({ startTime, seed = [] } = {}) => {
 }
 
 /**
- * StatusBar + TodoLists sharing one runtime against a fake server.
+ * Full App layout against a fake server (same shell as production / App stories).
  *
- * @param {{server: StoryServer, style?: React.CSSProperties}} props
+ * @param {{server: StoryServer}} props
  */
-export const ComposedTodoApp = ({ server, style = {} }) => {
-  const runtime = useTodoLists({
-    createClient: () => createClientForServer(server),
-  })
-  return (
-    <>
-      <StatusBar runtime={runtime} />
-      <TodoLists runtime={runtime} style={style} />
-    </>
-  )
-}
+export const ComposedTodoApp = ({ server }) => (
+  <App createClient={() => createClientForServer(server)} />
+)
 
 /**
  * Wait until the fake stream has opened and editing is enabled.

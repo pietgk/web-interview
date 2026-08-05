@@ -37,10 +37,28 @@ const withServer = (seed = seedDatoms()) => ({
   ),
 })
 
+/** @param {string} story */
+const storyDocs = (story) => ({
+  parameters: {
+    docs: {
+      description: { story },
+    },
+  },
+})
+
 const meta = /** @type {import('@storybook/react-vite').Meta} */ ({
   title: 'Todos/TodoLists',
   parameters: {
     layout: 'fullscreen',
+    docs: {
+      description: {
+        component: [
+          '**TodoLists** is the composed Todo Lists UI (summaries, active list editor, delete confirm). Stories mount the real **App** layout against an in-memory datom server so status, lists, and editor stay wired as in production.',
+          '**Docs vs story Canvas:** Each preview on this Docs page is the **before-`play` setup** (seed / loaders only). Open the matching **story** in the sidebar to see the **after-`play` result** — that is what Why/See describe, and what Interactions asserts. Docs does not autoplay: running every `play` on one page races focus and typing across stories.',
+          'Wire-level proofs (POSTs, settle coalescing) are noted under **Proof** only when they are not obvious on the canvas.',
+        ].join('\n\n'),
+      },
+    },
   },
 })
 
@@ -49,6 +67,10 @@ export default meta
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const SummariesFromProjection = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** List recaps come from the projected read model, not from ad-hoc UI state.',
+    '**See:** After the second list’s only Todo is retracted, First List shows `0 of 1 completed` and Second List shows `No todos yet`.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
     await waitUntilConnected(canvas, expect)
@@ -59,6 +81,10 @@ export const SummariesFromProjection = {
 
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const EditingDisabledUntilClock = {
+  ...storyDocs([
+    '**Why:** Editing stays off until the client has a server clock — no edits against an unsynced stream.',
+    '**See:** Add Todo List is disabled; status shows Connection lost. Lists stay empty because the stream never opened.',
+  ].join(' ')),
   loaders: [
     async () => {
       const server = createStoryServer({ seed: seedDatoms() })
@@ -78,6 +104,10 @@ export const EditingDisabledUntilClock = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const EditingStaysEnabledOffline = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** Once the client has a clock, losing the connection must not lock the UI — local edits stay allowed.',
+    '**See:** After disconnect, Add stays enabled, the active Todo can be edited to `Written while offline`, and status shows Waiting for connection.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
@@ -97,6 +127,11 @@ export const EditingStaysEnabledOffline = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const OneDatomPerSettledEdit = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** Typing must settle into a single write, not one datom per keystroke.',
+    '**See:** The Todo text becomes `Settled once` after the settle delay.',
+    '**Proof:** `play` asserts exactly one POST with that text — not visible on the canvas.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     /** @type {Parameters<typeof fetch>[]} */
     const posted = []
@@ -130,6 +165,10 @@ export const OneDatomPerSettledEdit = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const SavingAppearsAfterDelay = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** The Saving… indicator is delayed so fast round-trips do not flicker the status line.',
+    '**See:** Status stays All changes saved through settle, then shows Saving… while the POST is held, then returns to All changes saved when released.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     /** @type {(() => void) | undefined} */
     let releasePost
@@ -168,6 +207,10 @@ export const SavingAppearsAfterDelay = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const RemoteWriteAppears = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** Remote stream writes must show up in the summaries without a local edit.',
+    '**See:** After another-tab Todo is pushed onto First List, the recap becomes `0 of 2 completed`.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
     loaded.server.push([
@@ -180,6 +223,10 @@ export const RemoteWriteAppears = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const ReplacedLogResetsClient = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** A replaced journal (new epoch) must reset the client so old and new logs never merge on screen.',
+    '**See:** Two lists become a single `Only List`; First List and Second List disappear.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
     await expect(canvas.getAllByRole('listitem')).toHaveLength(2)
@@ -205,6 +252,10 @@ export const ReplacedLogResetsClient = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const LocalCompletionUpdatesSummary = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** Completing a Todo must refresh that list’s summary while keeping selection.',
+    '**See:** Mark the First List Todo done → recap becomes `1 of 1 completed`, and First List stays current.',
+  ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
@@ -220,6 +271,10 @@ export const LocalCompletionUpdatesSummary = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const GhostComposerLifecycle = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** The ghost composer materializes a Todo on settle/Enter and dematerializes when cleared blank.',
+    '**See:** Typing in Add a todo does not add a row until Enter; then a Todo appears. A temporary settled Todo disappears again when the composer is cleared.',
+  ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
@@ -245,6 +300,10 @@ export const GhostComposerLifecycle = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const NamedRegions = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** The active list exposes stable accessible regions so assistive tech (and tests) can find editor vs composer.',
+    '**See:** With First List open, the canvas has a `Todo editor` region and a `New todo` group — check the accessibility tree if it is not obvious visually.',
+  ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
@@ -256,6 +315,10 @@ export const NamedRegions = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const DraftMaterializesOnSettle = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** A new Todo List is a draft until its title settles — no composer, and Add does not spawn a second draft.',
+    '**See:** Add focuses Todo List name with no Add a todo yet; after typing `Release` and settling, the composer appears and Release is selected with `No todos yet`.',
+  ].join(' ')),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)
 
@@ -282,6 +345,10 @@ export const DraftMaterializesOnSettle = {
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const DeleteEmptyAndConfirmPopulated = {
   ...withServer(),
+  ...storyDocs([
+    '**Why:** Empty Todo Lists delete immediately; populated ones require confirm, cancel must keep the list, and focus returns to Add when none remain.',
+    '**See:** Second List (empty) vanishes with no dialog; First List opens Delete First List?, Cancel keeps it, Confirm removes it and focuses Add Todo List.',
+  ].join(' ')),
   play: async ({ canvas, loaded }) => {
     loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
     await waitUntilConnected(canvas, expect)
@@ -309,6 +376,10 @@ export const DeleteEmptyAndConfirmPopulated = {
 
 /** @type {import('@storybook/react-vite').StoryObj} */
 export const ResortKeepsSelection = {
+  ...storyDocs([
+    '**Why:** Changing due dates may reorder Todo Lists, but the active selection must follow the same list.',
+    '**See:** Second List starts first (earlier due date); after moving First List’s due date earlier, First List becomes first and stays `aria-current`.',
+  ].join(' ')),
   loaders: [
     async () => {
       const server = createStoryServer({
