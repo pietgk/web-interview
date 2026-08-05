@@ -14,8 +14,12 @@ shared/dist
 
 # Root / e2e
 node_modules
+.DS_Store
 /coverage/
 /.vitest-reports/
+# Scratch dirs from ad-hoc coverage measurement runs
+/.wide-coverage/
+/.wide-reports/
 /test-results/
 /playwright-report/
 /blob-report/
