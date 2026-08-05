@@ -1,4 +1,21 @@
-/** A minimal Server-Sent Events reader for tests, since Node has no `EventSource`. */
+/**
+ * Reads *this server's* Server-Sent Events dialect, for tests, because Node has
+ * no `EventSource`.
+ *
+ * It is not a spec-compliant SSE client and should not be reused as one. It
+ * assumes what `routes/datoms.js` actually writes:
+ *
+ * - frames separated by `\n\n`, never `\r\n\r\n`
+ * - exactly one `data:` line per frame; a second would overwrite the first
+ *   rather than joining with a newline as the spec requires. Safe here only
+ *   because every payload is `JSON.stringify`, which escapes newlines.
+ * - a space after the field name (`id: `, not `id:`)
+ * - no comment (`:`) lines; this server heartbeats with a `clock` event instead
+ *
+ * `sseClient.test.js` pins each of those assumptions, because most of the datom
+ * API suite reads its stream through here and a reader that silently mis-frames
+ * would make those tests agree with a broken server.
+ */
 
 /** @typedef {{type: string, data: string, id: string | undefined}} ServerSentEvent */
 

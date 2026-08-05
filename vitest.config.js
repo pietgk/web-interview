@@ -81,7 +81,7 @@ export default defineConfig({
         '**/backend/src/config.js': { statements: 89, lines: 89, functions: 100, branches: 85 },
         '**/backend/src/routes/datoms.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/backend/src/seed.js': { statements: 85, lines: 85, functions: 50, branches: 100 },
-        '**/backend/src/testing/sseClient.js': { statements: 97, lines: 97, functions: 100, branches: 91 },
+        '**/backend/src/testing/sseClient.js': { statements: 100, lines: 100, functions: 100, branches: 96 },
         '**/backend/src/todos/datomJournal.js': { statements: 100, lines: 100, functions: 100, branches: 90 },
         '**/backend/src/todos/datomService.js': { statements: 100, lines: 100, functions: 100, branches: 89 },
 
