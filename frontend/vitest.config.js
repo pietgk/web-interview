@@ -12,7 +12,6 @@ export default mergeConfig(
       name: 'frontend',
       environment: 'happy-dom',
       globals: true,
-      setupFiles: './src/setupTests.js',
       include: ['src/**/*.{test,spec}.{js,jsx}'],
       server: {
         deps: {

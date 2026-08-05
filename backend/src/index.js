@@ -10,5 +10,5 @@ const datomService = await createDatomService({
 const app = createApp(datomService, { corsOrigins: config.corsOrigins })
 
 app.listen(config.port, () =>
-  console.log(`Example app listening on port ${config.port}!`)
+  console.log(`Todo app listening on port ${config.port}!`)
 )
