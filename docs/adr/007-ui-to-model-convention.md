@@ -242,13 +242,29 @@ Prose lost this convention once. Three defences, and only the third cannot fail 
 1. This ADR.
 2. A row in the `AGENTS.md` *"Where things are"* table, which is the file agents and people
    actually consult before writing a component.
-3. An ESLint `no-restricted-imports` rule: nothing under `frontend/src/todos/components/` may
-   import `@web-interview/todos/datom`, and nothing but `todoListCommands.js` may name
-   `client.assert` or `client.retract`. Breaking the convention then fails `npm run verify`.
+3. Two ESLint rules in `frontend/eslint.config.js`, so breaking the convention fails
+   `npm run verify`:
+   - `no-restricted-imports` on `@web-interview/todos/datom` for `src/todos/components/**`.
+     `*.stories.jsx` is exempt, because stories seed a fake server with literal datoms, which is
+     fixture construction rather than a component talking to the model.
+   - `no-restricted-syntax` on `MemberExpression[property.name=/^(assert|retract)$/]` across
+     `src/**`, exempting `todoListCommands.js`. Matching the property name rather than the literal
+     `client.assert` also catches the aliased and destructured forms. `todoClient.js` declares
+     these as object properties rather than member expressions, so it needs no exemption.
 
 Defence 3 applies this repo's own standard to itself. `AGENTS.md` argues it about the verify gate:
 *"a path rule cannot be talked into being wrong, and reasoning can."* A convention living only in
 prose is reasoning.
+
+`TodoLists.jsx` is exempt from both rules through a `notYetMigrated` list, which is **a lockfile,
+not a target**, in the same sense as the coverage thresholds in `vitest.config.js`: it records the
+one file not yet migrated so the gate lands green and can only ratchet down. The entry is not
+cosmetic - removing it produces 12 errors, which is precisely the work the rest of this ADR
+describes. Never add an entry; emptying the list completes this ADR.
+
+A gate that ships red was considered and rejected. `AGENTS.md` defines done as a full green
+`verify`, so a permanently red gate would make every later run ambiguous and would train readers
+to skip past it, which is worse than no gate. The lockfile protects every other file from today.
 
 ## Consequences
 
