@@ -11,12 +11,15 @@ import { defineConfig } from 'vitest/config'
 // through the story files. See ADR 006.
 // Only non-UI seams are gated. Components are judged by story states, play
 // functions, and a11y - never by a line percentage on JSX (ADR 005, ADR 006).
+//
+// The rule is the file extension: **`.js` is logic and is gated, `.jsx` is a
+// component and is not.** Globs rather than a file list, so a new logic file is
+// gated the day it is written instead of the day someone remembers to add it.
 const GATED_SEAMS = [
   'shared/src/**/*.js',
   'backend/src/**/*.js',
-  'frontend/src/todos/todoModel.js',
-  'frontend/src/todos/todoListsUiState.js',
-  'frontend/src/testing/fakeDatomServer.js',
+  'frontend/src/todos/**/*.js',
+  'frontend/src/testing/*.js',
 ]
 
 export default defineConfig({
@@ -38,6 +41,10 @@ export default defineConfig({
         // Process bootstrap. e2e proves it, in a process v8 cannot see from here.
         '**/backend/src/index.js',
       ],
+      // Without this, v8 counts comment lines inside an uncovered region as
+      // uncovered statements, so explaining why a branch is unreachable makes
+      // the number worse. This codebase comments heavily; the distortion is real.
+      ignoreEmptyLines: true,
       // `html` so a passing gate is still readable: open coverage/index.html and
       // click into a file to see which lines and branches are missed.
       reporter: ['text', 'json-summary', 'html'],
@@ -63,24 +70,30 @@ export default defineConfig({
         functions: 50,
         branches: 75,
 
+        '**/shared/src/calendarDate.js': { statements: 100, lines: 100, functions: 100, branches: 75 },
         '**/shared/src/datom.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
-        '**/shared/src/todoProtocol.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/shared/src/datomStore.js': { statements: 100, lines: 100, functions: 100, branches: 98 },
         '**/shared/src/selectors.js': { statements: 100, lines: 100, functions: 100, branches: 95 },
-        '**/shared/src/calendarDate.js': { statements: 100, lines: 100, functions: 100, branches: 75 },
-        '**/shared/src/ulid.js': { statements: 98, lines: 98, functions: 81, branches: 96 },
+        '**/shared/src/todoProtocol.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
+        '**/shared/src/ulid.js': { statements: 99, lines: 99, functions: 81, branches: 96 },
 
-        '**/backend/src/routes/datoms.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
-        '**/backend/src/todos/datomJournal.js': { statements: 100, lines: 100, functions: 100, branches: 86 },
-        '**/backend/src/todos/datomService.js': { statements: 100, lines: 100, functions: 100, branches: 89 },
-        '**/backend/src/testing/sseClient.js': { statements: 97, lines: 97, functions: 100, branches: 91 },
         '**/backend/src/app.js': { statements: 89, lines: 89, functions: 100, branches: 77 },
         '**/backend/src/config.js': { statements: 89, lines: 89, functions: 100, branches: 85 },
+        '**/backend/src/routes/datoms.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/backend/src/seed.js': { statements: 85, lines: 85, functions: 50, branches: 100 },
+        '**/backend/src/testing/sseClient.js': { statements: 97, lines: 97, functions: 100, branches: 91 },
+        '**/backend/src/todos/datomJournal.js': { statements: 100, lines: 100, functions: 100, branches: 90 },
+        '**/backend/src/todos/datomService.js': { statements: 100, lines: 100, functions: 100, branches: 89 },
 
-        '**/frontend/src/todos/todoModel.js': { statements: 100, lines: 100, functions: 100, branches: 94 },
         '**/frontend/src/testing/fakeDatomServer.js': { statements: 100, lines: 100, functions: 95, branches: 95 },
+        '**/frontend/src/todos/components/focusLeft.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
+        '**/frontend/src/todos/legacyReplica.js': { statements: 90, lines: 90, functions: 100, branches: 75 },
+        '**/frontend/src/todos/todoClient.js': { statements: 94, lines: 94, functions: 93, branches: 83 },
         '**/frontend/src/todos/todoListsUiState.js': { statements: 97, lines: 97, functions: 100, branches: 92 },
+        '**/frontend/src/todos/todoModel.js': { statements: 100, lines: 100, functions: 100, branches: 94 },
+        '**/frontend/src/todos/todoUiProtocol.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
+        '**/frontend/src/todos/useSettledText.js': { statements: 100, lines: 100, functions: 100, branches: 93 },
+        '**/frontend/src/todos/useTodoLists.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
       },
     },
   },

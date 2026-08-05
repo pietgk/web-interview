@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="1102" viewBox="0 0 1180 1102">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs><marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1e1e1e"/></marker></defs>
+<text x="40" y="60" font-family="ui-sans-serif, system-ui, sans-serif" font-size="32" fill="#212529">Sellpy todo app — how it’s built</text>
+<text x="40" y="84" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#868e96">UI top→bottom  ·  client delivery + journal  ·  datoms  ·  how we verify</text>
+<rect x="40" y="110" width="1100" height="320" rx="8" fill="#f8f9fa" stroke="#ced4da" stroke-width="2"/>
+<text x="56" y="140" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#212529">1 · UI  (top → bottom)</text>
+<rect x="64" y="158" width="1052" height="52" rx="8" fill="#e7f5ff" stroke="#74c0fc" stroke-width="2"/>
+<text x="80" y="184" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">StatusBar — connection / saving / errors</text>
+<text x="80" y="201" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">Details when needed  ·  action to reconnect / recover</text>
+<rect x="64" y="222" width="1052" height="72" rx="8" fill="#fff3bf" stroke="#fcc419" stroke-width="2"/>
+<text x="80" y="248" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Todo Lists — select a list</text>
+<text x="80" y="267" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">+ creates a draft list (title only until it materializes)</text>
+<text x="1020" y="264" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20" fill="#e67700">[ + ]</text>
+<rect x="64" y="306" width="1052" height="100" rx="8" fill="#d3f9d8" stroke="#51cf66" stroke-width="2"/>
+<text x="80" y="330" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Focused Todo List</text>
+<rect x="80" y="338" width="320" height="28" rx="8" fill="#ffffff" stroke="#2f9e44" stroke-width="2"/>
+<text x="88" y="355" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#2b8a3e">Todo List name (rename)</text>
+<rect x="420" y="338" width="280" height="28" rx="8" fill="#ffffff" stroke="#2f9e44" stroke-width="2"/>
+<text x="428" y="355" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#2b8a3e">Add a todo (ghost composer)</text>
+<text x="80" y="389" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">↓ todos for the selected list</text>
+<rect x="740" y="314" width="360" height="80" rx="8" fill="#ebfbee" stroke="#2f9e44" stroke-width="1"/>
+<text x="752" y="337" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#2b8a3e">FOCUS</text>
+<text x="752" y="353.25" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#2b8a3e">title + Add a todo</text>
+<text x="752" y="369.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#2b8a3e">(work starts here; rows below are the result)</text>
+<rect x="40" y="454" width="1100" height="220" rx="8" fill="#f8f9fa" stroke="#ced4da" stroke-width="2"/>
+<text x="56" y="484" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#1e1e1e">2 · Model  — client delivery + server journal</text>
+<rect x="64" y="502" width="486" height="148" rx="8" fill="#e7f5ff" stroke="#339af0" stroke-width="2"/>
+<text x="80" y="530" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Browser client</text>
+<text x="80" y="556" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1864ab">connecting → live → reconnecting → failed</text>
+<text x="80" y="573.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1864ab">outbox / pendingCount / saving</text>
+<text x="80" y="591" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1864ab">canEdit after server clock</text>
+<text x="80" y="608.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#1864ab">StatusBar = pure projection</text>
+<rect x="630" y="502" width="486" height="148" rx="8" fill="#fff4e6" stroke="#fd7e14" stroke-width="2"/>
+<text x="646" y="530" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Server journal</text>
+<text x="646" y="556" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#d9480f">POST → validate → append JSONL</text>
+<text x="646" y="573.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#d9480f">→ datasync → ack</text>
+<text x="646" y="591" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#d9480f">broadcast winners on SSE</text>
+<text x="646" y="608.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#d9480f">(stream = compacted current set)</text>
+<line x1="550" y1="552" x2="630" y2="552" stroke="#1e1e1e" stroke-width="2" marker-end="url(#arrowhead)"/>
+<text x="570" y="548" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#495057">POST</text>
+<line x1="630" y1="602" x2="550" y2="602" stroke="#1e1e1e" stroke-width="2" marker-end="url(#arrowhead)"/>
+<text x="570" y="598" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#495057">SSE</text>
+<rect x="40" y="698" width="1100" height="200" rx="8" fill="#f8f9fa" stroke="#ced4da" stroke-width="2"/>
+<text x="56" y="728" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#1e1e1e">3 · Data  — datoms</text>
+<rect x="64" y="746" width="342.6666666666667" height="120" rx="8" fill="#f3d9fa" stroke="#be4bdb" stroke-width="2"/>
+<text x="78" y="774" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Datom</text>
+<text x="78" y="799" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">[entity, attribute, value, tx, op]</text>
+<text x="78" y="815.25" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">one fact per write</text>
+<text x="78" y="831.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">tx = identity and order</text>
+<rect x="418.6666666666667" y="746" width="342.6666666666667" height="120" rx="8" fill="#e5dbff" stroke="#7950f2" stroke-width="2"/>
+<text x="432.6666666666667" y="774" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Fold</text>
+<text x="432.6666666666667" y="799" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">LWW: highest tx wins</text>
+<text x="432.6666666666667" y="815.25" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">per (entity, attribute)</text>
+<text x="432.6666666666667" y="831.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">shared DatomStore both sides</text>
+<rect x="773.3333333333334" y="746" width="342.6666666666667" height="120" rx="8" fill="#d0bfff" stroke="#5f3dc4" stroke-width="2"/>
+<text x="787.3333333333334" y="774" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Wire</text>
+<text x="787.3333333333334" y="799" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">journal = full history</text>
+<text x="787.3333333333334" y="815.25" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">SSE = compacted winners</text>
+<text x="787.3333333333334" y="831.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">outbox in-memory (reload loses)</text>
+<text x="64" y="887" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">Example: rename list = one assertion · delete list = retract defining title → children stop projecting</text>
+<rect x="40" y="922" width="1100" height="130" rx="8" fill="#f8f9fa" stroke="#ced4da" stroke-width="2"/>
+<text x="56" y="952" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#1e1e1e">4 · How I show it</text>
+<rect x="64" y="966" width="254" height="56" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="2"/>
+<text x="76" y="986" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#212529">preview</text>
+<text x="76" y="1004" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#495057">Production demo</text>
+<text x="76" y="1019" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#495057">backend under control</text>
+<rect x="330" y="966" width="254" height="56" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="2"/>
+<text x="342" y="986" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#212529">watch / verify</text>
+<text x="342" y="1004" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#495057">Ambient GREEN/RED</text>
+<text x="342" y="1019" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#495057">full CI-ordered gate</text>
+<rect x="596" y="966" width="254" height="56" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="2"/>
+<text x="608" y="986" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#212529">Storybook</text>
+<text x="608" y="1004" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#495057">Docs · play tests</text>
+<text x="608" y="1019" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#495057">a11y</text>
+<rect x="862" y="966" width="254" height="56" rx="8" fill="#ffffff" stroke="#868e96" stroke-width="2"/>
+<text x="874" y="998" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#212529">100% lighthouse</text>
+<text x="56" y="1078" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14" fill="#868e96">Same commands locally and in CI.</text>
+</svg>

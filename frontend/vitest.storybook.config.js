@@ -30,11 +30,9 @@ export default mergeConfig(
       // stories prove, not only on what its unit test proves.
       coverage: {
         provider: 'v8',
-        include: [
-          'src/todos/todoModel.js',
-          'src/todos/todoListsUiState.js',
-          'src/testing/fakeDatomServer.js',
-        ],
+        // Must mirror the frontend entries in the root config's GATED_SEAMS, or
+        // the merged report loses whatever only the stories exercise.
+        include: ['src/todos/**/*.js', 'src/testing/*.js'],
         reporter: ['text-summary'],
       },
       browser: {

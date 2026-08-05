@@ -93,9 +93,27 @@ unit run alone would understate it and push someone into writing redundant unit 
 the stories already prove.
 
 Only non-UI seams are gated. Components are judged by story states, play functions and a11y, as
-ADR 005 says. Two files are excluded because they are structurally unmeasurable here:
-`shared/src/types.js` is pure JSDoc typedefs with no runtime code, and `backend/src/index.js` is
-the process bootstrap that e2e proves in a process v8 cannot see from inside Vitest.
+ADR 005 says. **The rule is the file extension: `.js` is logic and is gated, `.jsx` is a component
+and is not.** The include list is globs rather than filenames, so a new logic file is gated the
+day it is written instead of the day someone remembers to add it. An earlier filename list had
+already gone wrong: it gated a four-line helper while missing `todoClient.js`, the largest and
+most stateful logic file in the repo, despite ADR 005 naming "client/protocol helpers".
+
+Two files are excluded because they are structurally unmeasurable here: `shared/src/types.js` is
+pure JSDoc typedefs with no runtime code, and `backend/src/index.js` is the process bootstrap that
+e2e proves in a process v8 cannot see from inside Vitest.
+
+Individual unreachable statements are marked at the code site with `/* v8 ignore next */` and a
+comment saying why, rather than by lowering a threshold. The bar is deliberately high: only code
+that cannot be reached without replacing the thing under test qualifies. Two statements meet it -
+the ULID overflow throw, which needs all 80 random bits at maximum inside one millisecond, and the
+journal's zero-progress write guard, which needs a stubbed file handle. Everything else that looks
+defensive is merely untested, and belongs in a test.
+
+`ignoreEmptyLines` is on. Without it v8 counts comment lines inside an uncovered region as
+uncovered statements, so documenting why a branch is unreachable makes the number worse. That was
+measured, not assumed: annotating the ULID throw dropped the file from 98.16% to 96.39% before
+this was enabled, and it reads 99.13% after.
 
 **The thresholds in `vitest.config.js` are a lockfile, not a target.** The target is 100%
 statements, lines and functions with 90% branches. The committed numbers are what the suite
@@ -108,6 +126,20 @@ could slide to 85% unnoticed, which is exactly how coverage becomes a vanity num
 
 Thresholds are enabled only when `COVERAGE_GATE=1`, which the `coverage` step sets. Every other
 run collects coverage without being judged against floors calibrated for the merged report.
+
+### Proof must not be able to vanish quietly
+
+A component with no story is proven by nothing: no play function and no axe pass of its own. That
+is not hypothetical - `TodoRow.stories.jsx` was deleted in one commit and every gate stayed green.
+
+`frontend/src/testing/storyCatalog.test.js` therefore asserts that every `.jsx` under `src/` is
+either storied or named in `PRESENTATIONAL_PRIMITIVES` with the reason it owns no user-visible
+state. `TodoRow` is the one entry: a `role="group"` div with flex styles whose accessible name
+comes from `TodoItem` and `TodoComposer`, both of which have stories. The test also fails on stale
+exemptions and on exemptions for components that do have a story, so the list cannot rot.
+
+This is the same idea as the glob-based coverage include: make the safe thing the default, and
+make a deliberate exception loud rather than silent.
 
 ### The gates that were only aspirations
 
@@ -171,7 +203,33 @@ order, so a green local run cannot be surprised by a red build.
 
 ## Deferred
 
-- Raise the coverage lockfile to the 100/100/100/90 target. The named gaps are
-  `backend/src/seed.js` (50% functions), `shared/src/calendarDate.js` (75% branches),
-  `backend/src/app.js` (77% branches) and `shared/src/ulid.js` (81% functions).
-- Decide whether to adopt npm workspaces.
+**Close the behaviour gaps the widened gate exposed.** These are real paths with no proof, not
+percentage chasing:
+
+| Where | Unproven behaviour |
+| --- | --- |
+| `todoClient.js` `reconnect()` | Never executed. It is wired to the real Reconnect button in `StatusBar.jsx`, but StatusBar stories pass a fake runtime, so the button is proven and the implementation is not |
+| `todoClient.js` server rejection | A rejected datom shows "The server rejected a change"; never produced in any test |
+| `selectors.js` `details` branch | The same failure seen from the StatusBar model side |
+| `todoClient.js` outbox retry | The retry timer after a failed drain |
+| `backend/src/app.js` | The 500 handler; the API's generic error path has never run |
+| `backend/src/seed.js` | `createSeedTodoLists` is never called - every test passes an explicit seed, so the default seed is unproven |
+| `backend/src/config.js` | Config parse and validation failure paths |
+
+**Then raise the coverage lockfile to the 100/100/100/90 target.** Most of it falls out of the
+table above; the remainder is `calendarDate.js` leap-year branches and `ulid.js` functions.
+
+**Measure test strength, not just reach.** Coverage cannot tell a constraining assertion from a
+vacuous one, which is the failure mode of quickly written tests. Two mechanisms are proposed and
+not yet evaluated:
+
+- **Mutation testing** (Stryker), scoped first to `shared/src` and `todoClient.js`. DECISIONS.md
+  says this model fails silently when it is wrong - a datom not broadcast, a tombstone not
+  retained, a cursor that skips. A surviving mutant is proof that a line runs unchecked, which is
+  exactly that class of bug. Cost and survival rate are unmeasured; a scoped spike should come
+  before any commitment.
+- **Property-based testing** (fast-check) for the invariants examples can only sample: last-write-
+  wins making the fold order-independent over any permutation, ULID monotonicity across arbitrary
+  clock sequences, and journal replay determinism.
+
+**Decide whether to adopt npm workspaces.**

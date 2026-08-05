@@ -43,7 +43,14 @@ const randomBase32 = () => {
   return encoded
 }
 
-/** @param {string} encoded */
+/**
+ * Carries a base32 string by one. The overflow throw at the end needs all 80
+ * random bits already at maximum within a single millisecond, which no test can
+ * arrange without replacing the generator with one that is no longer the thing
+ * under test, so it is marked unreachable rather than chased.
+ *
+ * @param {string} encoded
+ */
 const incrementBase32 = (encoded) => {
   for (let position = encoded.length - 1; position >= 0; position -= 1) {
     const digit = ENCODING.indexOf(encoded[position])
@@ -53,6 +60,7 @@ const incrementBase32 = (encoded) => {
     }
     return `${encoded.slice(0, position)}${ENCODING[digit + 1]}${encoded.slice(position + 1)}`
   }
+  /* v8 ignore next */
   throw new Error('ULID random component overflowed within one millisecond')
 }
 

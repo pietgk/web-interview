@@ -102,6 +102,9 @@ export class DatomJournal {
         buffer.length - offset,
         null
       )
+      // Unreachable without stubbing the write, which would stub the behaviour
+      // this class exists to provide.
+      /* v8 ignore next */
       if (bytesWritten === 0) throw new Error('Datom journal write made no progress')
       offset += bytesWritten
     }

@@ -11,6 +11,7 @@
     "typecheck": "npm run build:types && npm run check:declarations && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
     "storybook": "npm run storybook --prefix frontend",
     "preview": "node scripts/demo.mjs",
+    "whiteboard": "node scripts/whiteboard.mjs",
     "kill": "lsof -ti tcp:3000 -i tcp:3001 -i tcp:3100 -i tcp:3101 -i tcp:3200 -i tcp:3201 -i tcp:4173 -i tcp:6006 -sTCP:LISTEN | xargs kill",
     "build:types": "npm run build:types --prefix shared",
     "check:declarations": "node scripts/check-declarations.mjs",

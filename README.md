@@ -28,6 +28,12 @@ Completed **main task + all 4 additional tasks**, plus the follow-up correctness
 - Shared Zod runtime contract and deterministic read-model projection
 - Completion-aware due-date status
 
+Architecture overview (UI → model → datoms → how we verify)
+
+```bash
+npm run whiteboard   # opens excalidraw.com; File → Open docs/architecture.excalidraw
+```
+
 Design rationale: see [`DECISIONS.md`](./DECISIONS.md) and
 [`docs/adr/004-single-datom-log.md`](./docs/adr/004-single-datom-log.md).
 
@@ -64,6 +70,7 @@ Other commands:
 ```bash
 npm run storybook   # component loop, with HMR
 npm run preview     # scripted demo of the running app
+npm run whiteboard  # open Excalidraw; edit docs/architecture.excalidraw there
 npm run kill        # free every port this repo binds
 ```
 
@@ -77,7 +84,7 @@ Why it is shaped this way: [`docs/adr/006-test-execution-model.md`](./docs/adr/0
 
 ### Lighthouse quality
 
-`npm run quality:lighthouse` builds the frontend with source maps, starts isolated seeded backend
+`npm run verify quality` builds the frontend with source maps, starts isolated seeded backend
 and production-preview servers, and runs three desktop Lighthouse audits. The check requires
 Performance, Accessibility, Best Practices, and SEO to remain at 100. It also guards the initial
 JavaScript transfer and estimated unused JavaScript against explicit budgets.
@@ -89,7 +96,7 @@ downloadable artifact for 14 days.
 ## Submission
 Before submitting, read through all changes one last time - **code quality matters**!
 
-If you have developed without ESLint set up, run `npm run lint` in both `/backend` and `/frontend` and fix any errors/warnings.
+If you have developed without ESLint set up, run `npm run lint` from the repo root and fix any errors/warnings.
 
 Send a link to your forked repository to your contact at Sellpy. Don't forget to mention which tasks you completed.
 
@@ -124,7 +131,7 @@ From the repo root:
 
  - Run `npm ci`
  - Run `npx playwright install chromium` (first time / clean machine)
- - Run `npm run test:e2e`
+ - Run `npm run verify e2e`
 
 ### Development set-up
 If you don't have a favorite editor we highly recommend [VSCode](https://code.visualstudio.com). We've also had some ESLint rules set up which will help you catch bugs etc. If you're using VSCode, install the regular [ESLint plugin](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) and you should be good to go!
