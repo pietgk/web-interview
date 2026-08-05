@@ -28,20 +28,19 @@ All five, plus the correctness work each one implied:
 - Shared browser/server datom store folding an append-only log by last-write-wins
 - Crash-safe, append-only JSONL persistence across server restarts
 - Real-time convergence across clients and browser tabs over Server-Sent Events
-- In-memory outbox that drains on reconnect within a session (edits do not survive a reload)
+- In-memory outbox that drains on reconnect within a session (edits do not survive a reload when not connected to the server)
 - Shared Zod runtime contract and deterministic read-model projection
 - Completion-aware due-date status
 
 ![Architecture: UI to model to datoms, and how each layer is verified](./docs/architecture.svg)
 
-The same diagram is editable as an Excalidraw scene: `npm run whiteboard` opens Excalidraw, then
-File → Open `docs/architecture.excalidraw`.
+The same diagram is editable as an Excalidraw scene: `npm run whiteboard` opens Excalidraw.
 
 ## Running it
 
 ### Install
 
-Three installs from the repo root. This is exactly what CI runs:
+Three installs from the repo root, plus a browser. This is exactly what CI runs:
 
 ```bash
 npm ci
@@ -49,6 +48,10 @@ npm ci --prefix backend
 npm ci --prefix frontend
 npx playwright install chromium   # first time / clean machine
 ```
+
+Backend and frontend keep their own lockfiles, so the root install does not reach them: `react`,
+`@mui/material` and `express` live only in those trees. Chromium is what the Storybook and
+Playwright stages run in.
 
 `shared/` needs no install of its own. Backend and frontend pull it in through `file:`
 dependencies and the root depends on it the same way, so its dependencies land in the root tree.

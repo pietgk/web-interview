@@ -211,6 +211,13 @@ order, so a green local run cannot be surprised by a red build.
 - Root now installs `vitest`, `@vitest/browser`, `happy-dom` and `eslint`, duplicating versions
   already present in `frontend/`. They must stay in lockstep. Converting to npm workspaces would
   remove both the duplication and the Storybook-under-root stall.
+- `package.json` overrides `glob` to `^13`. `@vitest/coverage-v8` depends on `test-exclude`, which
+  pins `glob ^10`, and glob's maintainer marks every version except the newest as deprecated - so
+  a clean `npm ci` printed a scary deprecation notice. `npm audit` reports no advisory against the
+  version actually installed, so this was noise rather than risk, but noise in `npm ci` output is
+  how real warnings get ignored. Coverage reports byte-identical numbers on glob 13, which is what
+  makes the override safe. Drop it once vitest ships a `test-exclude` that tracks glob itself.
+  Note that npm rejects comment keys inside `overrides`, which is why this explanation lives here.
 
 ## Deferred
 
