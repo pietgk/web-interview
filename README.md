@@ -144,4 +144,5 @@ Prettier users make no unnecessary changes.
 
 You can open the repo root as one workspace, or `/frontend` and `/backend` separately. Both work.
 
-Agent-specific working notes live in [`CLAUDE.md`](./CLAUDE.md).
+Working notes for coding agents live in [`AGENTS.md`](./AGENTS.md); `CLAUDE.md` is a one-line
+import of it, so both names give the same content.
