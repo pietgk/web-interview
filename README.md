@@ -66,7 +66,7 @@ frontend.
 | From the repo root | What it does |
 | --- | --- |
 | `npm run storybook` | Components in isolation, with HMR |
-| `npm run preview` | Interactive demo: drives the app, and can stop the backend mid-session to show reconnect and outbox drain |
+| `npm run preview` | Interactive demo: drives the app, and can stop the backend mid-session to show reconnect and outbox drain. click the client links a few times to get multiple sessions. |
 | `npm run kill` | Frees every port this repo binds |
 
 ## Verifying
