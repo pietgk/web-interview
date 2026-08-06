@@ -231,8 +231,8 @@ export const RemoteWriteAppears = {
 export const ReplacedLogResetsClient = {
   ...withServer(),
   ...storyDocs([
-    '**Why:** A replaced journal (new epoch) must reset the client so old and new logs never merge on screen.',
-    '**See:** Two lists become a single `Only List`; First List and Second List are gone.',
+    '**Why:** A replaced journal (new epoch) must reset the client so old and new logs never merge on screen, and selection must follow: it named a Todo List in a log this client no longer holds.',
+    '**See:** Two lists become a single `Only List`; First List and Second List are gone, and the editor reopens on `Only List` rather than going blank.',
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
@@ -254,6 +254,12 @@ export const ReplacedLogResetsClient = {
     await expect(within(lists).getByText('Only List')).toBeInTheDocument()
     await expect(within(lists).queryAllByText('First List')).toHaveLength(0)
     await expect(within(lists).queryAllByText('Second List')).toHaveLength(0)
+
+    // Selection is scoped to a log. Without the reset the editor stays pointed
+    // at a Todo List from the old one, resolves to nothing, and the pane is
+    // blank until the person clicks something.
+    await expect(canvas.getByRole('region', { name: 'Todo List: Only List' }))
+      .toBeInTheDocument()
   },
 }
 

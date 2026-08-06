@@ -30,7 +30,10 @@ import {
   selectListAfterDeletion,
   selectTodoListsScreen,
 } from '../todoListsScreenView'
-import { todoListsUiReducer } from '../todoListsUiState'
+import {
+  initialTodoListsUiState,
+  todoListsUiReducer,
+} from '../todoListsUiState'
 
 const DeleteTodoListDialog = lazy(() => import('./DeleteTodoListDialog'))
 
@@ -95,13 +98,9 @@ const TodoListRow = ({ todoList, summary, selected, onSelect, onDelete }) => (
 export const TodoLists = ({ runtime, style }) => {
   const { client, readModel, status } = runtime
   const commands = useMemo(() => createTodoListCommands(client), [client])
-  const [uiState, dispatch] = useReducer(todoListsUiReducer, {
-    mode: 'browsing',
-    activeListId: null,
-  })
+  const [uiState, dispatch] = useReducer(todoListsUiReducer, initialTodoListsUiState)
   const titleInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
   const addButtonRef = useRef(/** @type {HTMLButtonElement | null} */ (null))
-  const initialSelectionMade = useRef(false)
   const focusAddWhenEmpty = useRef(false)
 
   const { summaries, drafting, activeList, confirmingList, hydrated } = useMemo(
@@ -109,11 +108,18 @@ export const TodoLists = ({ runtime, style }) => {
     [readModel, uiState, status]
   )
 
+  // A different log means this client threw its world away, and a selection that
+  // named a Todo List in the old one means nothing. Keying on the epoch is what
+  // lets this run again rather than once per mount.
   useEffect(() => {
-    if (status.canEdit && !initialSelectionMade.current) {
-      initialSelectionMade.current = true
-      dispatch({ type: 'SET_ACTIVE', listId: summaries[0]?.id ?? null })
-    }
+    dispatch({ type: 'RESET' })
+  }, [status.epoch])
+
+  // The stream sends the compacted set before it sends server time, so a clock
+  // means the Todo Lists are here. The reducer ignores this unless it is still
+  // waiting, so it cannot override a choice the person already made.
+  useEffect(() => {
+    if (status.canEdit) dispatch({ type: 'HYDRATE', listId: summaries[0]?.id ?? null })
   }, [status.canEdit, summaries])
 
   useEffect(() => {

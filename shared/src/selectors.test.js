@@ -55,6 +55,7 @@ describe('todo-list selectors', () => {
         saving: false,
         canEdit: true,
         error: null,
+        epoch: 'epoch',
         ...overrides,
       })
       return {

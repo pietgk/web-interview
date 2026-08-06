@@ -38,6 +38,7 @@
  * @property {boolean} saving
  * @property {boolean} canEdit
  * @property {string | null} error
+ * @property {string | null} epoch which log the store was folded from, null until the stream says
  */
 
 /** @typedef {'error' | 'info' | 'success' | 'warning'} StatusBarSeverity */

@@ -11,6 +11,7 @@ const clientStatus = (status = {}) => ({
   saving: false,
   canEdit: true,
   error: null,
+  epoch: 'epoch',
   ...status,
 })
 

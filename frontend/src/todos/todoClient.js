@@ -26,7 +26,8 @@ const sameStatus = (left, right) =>
   left.pendingCount === right.pendingCount &&
   left.saving === right.saving &&
   left.canEdit === right.canEdit &&
-  left.error === right.error
+  left.error === right.error &&
+  left.epoch === right.epoch
 
 /**
  * The browser half of the log: a `DatomStore`, an `EventSource` reading it down,
@@ -94,6 +95,7 @@ export const createTodoClient = ({
     saving,
     canEdit: clockOffset !== null,
     error,
+    epoch,
   })
 
   let status = readStatus()
@@ -219,6 +221,7 @@ export const createTodoClient = ({
       if (typeof received !== 'string') return
       if (epoch === null) {
         epoch = received
+        publish()
         return
       }
       if (epoch === received) return
@@ -229,6 +232,7 @@ export const createTodoClient = ({
       epoch = received
       cursor = undefined
       store.clear()
+      publish()
       resync()
     })
     next.addEventListener(CLOCK_EVENT, (event) => {

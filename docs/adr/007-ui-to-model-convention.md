@@ -49,7 +49,7 @@ None of these three is wrong on its own. Having three is what makes the file har
 | Owner | Holds | Lives in | Survives a reload |
 | --- | --- | --- | --- |
 | Domain facts | what is true: titles, texts, completion, due dates, existence | the datom log | yes |
-| Screen state | what the UI is offering: active list, drafting, confirming a delete | `todoListsUiState.js` | no |
+| Screen state | what the UI is offering: waiting, active list, drafting, confirming a delete | `todoListsUiState.js` | no |
 | In-flight text | characters typed into a field that has not settled | `useSettledText.js` | no |
 
 Rendering owns nothing. A component reads a projection and calls back.
@@ -146,9 +146,12 @@ diagram can be read against it line by line.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> browsing
+    [*] --> loading
 
-    browsing --> browsing: SELECT_LIST, and SET_ACTIVE once when the first lists arrive
+    loading --> loading: HYDRATE with no Todo Lists yet, keep waiting
+    loading --> browsing: HYDRATE on the first Todo List
+
+    browsing --> browsing: SELECT_LIST
     browsing --> drafting: ADD_LIST
     browsing --> confirmingDelete: REQUEST_DELETE
 
@@ -159,12 +162,34 @@ stateDiagram-v2
     confirmingDelete --> browsing: CANCEL_DELETE
     confirmingDelete --> browsing: CONFIRM_DELETE, selection moves to a neighbour
 
+    browsing --> loading: RESET, the server is serving a different log
     drafting --> confirmingDelete: REQUEST_DELETE, unguarded, see Deferred
     confirmingDelete --> drafting: ADD_LIST, unguarded, see Deferred
+
+    note right of browsing
+        HYDRATE here is ignored:
+        a choice has already been made,
+        including a deliberate none.
+    end note
 ```
 
 The last two edges are accepted by the reducer and reachable by no UI. They are drawn rather than
 omitted so the diagram matches the code rather than the intent.
+
+**`loading` was found by drawing this diagram.** An earlier revision opened at `browsing`, which
+was untrue: the screen before the Todo Lists arrive is not the same as a screen where the person
+has selected nothing, and the difference was held in a `initialSelectionMade` ref inside
+`TodoLists.jsx` where the machine could not see it. That is screen state outside the module this
+ADR says owns screen state, and it had a consequence. On an epoch reset the client clears its
+store and refolds a different log, but the ref had latched, so the opening selection never ran
+again and the editor pane stayed blank until the person clicked a Todo List. Reproduced by adding
+one assertion to the `ReplacedLogResetsClient` story, which now keeps it.
+
+Selection is scoped to a log, so `RESET` is dispatched on a change of epoch rather than once per
+mount, and the client publishes its epoch on `TodoClientStatus` so there is something to key on.
+`HYDRATE` is guarded twice: it never overrides a choice already made, and it will not settle for
+selecting nothing, so an empty log stays in `loading` until a Todo List exists. Deliberately
+having nothing selected is `browsing` with a null id, which it leaves alone.
 
 **Settling**, in `useSettledText.js`:
 
