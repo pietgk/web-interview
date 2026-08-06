@@ -43,7 +43,7 @@ of that definition rather than a second thing to remember.
 
 | Stage | Steps | Nothing runs until | Time |
 | --- | --- | --- | --- |
-| `static` | typecheck, lint, audit | - (nothing executes) | ~4s |
+| `static` | typecheck, lint, diagrams, audit | - (nothing executes) | ~4s |
 | `unit` | shared, backend, frontend logic, scripts | Node | ~2s |
 | `browser` | storybook, e2e | real Chromium | ~24s |
 | `quality` | build, lighthouse, coverage | a production bundle | ~40s |
@@ -126,6 +126,24 @@ could slide to 85% unnoticed, which is exactly how coverage becomes a vanity num
 
 Thresholds are enabled only when `COVERAGE_GATE=1`, which the `coverage` step sets. Every other
 run collects coverage without being judged against floors calibrated for the merged report.
+
+### A diagram must not describe more than it renders
+
+`diagrams` parses every fenced `mermaid` block in the repo's Markdown and fails on a node carrying
+more than one self-transition. Mermaid renders **only the last one**: the earlier edges vanish from
+the SVG with no warning and no parse error, so the diagram renders, looks right, and describes less
+than its source. Measured against mermaid 11.15 in a real browser, `a-->a: ALPHA` followed by
+`a-->a: BETA` renders BETA alone, while three parallel `a-->b` edges all survive. Self-loops
+collapse; parallel edges between different nodes do not.
+
+This is a static check with no browser and no Mermaid dependency, because the failure is a property
+of the source, not of the render. It exists because the state diagrams in
+[ADR 007](./007-ui-to-model-convention.md) lost an edge this way twice, and a wrong diagram is worse
+than no diagram: it is believed. The fix is never to delete the edge, but to merge the labels where
+they are really one transition, or move one onto a `note`.
+
+Same idea as the two checks below: make the safe thing the default and a mistake loud, rather than
+relying on someone re-reading the rendered output.
 
 ### Proof must not be able to vanish quietly
 

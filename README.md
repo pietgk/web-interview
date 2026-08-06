@@ -83,7 +83,7 @@ after it meaningless:
 
 | Stage | Runs | Nothing runs until | Time |
 | --- | --- | --- | --- |
-| `static` | typecheck, lint, audit | - (nothing executes) | ~4s |
+| `static` | typecheck, lint, diagrams, audit | - (nothing executes) | ~4s |
 | `unit` | shared, backend, frontend logic, scripts | Node | ~2s |
 | `browser` | Storybook play + a11y, Playwright | real Chromium | ~24s |
 | `quality` | build, Lighthouse, coverage | a production bundle | ~40s |

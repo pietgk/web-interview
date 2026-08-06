@@ -72,6 +72,13 @@ export const STAGES = [
         ],
       },
       {
+        name: 'diagrams',
+        blurb: 'every Mermaid edge in the docs survives rendering',
+        invocations: [
+          { command: 'node', args: ['scripts/check-diagrams.mjs'] },
+        ],
+      },
+      {
         name: 'audit',
         blurb: 'high and critical advisories in every install root',
         invocations: ['.', 'shared', 'backend', 'frontend'].map((workspace) => ({
