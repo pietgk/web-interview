@@ -57,7 +57,7 @@
 <text x="787.3333333333334" y="774" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16" fill="#1e1e1e">Wire</text>
 <text x="787.3333333333334" y="799" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">journal = full history</text>
 <text x="787.3333333333334" y="815.25" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">SSE = compacted winners</text>
-<text x="787.3333333333334" y="831.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">outbox in-memory (reload loses)</text>
+<text x="787.3333333333334" y="831.5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">outbox in-memory</text>
 <text x="64" y="887" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" fill="#495057">Example: rename list = one assertion · delete list = retract defining title → children stop projecting</text>
 <rect x="40" y="922" width="1100" height="130" rx="8" fill="#f8f9fa" stroke="#ced4da" stroke-width="2"/>
 <text x="56" y="952" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#1e1e1e">4 · How I show it</text>

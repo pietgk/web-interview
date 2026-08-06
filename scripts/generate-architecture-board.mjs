@@ -12,7 +12,11 @@ const outDir = join(__dirname, '../docs')
 let seed = 1
 /** @param {string} prefix */
 const id = (prefix) => `${prefix}_${(seed++).toString(36)}`
-const now = Date.now()
+// Fixed, not `Date.now()`. Every element carries `updated`, so a wall clock made
+// the generator non-idempotent: re-running it to change one word rewrote 122
+// lines of the scene and buried the real change. Excalidraw only uses this for
+// its own bookkeeping, so a constant costs nothing and keeps the diff honest.
+const now = Date.UTC(2026, 7, 5)
 
 /**
  * Excalidraw elements are a loose JSON shape whose fields vary by `type`, so
@@ -371,7 +375,7 @@ const blocks = [
     bg: '#d0bfff',
     stroke: '#5f3dc4',
     title: 'Wire',
-    body: 'journal = full history\nSSE = compacted winners\noutbox in-memory (reload loses)',
+    body: 'journal = full history\nSSE = compacted winners\noutbox in-memory',
   },
 ]
 for (const b of blocks) {
