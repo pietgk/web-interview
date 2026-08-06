@@ -128,10 +128,12 @@ e2e proves in a process v8 cannot see from inside Vitest.
 
 Individual unreachable statements are marked at the code site with `/* v8 ignore next */` and a
 comment saying why, rather than by lowering a threshold. The bar is deliberately high: only code
-that cannot be reached without replacing the thing under test qualifies. Two statements meet it -
-the ULID overflow throw, which needs all 80 random bits at maximum inside one millisecond, and the
-journal's zero-progress write guard, which needs a stubbed file handle. Everything else that looks
-defensive is merely untested, and belongs in a test.
+that cannot be reached without replacing the thing under test qualifies. Three statements meet it -
+the ULID overflow throw, which needs all 80 random bits at maximum inside one millisecond, the
+journal's zero-progress write guard, which needs a stubbed file handle, and `onSavingDelay`'s
+empty-outbox return, which cannot fire because both mutations of the outbox are followed
+synchronously by `syncSavingIndicator`, and that clears the timer whenever the outbox is empty.
+Everything else that looks defensive is merely untested, and belongs in a test.
 
 `ignoreEmptyLines` is on. Without it v8 counts comment lines inside an uncovered region as
 uncovered statements, so documenting why a branch is unreachable makes the number worse. That was
@@ -142,14 +144,25 @@ this was enabled, and it reads 99.13% after.
 statements, lines and functions with 90% branches. The committed numbers are what the suite
 proves today, so the gate lands green and can only ratchet upward. Raising them is deferred work.
 
-**Ratchet from CI, not from one local run.** A file whose remaining branches depend on real timers
-cannot be pinned at its measured maximum, because the measurement moves with machine speed.
-`todoClient.js` is the case: both of its uncovered branches are saving-indicator timer races - the
-`onSavingDelay` early return when the outbox drained inside 300ms, and `stop()` clearing a timer
-that is still pending. A local reading of 98.87% was committed as a 98% floor and CI measured
-97.75%, failing the build on a file nobody had touched. Its entry keeps deliberate slack for that
-reason. Every other file measured identically in both places, so this is a property of timer-race
-branches rather than of the runner.
+**A threshold that depends on machine speed is a bug in the tests, not a number to pad.**
+`todoClient.js` was the case. A local reading of 98.87% branches was committed as a 98% floor; CI
+measured 97.75% and failed the build on a file nobody had touched. Every other file measured
+identically in both places, so the runner was not the variable - two branches were:
+
+| Branch | Why it moved |
+| --- | --- |
+| `stop()` clearing a pending Saving timer | covered only when a story happened to unmount while a POST was in flight |
+| `onSavingDelay`'s empty-outbox return | never covered anywhere |
+
+The first was **covered by accident**, which is the real defect: a branch nobody wrote a test for,
+passing because of a race. It now has a unit test that queues one datom, stops the client before
+the POST settles, and asserts the indicator never turns on - deterministic under fake timers on any
+machine. The second turned out to be unreachable and is marked as such at the code site.
+
+With both fixed the file is at 100% branches by construction rather than by luck, so its entry
+needs no slack. **Padding the threshold would have preserved the untested branch and hidden the
+race.** Where a number genuinely cannot be made deterministic, ratchet it from a CI run rather than
+a local one.
 
 Vitest applies the global floor to every file, including files matched by a glob key - a glob can
 only raise a file, never exempt it. So the global numbers sit at the weakest file and each glob

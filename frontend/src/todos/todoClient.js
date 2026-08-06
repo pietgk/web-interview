@@ -113,6 +113,11 @@ export const createTodoClient = ({
 
   const onSavingDelay = () => {
     savingTimer = null
+    // Unreachable: both outbox mutations are followed synchronously by
+    // `syncSavingIndicator`, which clears this timer whenever the outbox is
+    // empty, so it cannot fire with nothing to save. Kept because the guard is
+    // local and the invariant it leans on is not.
+    /* v8 ignore next */
     if (outbox.length === 0) return
     saving = true
     publish()

@@ -159,6 +159,29 @@ describe('createTodoClient', () => {
     }
   })
 
+  it('clears a pending Saving timer when the client stops mid-flight', async () => {
+    vi.useFakeTimers()
+    try {
+      const server = createFakeDatomServer({ startTime: 1_000 })
+      const client = clientFor(server)
+      client.start()
+      await vi.waitUntil(() => client.getStatus().canEdit)
+
+      // A queued datom schedules the 300ms Saving timer. Stopping before the POST
+      // settles leaves that timer pending, and nothing else would ever clear it:
+      // it would fire against a client that is no longer running and announce
+      // "Saving..." for work that has been abandoned.
+      createTodoListCommands(client).renameList(client.newListId(), 'Interrupted')
+      expect(client.getStatus().pendingCount).toBe(1)
+      client.stop()
+
+      await vi.advanceTimersByTimeAsync(SAVING_INDICATOR_DELAY_MS * 2)
+      expect(client.getStatus().saving).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('fails closed when the browser has no EventSource', () => {
     const client = createTodoClient({
       EventSourceImpl: /** @type {typeof EventSource} */ (
