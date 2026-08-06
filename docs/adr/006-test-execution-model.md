@@ -67,7 +67,8 @@ one assertion style to read instead of two.
 
 `vitest.config.js` at the root lists four projects, each pointing at a config inside its own
 workspace so it resolves its own dependencies. This repo installs per workspace rather than
-through npm workspaces.
+through npm workspaces. The frontend entry names `frontend/vitest.logic.config.js` rather than
+`frontend/vitest.config.js`, for the reason in the next paragraph.
 
 **The `storybook` project is deliberately not in that list.** Under the root Vitest process it
 resolves `frontend/node_modules/@vitest/browser` while the runner is the root's own copy, and the
@@ -79,6 +80,28 @@ circumstantial explanation, and converting to npm workspaces would remove it.
 This does not weaken the "one runner" decision. The goal was one watch loop and one assertion
 style, not literally one process - `verify` already orchestrates eslint, tsc, Playwright and
 Lighthouse and presents one verdict.
+
+**Three config files in `frontend/`, because the Storybook UI starts its own Vitest.** Pressing
+run in the Storybook test addon does not call `verify`; it starts Vitest itself, and it finds the
+config by scanning upward for a `vitest.workspace.*`, `vitest.config.*` or `vite.config.*` whose
+contents mention `@storybook/addon-vitest`, taking that file's directory as the Vitest root and
+then filtering for a project named `storybook:<configDir>`. `vitest.storybook.config.js` is not a
+name it scans for, so it fell back to the happy-dom logic config, found no such project, and died
+with `No projects matched the filter`. Interactive runs were broken while `verify browser` stayed
+green, because only `verify` passes `--config` explicitly.
+
+| File | Who loads it |
+| --- | --- |
+| `vitest.logic.config.js` | the root process, as the `frontend` project |
+| `vitest.storybook.config.js` | `verify browser`, by explicit `--config` |
+| `vitest.config.js` | the Storybook addon, which can find no other name; it only names the other two |
+
+The addon renames the browser project to `storybook:<configDir>` itself when it sets
+`VITEST_STORYBOOK`, so the name is not ours to maintain. What matters is that the root process
+still reaches the logic project **without** going through the file that names the browser project,
+which is why the root config points at `vitest.logic.config.js` directly. Reproduced both ways:
+deleting `frontend/vitest.config.js` restores the original error at the same stack frame, and
+restoring it runs all 51 story tests under the addon's own filter.
 
 ### Coverage is collected in `unit` and `browser`, judged in `quality`
 

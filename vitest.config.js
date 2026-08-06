@@ -27,7 +27,7 @@ export default defineConfig({
     projects: [
       './shared/vitest.config.js',
       './backend/vitest.config.js',
-      './frontend/vitest.config.js',
+      './frontend/vitest.logic.config.js',
       './scripts/vitest.config.js',
     ],
     coverage: {
