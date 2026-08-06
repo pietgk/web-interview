@@ -88,7 +88,10 @@ export default defineConfig({
         '**/frontend/src/testing/fakeDatomServer.js': { statements: 100, lines: 100, functions: 95, branches: 95 },
         '**/frontend/src/todos/components/focusLeft.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/frontend/src/todos/legacyReplica.js': { statements: 90, lines: 90, functions: 100, branches: 75 },
-        '**/frontend/src/todos/todoClient.js': { statements: 100, lines: 100, functions: 96, branches: 98 },
+        '**/frontend/src/todos/todoClient.js': { statements: 100, lines: 100, functions: 96, branches: 95 },
+        // ^ deliberate slack: this file's last two branches are 300ms saving-indicator
+        // timer races, so the measurement moves with machine speed. Pinning it at a local
+        // reading (98.87%) failed CI at 97.75%. See ADR 006.
         '**/frontend/src/todos/todoListCommands.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/frontend/src/todos/todoListsScreenView.js': { statements: 100, lines: 100, functions: 100, branches: 100 },
         '**/frontend/src/todos/todoListsUiState.js': { statements: 98, lines: 98, functions: 100, branches: 94 },

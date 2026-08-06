@@ -142,6 +142,15 @@ this was enabled, and it reads 99.13% after.
 statements, lines and functions with 90% branches. The committed numbers are what the suite
 proves today, so the gate lands green and can only ratchet upward. Raising them is deferred work.
 
+**Ratchet from CI, not from one local run.** A file whose remaining branches depend on real timers
+cannot be pinned at its measured maximum, because the measurement moves with machine speed.
+`todoClient.js` is the case: both of its uncovered branches are saving-indicator timer races - the
+`onSavingDelay` early return when the outbox drained inside 300ms, and `stop()` clearing a timer
+that is still pending. A local reading of 98.87% was committed as a 98% floor and CI measured
+97.75%, failing the build on a file nobody had touched. Its entry keeps deliberate slack for that
+reason. Every other file measured identically in both places, so this is a property of timer-race
+branches rather than of the runner.
+
 Vitest applies the global floor to every file, including files matched by a glob key - a glob can
 only raise a file, never exempt it. So the global numbers sit at the weakest file and each glob
 entry pins a stronger file at what it already achieves. Without those entries a file at 100%
@@ -234,8 +243,32 @@ dependencies land in the root tree; this was verified by deleting `shared/node_m
 watching `typecheck` and all 35 shared tests still pass. CI and the README install three trees,
 not four.
 
-There is no `watch:stories`. Vitest watch over stories did not re-run on edit when probed, and the
-component loop is `npm run storybook` with HMR plus `verify browser` for the assertions.
+There is no `watch:stories` **script**, because the Storybook test addon already has one: the eye
+toggle in its panel. An earlier revision of this ADR justified the absence by saying Vitest watch
+over stories did not re-run on edit when probed. That is no longer true, and the probe was very
+likely measuring the config-discovery bug described above rather than watch itself. Re-measured
+after that fix, watch re-runs **only the changed file**:
+
+```text
+Test Files  12 passed (12)                                  <- initial run
+RERUN  src/todos/components/TodoEditor.stories.jsx x1
+Test Files  1 passed (1)                                    <- after touching one story
+```
+
+So the cost of leaving it on is a few hundred milliseconds per save, not a full browser pass. The
+real trade-off is different: **the addon disables coverage while watching**, replacing the panel's
+coverage figure with `Coverage (unavailable)`. Watch is therefore a per-session choice made in the
+UI while iterating on one story's play function, not a mode this repo should default to or wrap in
+a script. The ambient loop stays `npm run watch` at the root, which is Node and happy-dom only and
+never drives a browser.
+
+**A partial re-run leaves a whole-suite-shaped number in the panel.** Any process touching a file
+re-triggers watch - an editor autosave, a formatter, a git operation, a background script - and the
+re-run covers only that file. The panel then reports coverage for one story as though it were the
+verdict for the suite: observed at 79% immediately after a single-file re-run, against 99% for the
+same tree on a full run. Nothing is wrong, but the figure is not answering the question it appears
+to answer. Press **Run tests** for a full pass before believing a coverage number, and treat the
+merged figure from `verify quality` as the real one.
 
 **CI is one step: `npm run verify`.** Not "CI runs the same checks" but the same file in the same
 order, so a green local run cannot be surprised by a red build.
