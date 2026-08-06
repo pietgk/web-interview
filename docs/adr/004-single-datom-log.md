@@ -223,6 +223,16 @@ Trade-offs:
 - Server-Sent Events are download-only, so client-to-server delivery is a separate POST channel
   with no ordering guarantee relative to the stream. Last-write-wins makes that harmless, but it
   is two channels rather than one.
+- **Hydration re-projects once per streamed datom.** Server-Sent Events deliver one datom per
+  message, each `apply` notifies, and each notification drives a render that reads `readModel()`,
+  so a fresh client projects the whole store once per datom it receives. Separate messages are
+  separate tasks, so React cannot batch them. Projection itself is linear and quick; the total is
+  quadratic. Measured over a store of that size: 500 datoms 74ms, 1,000 290ms, 2,000 1.2s, 4,000
+  4.6s, against roughly 2ms for one projection at 4,000. Invisible at the sizes this application
+  has and squarely on the path of the tombstone problem below, since a tombstone is iterated by
+  every projection and rendered by none. The remedies are a tombstone horizon, coalescing the
+  initial burst into fewer messages, or projecting incrementally instead of wholesale; none is
+  implemented.
 - **Retraction tombstones accumulate without bound.** Every deleted entity leaves a retraction in
   the compacted set forever, so a fresh client downloads every deletion in the history: a Todo
   List with 50 live Todos and 5,000 deleted ones ships 5,000 datoms it will never render. The

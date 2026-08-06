@@ -215,6 +215,10 @@ so the test names state the rule rather than the mechanism.
 - Authentication and authorization; a losing write cannot be distinguished from a hostile one
 - Horizontal multi-process writers for one JSONL journal
 - A tombstone horizon; retractions currently accumulate without bound in the compacted set
+- Coalescing the hydration burst; the browser re-projects the whole store once per streamed datom,
+  which is quadratic in the size of the compacted set (measured: 500 datoms 74ms, 1000 290ms,
+  2000 1.2s, 4000 4.6s, against ~2ms for a single projection at 4000). It compounds the missing
+  tombstone horizon, because tombstones are iterated by every projection and rendered by none
 - Offline edits surviving a reload
 - Selected-list persistence across refresh
 - Journal checkpoints and compaction

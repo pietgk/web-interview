@@ -30,6 +30,19 @@ export const selectListSummary = (todoList) => ({
 })
 
 /**
+ * Display order: Todo Lists with something due first and soonest-first among
+ * them, then those with nothing due, then the completed ones. Ties fall back to
+ * creation order.
+ *
+ * `sourceIndex` is that creation order, and it is load-bearing rather than
+ * incidental. `DatomStore` inserts Todo Lists into the read model in ascending
+ * id order, which is creation order because a ULID sorts by time, and
+ * `Object.values` gives those keys back in insertion order. That last step holds
+ * only because a Todo List id is not an integer-like key: JavaScript returns
+ * integer-like keys first in numeric order and every other key in insertion
+ * order. The `L` prefix on an id therefore carries sort stability as well as
+ * entity type, so dropping it would silently reshuffle equal-ranked Todo Lists.
+ *
  * @param {TodoLists} todoLists
  * @returns {TodoListSummary[]}
  */

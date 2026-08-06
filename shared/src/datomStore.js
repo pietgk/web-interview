@@ -136,6 +136,9 @@ export class DatomStore {
     for (const list of lists) {
       // Newest Todo first; oldest Todo List first. Both are pure functions of the id.
       list.todos.sort((left, right) => ascending(right.id, left.id))
+      // Inserted in id order, and `selectTodoListSummaries` reads that order back
+      // as creation order for its final tie-break. That survives only because an
+      // `L`-prefixed id is never an integer-like key; see the note there.
       todoLists[list.id] = list
     }
     return todoLists
