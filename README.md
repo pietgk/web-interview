@@ -1,6 +1,6 @@
 # NoNoThing SomeThings ToDo
 
-NoNoThinging SomeThings ToDo (Wip title) repo with the web interview based main task and all four additional tasks completed.
+DoNoThing SomeThing ToDo (Wip title) repo with the web interview based main task and all four additional tasks completed.
 
 Todo lists and todos persist on the server, autosave without a save button, and converge across
 browser tabs in real time. Every edit becomes one immutable [datom](https://docs.datomic.com/whatis/data-model.html#datoms) in an append-only log, which is
