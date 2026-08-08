@@ -172,6 +172,39 @@ could slide to 85% unnoticed, which is exactly how coverage becomes a vanity num
 Thresholds are enabled only when `COVERAGE_GATE=1`, which the `coverage` step sets. Every other
 run collects coverage without being judged against floors calibrated for the merged report.
 
+### Coverage evidence is exact, attributable, and ratcheted explicitly
+
+The integer thresholds above were the first working gate, but they are not an exact lockfile. A
+file at 89.79% with an 89% threshold can regress without failing, and an improved file can leave a
+stale threshold behind indefinitely. The ignored HTML report also carries no source revision or
+dirty-state provenance, while its directory rows count only direct children even though their
+labels look like recursive workspace totals.
+
+The accepted replacement is a committed, generated per-file baseline containing exact
+`{ covered, total }` pairs for statements, branches, functions, and lines. Normal verification
+requires the current merged report to equal that baseline. An explicit ratchet command may update
+it only when every changed metric preserves both invariants:
+
+- the uncovered count does not increase;
+- the covered proportion does not decrease.
+
+Neither invariant can compensate for a failure of the other, and gains in one file cannot offset
+regressions in another. This catches both newly untested behaviour and denominator changes such as
+removing covered code while leaving the same misses behind. An improvement also fails normal CI
+until the generated baseline is explicitly ratcheted and its diff reviewed. CI never rewrites the
+baseline.
+
+One coverage-evidence module owns comparison, ratcheting, provenance, rollups, and rendering. Its
+canonical report identifies the Git revision, dirty state, generation time, and the merged unit +
+Storybook scope; shows global and explicitly recursive workspace orientation totals; and shows
+every gated file against its baseline. Istanbul's `coverage/index.html` remains the line-level
+explorer, not the policy dashboard. CI publishes the complete `coverage/` directory for 14 days
+and appends the canonical Markdown summary to the workflow run, matching Lighthouse's treatment.
+
+Implementation is specified in
+[the coverage evidence and reporting plan](../plans/coverage-evidence-ratchet.md). Until that plan
+lands, the integer thresholds in `vitest.config.js` remain the active interim gate.
+
 ### A diagram must not describe more than it renders
 
 `diagrams` parses every fenced `mermaid` block in the repo's Markdown and fails on a node carrying

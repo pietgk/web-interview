@@ -15,6 +15,9 @@ The server exposes one validated error response shape with a stable server-only
 failure values containing status, code, message, and issues. Network and invalid-response failures
 use a separate browser-only vocabulary, because the server never emits them. Direct API
 clients, including agents, can branch on the public code without parsing human-readable text.
+Unexpected server and middleware failures remain contained at the HTTP seam: the server logs the
+original failure and returns only a generic HTTP 500 `INTERNAL_ERROR` response, without exposing
+the internal message, stack, or implementation details.
 
 A network failure leaves the outbox intact for retry. A permanent API rejection removes the
 rejected batch, resynchronizes from authoritative server state, and publishes **Changes not

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Coverage evidence ratchet plan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary: #1976d2;
+      --primary-soft: #e3f2fd;
+      --secondary: #9c27b0;
+      --success: #2e7d32;
+      --success-soft: #e8f5e9;
+      --warning: #ed6c02;
+      --warning-soft: #fff4e5;
+      --error: #d32f2f;
+      --error-soft: #ffebee;
+      --ink: #212121;
+      --muted: #5f6368;
+      --line: #d9dde3;
+      --paper: #ffffff;
+      --canvas: #f1f1f1;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--canvas); color: var(--ink); font-family: Roboto, Arial, sans-serif; }
+    body { margin: 0; min-width: 0; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 64px; min-width: 0; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 10px; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.05; letter-spacing: -0.035em; }
+    h2 { margin-bottom: 18px; font-size: 1.35rem; }
+    h3 { margin-bottom: 8px; font-size: 1rem; }
+    p, li { line-height: 1.55; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    .eyebrow { margin-bottom: 10px; color: var(--primary); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+    .lede { max-width: 820px; margin-bottom: 24px; color: var(--muted); font-size: 1.12rem; }
+    .status { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+    .chip { display: inline-flex; align-items: center; min-width: 0; min-height: 30px; padding: 5px 11px; border-radius: 999px; background: var(--primary-soft); color: #0d47a1; font-size: 0.82rem; font-weight: 700; }
+    .chip.success { background: var(--success-soft); color: var(--success); }
+    .chip.neutral { background: #eceff1; color: #455a64; }
+    section { margin-top: 24px; padding: 26px; border-radius: 10px; background: var(--paper); box-shadow: var(--shadow); min-width: 0; }
+    .hero-grid, .compare, .risk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; min-width: 0; }
+    .metric { padding: 18px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+    .metric strong { display: block; margin-bottom: 5px; font-size: 1.5rem; }
+    .metric span { color: var(--muted); font-size: 0.88rem; }
+    .callout { margin-top: 18px; padding: 16px 18px; border-left: 4px solid var(--warning); background: var(--warning-soft); border-radius: 4px; }
+    .panel { padding: 20px; border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+    .panel.current { border-top: 4px solid var(--warning); }
+    .panel.target { border-top: 4px solid var(--success); }
+    .panel ul { margin-bottom: 0; padding-left: 20px; }
+    .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; align-items: stretch; min-width: 0; }
+    .flow-card { position: relative; padding: 16px 14px; border: 1px solid var(--line); border-radius: 8px; background: #fafafa; min-width: 0; }
+    .flow-card:not(:last-child)::after { content: "→"; position: absolute; right: -10px; top: 50%; z-index: 2; width: 18px; transform: translateY(-50%); border-radius: 50%; background: var(--paper); color: var(--primary); text-align: center; font-weight: 700; }
+    .flow-card small { display: block; margin-bottom: 6px; color: var(--primary); font-weight: 700; text-transform: uppercase; }
+    .flow-card p { margin-bottom: 0; color: var(--muted); font-size: 0.88rem; }
+    .formula { margin-top: 16px; padding: 18px; border-radius: 8px; background: #17212b; color: #f5f7fa; overflow-wrap: anywhere; }
+    .formula div + div { margin-top: 8px; }
+    .formula .pass { color: #9be7a0; }
+    .formula .fail { color: #ffab91; }
+    .table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+    table { width: 100%; min-width: 760px; border-collapse: collapse; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #f5f7fa; color: #37474f; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    td:first-child { width: 50px; color: var(--primary); font-weight: 700; }
+    .owner { white-space: nowrap; }
+    .risk { padding: 18px; border-radius: 8px; background: var(--error-soft); min-width: 0; }
+    .risk.mitigated { background: var(--success-soft); }
+    .risk p { margin-bottom: 0; color: var(--muted); }
+    .decision { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 18px; border: 1px solid #90caf9; border-radius: 8px; background: var(--primary-soft); min-width: 0; }
+    .decision p { margin-bottom: 0; }
+    .decision-mark { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--primary); color: white; font-size: 1.3rem; font-weight: 800; }
+    .source { margin-top: 28px; color: var(--muted); font-size: 0.82rem; }
+    @media (max-width: 820px) {
+      main { width: min(100% - 20px, 1180px); padding-top: 24px; }
+      section { padding: 20px; }
+      .hero-grid, .compare, .risk-grid { grid-template-columns: minmax(0, 1fr); }
+      .flow { grid-template-columns: minmax(0, 1fr); }
+      .flow-card:not(:last-child)::after { content: "↓"; left: 50%; right: auto; top: auto; bottom: -14px; transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Accepted implementation plan</div>
+    <h1>Trust the coverage evidence before raising it</h1>
+    <p class="lede">Replace rounded manual thresholds and ambiguous HTML rollups with an exact per-file ratchet, attributable reports, and first-class CI artifacts. No production behavior or behavioral tests change in this slice.</p>
+    <div class="status">
+      <span class="chip success">Shared understanding reached</span>
+      <span class="chip">Ready for implementation</span>
+      <span class="chip neutral">Documentation only in this session</span>
+    </div>
+
+    <section>
+      <h2>What the current report actually says</h2>
+      <div class="hero-grid">
+        <div class="metric"><strong>2149 / 2173</strong><span>Statements, global orientation total</span></div>
+        <div class="metric"><strong>549 / 571</strong><span>Branches, global orientation total</span></div>
+        <div class="metric"><strong>150 / 152</strong><span>Functions, global orientation total</span></div>
+        <div class="metric"><strong>2140 / 2164</strong><span>Lines, global orientation total</span></div>
+      </div>
+      <div class="callout"><strong>The confusing row is real.</strong> Istanbul's <code>backend/src</code> row contains only <code>app.js</code>, <code>config.js</code>, and <code>seed.js</code>: 151/171 statements. A recursive backend calculation is 518/538, but the current page neither shows nor labels that rollup.</div>
+    </section>
+
+    <section>
+      <h2>Current versus target evidence</h2>
+      <div class="compare">
+        <article class="panel current">
+          <h3>Current</h3>
+          <ul>
+            <li>Whole-number thresholds leave rounding headroom.</li>
+            <li>Improved files can leave stale floors behind.</li>
+            <li>Ignored HTML has no source revision or dirty state.</li>
+            <li>Directory rows look recursive but count direct files.</li>
+            <li>CI retains Lighthouse and discards coverage detail.</li>
+          </ul>
+        </article>
+        <article class="panel target">
+          <h3>Target</h3>
+          <ul>
+            <li>Exact per-file <code>{covered,total}</code> baseline.</li>
+            <li>Every change requires an explicit reviewed ratchet.</li>
+            <li>Canonical report names revision, state, time, and scope.</li>
+            <li>Recursive rollups are visibly labelled as recursive.</li>
+            <li>Coverage and Lighthouse both remain available for 14 days.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>One deep module, one reporting seam</h2>
+      <div class="flow" aria-label="Coverage evidence flow">
+        <div class="flow-card"><small>Collect</small><strong>Vitest</strong><p>Unit and Storybook write raw blob evidence.</p></div>
+        <div class="flow-card"><small>Merge</small><strong>Coverage step</strong><p>Produces the Istanbul explorer and JSON summary.</p></div>
+        <div class="flow-card"><small>Evaluate</small><strong>Evidence module</strong><p>Owns comparison, rollups, provenance, and rendering.</p></div>
+        <div class="flow-card"><small>Orchestrate</small><strong>Verify</strong><p>Reports one pass or actionable failure.</p></div>
+        <div class="flow-card"><small>Publish</small><strong>CI</strong><p>Uploads the complete coverage artifact for 14 days.</p></div>
+      </div>
+      <div class="formula">
+        <div class="pass">PASS requires: current uncovered ≤ baseline uncovered</div>
+        <div class="pass">PASS also requires: current covered / total ≥ baseline covered / total</div>
+        <div class="fail">Normal verify still fails on any changed tuple until an explicit ratchet commits the gain.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Implementation sequence</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Change</th><th>Owner</th><th>Proof</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Test exact comparison, density regression, file-set changes, rollups, and rendering.</td><td class="owner"><code>scripts/</code></td><td>Focused Vitest fixtures</td></tr>
+            <tr><td>2</td><td>Implement the pure evidence module and thin process adapter.</td><td class="owner"><code>scripts/</code></td><td>Interface-level tests</td></tr>
+            <tr><td>3</td><td>Generate and commit the exact per-file baseline.</td><td class="owner">Repository root</td><td>Reviewable generated diff</td></tr>
+            <tr><td>4</td><td>Integrate check and explicit ratchet modes with verification.</td><td class="owner"><code>verify</code></td><td>Regression and gain scenarios</td></tr>
+            <tr><td>5</td><td>Generate canonical Markdown and HTML with provenance.</td><td class="owner">Evidence module</td><td>Browser inspection and JSON reconciliation</td></tr>
+            <tr><td>6</td><td>Upload the complete coverage directory in CI for 14 days.</td><td class="owner">GitHub Actions</td><td>Workflow artifact and job summary</td></tr>
+            <tr><td>7</td><td>Update README only after commands and artifacts exist.</td><td class="owner">Documentation</td><td>Full green verification</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Risks and containment</h2>
+      <div class="risk-grid">
+        <article class="risk"><h3>Instrumentation movement</h3><p>An unexplained tuple change becomes visible and blocks until reviewed. Two consecutive current runs were stable.</p></article>
+        <article class="risk mitigated"><h3>No silent stale baseline</h3><p>An improvement fails normal CI until the explicit ratchet regenerates and commits the baseline.</p></article>
+        <article class="risk"><h3>Temptation to chase the score</h3><p>This slice adds no behavioral tests. The next gap is selected by behavior risk from the trustworthy report.</p></article>
+        <article class="risk mitigated"><h3>No metric compensation</h3><p>A gain in one metric or file cannot pay for a regression in another. Both ratchet invariants apply independently.</p></article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Resolved decision</h2>
+      <div class="decision">
+        <div><h3>Proceed with reporting and ratcheting first</h3><p>Behavioral coverage increases, backend failure tests, and mutation testing remain follow-up work after this evidence layer is implemented and inspected.</p></div>
+        <div class="decision-mark" aria-hidden="true">✓</div>
+      </div>
+      <p class="source">Markdown source of truth: <code>docs/plans/coverage-evidence-ratchet.md</code>. ADR 006 records the reporting decision; ADR 008 retains generic backend failure containment.</p>
+    </section>
+  </main>
+</body>
+</html>
