@@ -50,6 +50,10 @@ touching the code, so the fix addresses the real cause rather than the first pla
 **Verify tool-reported state against the repo.** Session hooks, PR listings and status summaries
 can describe a different remote than `origin`. Check before acting on them.
 
+**Name semantic constants and derive shared contracts.** Executable calendar dates and
+behavior-bearing numbers need meaningful `const` bindings; configured contracts must reference
+their canonical exports. Follow [the semantic constants standard](docs/semantic-constants.md).
+
 ## Where things are
 
 | Question | File |
@@ -59,6 +63,7 @@ can describe a different remote than `origin`. Check before acting on them.
 | What each layer owns, Storybook authoring rules | `docs/adr/005-testing-and-storybook.md` |
 | Domain language (Todo List, Todo, Next Due Date) | `CONTEXT.md` - glossary only, no implementation |
 | Why the implementation makes its choices | `DECISIONS.md` |
+| How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
 
 Coverage thresholds in `vitest.config.js` are a **lockfile, not a target**. They record what the
 suite proves today so the gate stays green and can only ratchet up. Do not lower an entry to make

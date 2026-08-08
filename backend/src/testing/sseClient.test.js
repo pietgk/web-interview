@@ -4,6 +4,10 @@ import { createServer } from 'node:http'
 import { once } from 'node:events'
 import { openDatomStream } from './sseClient.js'
 
+const HTTP_OK_STATUS = 200
+const FIRST_CHUNK_DELAY_MS = 10
+const SECOND_CHUNK_DELAY_MS = 20
+
 /**
  * Most of the datom API suite reads the stream through `openDatomStream`, so a
  * reader that mis-frames would let those tests agree with a broken server.
@@ -25,7 +29,7 @@ const startServer = async (onStream) => {
   const requests = []
   const server = createServer((request, response) => {
     requests.push(request)
-    response.writeHead(200, {
+    response.writeHead(HTTP_OK_STATUS, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
@@ -55,8 +59,8 @@ describe('sse client', () => {
       // The split lands inside the data line, and again between the two
       // newlines that terminate the frame - both are real socket behaviour.
       write('id: 01\ndata: {"half"')
-      setTimeout(() => write(':true}\n'), 10)
-      setTimeout(() => write('\n'), 20)
+      setTimeout(() => write(':true}\n'), FIRST_CHUNK_DELAY_MS)
+      setTimeout(() => write('\n'), SECOND_CHUNK_DELAY_MS)
     })
 
     const client = closing(await openDatomStream(baseUrl))

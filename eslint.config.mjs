@@ -1,5 +1,10 @@
 import js from '@eslint/js'
 import globals from 'globals'
+import {
+  namedLiteralOptions,
+  semanticConstantsPlugin,
+  semanticConstantRules,
+} from './scripts/semantic-constants-config.mjs'
 
 const noDeepTodoImports = {
   'no-restricted-imports': [
@@ -42,11 +47,25 @@ export default [
       sourceType: 'module',
       globals: globals.node,
     },
+    plugins: {
+      'semantic-constants': semanticConstantsPlugin,
+    },
     rules: {
       ...noDeepTodoImports,
+      ...semanticConstantRules(),
       // `const { omitted, ...rest } = value` is how this codebase drops a key.
       'no-unused-vars': ['error', { ignoreRestSiblings: true }],
     },
+  },
+  {
+    // Numeric literals are the grammar of these AST/geometry-heavy files. Their
+    // surrounding syntax already supplies the clearest meaning; date and
+    // canonical-contract enforcement remain enabled.
+    files: [
+      'scripts/eslint-plugin-semantic-constants.mjs',
+      'scripts/generate-architecture-board.mjs',
+    ],
+    rules: semanticConstantRules(namedLiteralOptions({ numbers: false })),
   },
   {
     // Callbacks passed to `page.evaluate` are serialised and run in the browser,

@@ -1,6 +1,8 @@
 import { DatomStore } from '@web-interview/todos/datom-store'
 import { CLOCK_EVENT, EPOCH_EVENT } from '@web-interview/todos/protocol'
 
+const HTTP_OK_STATUS = 200
+
 /** @typedef {import('@web-interview/todos/types').Datom} Datom */
 
 /**
@@ -108,7 +110,7 @@ export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 } = {}) =>
     broadcast(datoms.filter((/** @type {Datom} */ datom) => store.apply(datom)))
     return /** @type {Response} */ (/** @type {unknown} */ ({
       ok: true,
-      status: 200,
+      status: HTTP_OK_STATUS,
       json: async () => ({ serverTime }),
     }))
   }

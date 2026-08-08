@@ -7,6 +7,8 @@ import { ATTRIBUTE } from '@web-interview/todos/datom'
 import { DatomStore } from '@web-interview/todos/datom-store'
 import { listId, todoId, ulid, ulidTime } from '@web-interview/todos/ulid'
 import { DatomJournal } from './datomJournal.js'
+
+const REPLAYED_DUE_DAY = '2026-08-03'
 import { createDatomService } from './datomService.js'
 
 /** @typedef {import('@web-interview/todos/types').Datom} Datom */
@@ -41,7 +43,7 @@ describe('datom journal', () => {
     const todo = todoId(list, at())
     await first.record([
       [todo, ATTRIBUTE.TEXT, 'Written before the restart', ulid(at()), true],
-      [todo, ATTRIBUTE.DUE_DATE, '2026-08-03', ulid(at()), true],
+      [todo, ATTRIBUTE.DUE_DATE, REPLAYED_DUE_DAY, ulid(at()), true],
       [list, ATTRIBUTE.TITLE, 'Renamed before the restart', ulid(at()), true],
     ])
     const before = first.store.readModel()

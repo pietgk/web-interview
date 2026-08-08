@@ -16,6 +16,8 @@ const API_PORT = 3201
 const WEB_URL = `http://127.0.0.1:${WEB_PORT}/`
 const API_URL = `http://127.0.0.1:${API_PORT}/`
 const NUMBER_OF_RUNS = 3
+const CHILD_EXIT_TIMEOUT_MS = 5_000
+const START_POLL_INTERVAL_MS = 100
 const BUDGETS = Object.freeze({
   maxScriptTransferBytes: 140 * 1024,
   maxUnusedJavaScriptBytes: 52 * 1024,
@@ -61,7 +63,7 @@ const stopChild = async ({ child }) => {
   }
   await Promise.race([
     exited,
-    new Promise((resolveTimeout) => setTimeout(resolveTimeout, 5_000)),
+    new Promise((resolveTimeout) => setTimeout(resolveTimeout, CHILD_EXIT_TIMEOUT_MS)),
   ])
 }
 
@@ -81,7 +83,7 @@ const waitForUrl = async (url, processes) => {
     } catch {
       // The server is still starting.
     }
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100))
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, START_POLL_INTERVAL_MS))
   }
   throw new Error(`Timed out waiting for ${url}`)
 }

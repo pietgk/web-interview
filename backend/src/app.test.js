@@ -10,7 +10,7 @@ import {
   API_ERROR_CODE,
   apiErrorBodySchema,
 } from '@web-interview/todos/protocol'
-import { ulid, ulidTime } from '@web-interview/todos/ulid'
+import { EARLIEST_ULID, ulid, ulidTime } from '@web-interview/todos/ulid'
 import { createApp } from './app.js'
 import { DatomJournal } from './todos/datomJournal.js'
 import { openDatomStream } from './testing/sseClient.js'
@@ -19,6 +19,11 @@ import { createDatomService } from './todos/datomService.js'
 /** @typedef {import('@web-interview/todos/types').Datom} Datom */
 
 const SEED = [{ title: 'First List', todos: [{ text: 'First todo', completed: false, dueDate: null }] }]
+const SEEDED_TODO_DUE_DAY = '2026-08-03'
+const TEST_HEARTBEAT_INTERVAL_MS = 40
+const STREAM_SETTLE_MS = 60
+const DURABILITY_HEARTBEAT_INTERVAL_MS = 1_000
+const DURABILITY_OBSERVATION_MS = 100
 
 /**
  * The ULID generator is monotonic for the whole process, so a fake clock that
@@ -85,7 +90,7 @@ describe('datom API', () => {
     directory = await mkdtemp(join(tmpdir(), 'datom-api-'))
     filePath = join(directory, 'datoms.jsonl')
     service = await createDatomService({ filePath, seed: SEED, now: () => serverTime })
-    server = await listen(createApp(service, { heartbeatMs: 40 }))
+    server = await listen(createApp(service, { heartbeatMs: TEST_HEARTBEAT_INTERVAL_MS }))
   })
 
   afterEach(async () => {
@@ -180,7 +185,7 @@ describe('datom API', () => {
 
     const client = await stream({ since: undefined, lastEventId: cursor })
     await client.until(() => client.datoms().length >= 1)
-    await new Promise((resolve) => setTimeout(resolve, 60))
+    await new Promise((resolve) => setTimeout(resolve, STREAM_SETTLE_MS))
 
     assert.equal(client.datoms().length, 1)
     assert.equal(client.datoms()[0][2], 'Renamed')
@@ -189,7 +194,7 @@ describe('datom API', () => {
   it('still converges from a stale since parameter, re-sending datoms harmlessly', async () => {
     const list = seededList()
     await post([[list, ATTRIBUTE.TITLE, 'Renamed', tx(), true]])
-    const staleCursor = '0'.repeat(26)
+    const staleCursor = EARLIEST_ULID
 
     const client = await stream({ since: staleCursor })
     await client.until(() => client.datoms().length >= 2)
@@ -227,7 +232,7 @@ describe('datom API', () => {
     const before = client.datoms().length
 
     const response = await post([[list, ATTRIBUTE.TITLE, 'Stale', stale, true]])
-    await new Promise((resolve) => setTimeout(resolve, 60))
+    await new Promise((resolve) => setTimeout(resolve, STREAM_SETTLE_MS))
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
     assert.equal(client.datoms().length, before)
@@ -304,7 +309,7 @@ describe('datom API', () => {
   it('emits CORS headers only for configured origins', async () => {
     const configured = await listen(createApp(service, {
       corsOrigins: ['https://allowed.example'],
-      heartbeatMs: 40,
+      heartbeatMs: TEST_HEARTBEAT_INTERVAL_MS,
     }))
     try {
       const allowed = await fetch(`${configured.baseUrl}/`, {
@@ -348,7 +353,9 @@ describe('datom API durability', () => {
     }))
 
     const service = await createDatomService({ seed: SEED, now: () => serverTime, journal })
-    const server = await listen(createApp(service, { heartbeatMs: 1_000 }))
+    const server = await listen(createApp(service, {
+      heartbeatMs: DURABILITY_HEARTBEAT_INTERVAL_MS,
+    }))
     try {
       const list = Object.keys(service.store.readModel())[0]
       let answered = false
@@ -361,7 +368,7 @@ describe('datom API durability', () => {
         return response
       })
 
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await new Promise((resolve) => setTimeout(resolve, DURABILITY_OBSERVATION_MS))
       assert.equal(answered, false, 'the response must wait for datasync()')
 
       const release = /** @type {() => void} */ (/** @type {unknown} */ (releaseSync))
@@ -381,7 +388,7 @@ describe('datom seed', () => {
     const service = await createDatomService({
       filePath: join(directory, 'datoms.jsonl'),
       seed: [
-        { title: 'First List', todos: [{ text: 'Older', completed: false, dueDate: null }, { text: 'Newer', completed: true, dueDate: '2026-08-03' }] },
+        { title: 'First List', todos: [{ text: 'Older', completed: false, dueDate: null }, { text: 'Newer', completed: true, dueDate: SEEDED_TODO_DUE_DAY }] },
         { title: 'Second List', todos: [] },
       ],
     })
@@ -395,7 +402,7 @@ describe('datom seed', () => {
         id: first.todos[1].id,
         text: 'Newer',
         completed: true,
-        dueDate: '2026-08-03',
+        dueDate: SEEDED_TODO_DUE_DAY,
       })
     } finally {
       await service.close()

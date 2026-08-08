@@ -3,6 +3,8 @@ import { Button } from '@mui/material'
 import { expect, fn, screen, userEvent, within } from 'storybook/test'
 import StatusDetailsDialog from './StatusDetailsDialog'
 
+const VALIDATION_ERROR_STATUS = 400
+
 /** @param {string} story */
 const storyDocs = (story) => ({
   parameters: {
@@ -59,7 +61,7 @@ export default meta
 export const WithApiFailure = /** @type {import('@storybook/react-vite').StoryObj<typeof StatusDetailsDialog>} */ ({
   args: {
     details: {
-      status: 400,
+      status: VALIDATION_ERROR_STATUS,
       code: 'VALIDATION_ERROR',
       message: 'Validation failed',
       issues: [{ path: ['datoms', 0, 2], message: 'Invalid Todo text' }],

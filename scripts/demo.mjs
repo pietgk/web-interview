@@ -9,6 +9,7 @@ const BACKEND = resolve(ROOT, 'backend')
 const DEV_PORT = 3000
 const BACKEND_PORT = 3001
 const PREVIEW_PORT = 4173
+const START_POLL_INTERVAL_MS = 100
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}/`
 const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}/`
 /**
@@ -61,7 +62,7 @@ const waitForUrl = async (url, attempts = 150) => {
     } catch {
       // Still starting.
     }
-    await new Promise((resolveDelay) => setTimeout(resolveDelay, 100))
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, START_POLL_INTERVAL_MS))
   }
   return false
 }

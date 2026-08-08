@@ -8,7 +8,9 @@ import {
   waitUntilConnected,
 } from './testing/storyHarness'
 
-let clock = 1_760_000_000_000
+const INITIAL_STORY_TIME_MS = 1_760_000_000_000
+
+let clock = INITIAL_STORY_TIME_MS
 const at = () => (clock += 1)
 
 const FIRST_LIST = listId(at())

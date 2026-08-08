@@ -3,6 +3,8 @@ import { TodoComposer } from './TodoComposer'
 import { TodoEditor } from './TodoEditor'
 import { TodoItem } from './TodoItem'
 
+const EDITOR_SCENARIO_DAY = '2026-07-31'
+
 /** @param {string} story */
 const storyDocs = (story) => ({
   parameters: {
@@ -49,7 +51,7 @@ export const WithComposerAndTodo = /** @type {import('@storybook/react-vite').St
         <TodoComposer text='' onChange={fn()} onSubmit={fn()} />
         <TodoItem
           todo={{ id: '1', text: 'Buy milk', completed: false, dueDate: null }}
-          today='2026-07-31'
+          today={EDITOR_SCENARIO_DAY}
           onChange={fn()}
           onRemove={fn()}
         />

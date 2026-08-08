@@ -1,6 +1,8 @@
 import { ATTRIBUTE } from '@web-interview/todos/datom'
 import { createTodoListCommands } from './todoListCommands'
 
+const UPDATED_DUE_DAY = '2026-08-09'
+
 /**
  * Records what reached the client, so a test asserts the datom a command wrote
  * rather than that some method was called.
@@ -79,11 +81,11 @@ describe('Todo List commands', () => {
     const client = fakeClient()
     const commands = commandsFor(client)
     const undated = { id: 'L1/T1', text: 'Milk', completed: false, dueDate: null }
-    commands.setTodoDueDate(undated, '2026-08-09')
-    commands.setTodoDueDate({ ...undated, dueDate: '2026-08-09' }, null)
+    commands.setTodoDueDate(undated, UPDATED_DUE_DAY)
+    commands.setTodoDueDate({ ...undated, dueDate: UPDATED_DUE_DAY }, null)
     expect(client.writes).toEqual([
-      ['assert', 'L1/T1', ATTRIBUTE.DUE_DATE, '2026-08-09'],
-      ['retract', 'L1/T1', ATTRIBUTE.DUE_DATE, '2026-08-09'],
+      ['assert', 'L1/T1', ATTRIBUTE.DUE_DATE, UPDATED_DUE_DAY],
+      ['retract', 'L1/T1', ATTRIBUTE.DUE_DATE, UPDATED_DUE_DAY],
     ])
   })
 

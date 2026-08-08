@@ -1,6 +1,8 @@
 import { expect, fn, userEvent } from 'storybook/test'
 import { TodoListForm } from './TodoListForm'
 
+const FORM_SCENARIO_DAY = '2026-07-31'
+
 /** @param {string} story */
 const storyDocs = (story) => ({
   parameters: {
@@ -36,7 +38,7 @@ const meta = /** @type {import('@storybook/react-vite').Meta<typeof TodoListForm
   component: TodoListForm,
   args: {
     todoList: baseList,
-    today: '2026-07-31',
+    today: FORM_SCENARIO_DAY,
     onMaterialize: fn(),
     onTitleChange: fn(),
     onCancelDraft: fn(),

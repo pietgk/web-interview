@@ -5,6 +5,10 @@ import js from '@eslint/js'
 import globals from 'globals'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
+import {
+  semanticConstantsPlugin,
+  semanticConstantRules,
+} from '../scripts/semantic-constants-config.mjs'
 
 const todoSubpathImports = {
   paths: [
@@ -55,6 +59,7 @@ export default [
     plugins: {
       react,
       'react-hooks': reactHooks,
+      'semantic-constants': semanticConstantsPlugin,
     },
     settings: {
       react: { version: 'detect' },
@@ -62,6 +67,7 @@ export default [
     rules: {
       ...react.configs.flat.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      ...semanticConstantRules(),
       'no-restricted-imports': ['error', todoSubpathImports],
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',

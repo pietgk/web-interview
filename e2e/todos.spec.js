@@ -6,11 +6,15 @@ import {
   DATOM_API_PATH,
   TODO_TEXT_MAX_LENGTH,
 } from '@web-interview/todos/protocol'
-import { listId, todoId, ulid } from '@web-interview/todos/ulid'
+import { EARLIEST_ULID, listId, todoId, ulid } from '@web-interview/todos/ulid'
 import { E2E_API_BASE } from './environment.js'
 import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
 
 const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)
+const INVALID_NON_LEAP_DAY = '2026-02-29'
+const FAR_FUTURE_DUE_DAY = '2099-01-15'
+const HYDRATION_LAYOUT_SETTLE_MS = 50
+const OFFLINE_SAVE_TIMEOUT_MS = 30_000
 
 /**
  * Every journey works inside a Todo List it created, so the tests never contend
@@ -76,7 +80,7 @@ test('rejects a due date that does not exist in its month', async ({ request }) 
 
   const response = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
     headers: { 'Content-Type': 'application/json' },
-    data: { datoms: [[todo, ATTRIBUTE.DUE_DATE, '2026-02-29', ulid(Date.now()), true]] },
+    data: { datoms: [[todo, ATTRIBUTE.DUE_DATE, INVALID_NON_LEAP_DAY, ulid(Date.now()), true]] },
   })
 
   expect(response.status()).toBe(HTTP.HTTP_STATUS_BAD_REQUEST)
@@ -127,7 +131,7 @@ test('does not shift Todo List controls while hydrating', async ({ page }) => {
 
   await page.goto('/')
   await expect(page.getByText(PRIMARY_LIST_TITLE, { exact: true })).toBeVisible()
-  await page.waitForTimeout(50)
+  await page.waitForTimeout(HYDRATION_LAYOUT_SETTLE_MS)
 
   const shiftedLabels = await page.evaluate(
     (key) => Reflect.get(globalThis, key),
@@ -249,14 +253,14 @@ test('shows a due-in label for a due date and persists after refresh', async ({ 
   await addTodo(page, 'Todo with a deadline')
 
   const saved = waitForWrite(page)
-  await page.getByLabel('Due date: Todo with a deadline').fill('2099-01-15')
-  await expect(page.getByLabel(dueInYearsLabel)).toHaveValue('2099-01-15')
+  await page.getByLabel('Due date: Todo with a deadline').fill(FAR_FUTURE_DUE_DAY)
+  await expect(page.getByLabel(dueInYearsLabel)).toHaveValue(FAR_FUTURE_DUE_DAY)
   await saved
   await expect(page.getByText('All changes saved')).toBeVisible()
 
   await page.reload()
   await page.getByText(title, { exact: true }).click()
-  await expect(page.getByLabel(dueInYearsLabel)).toHaveValue('2099-01-15')
+  await expect(page.getByLabel(dueInYearsLabel)).toHaveValue(FAR_FUTURE_DUE_DAY)
 })
 
 test('refreshes visible and accessible due status across local midnight', async ({ page, request }) => {
@@ -264,7 +268,7 @@ test('refreshes visible and accessible due status across local midnight', async 
   const text = 'Cross midnight'
   const list = listId(Date.now())
   const todo = todoId(list, Date.now())
-  const staleTx = '0'.repeat(26)
+  const staleTx = EARLIEST_ULID
   const created = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
     headers: { 'Content-Type': 'application/json' },
     data: {
@@ -423,7 +427,7 @@ test('drains edits made while offline once the connection returns', async ({ pag
   await expect(page.getByText('Waiting for connection')).toBeVisible()
 
   await page.unroute(`${E2E_API_BASE}/**`)
-  await expect(page.getByText('All changes saved')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('All changes saved')).toBeVisible({ timeout: OFFLINE_SAVE_TIMEOUT_MS })
 
   await page.reload()
   await page.getByText(title, { exact: true }).click()

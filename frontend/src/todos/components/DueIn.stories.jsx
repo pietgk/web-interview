@@ -13,6 +13,9 @@ const storyDocs = (story) => ({
 
 /** Frozen so due labels stay stable in Docs and play (not “today” from the wall clock). */
 const today = '2026-07-31'
+const editedDueDay = '2026-08-15'
+const tomorrow = '2026-08-01'
+const yesterday = '2026-07-30'
 
 /**
  * Keeps dueDate in sync so change → clear can both fire against a controlled field.
@@ -71,9 +74,9 @@ export const NoDueDate = /** @type {import('@storybook/react-vite').StoryObj<typ
     await expect(field).toHaveValue('')
     await expect(field).not.toBeInvalid()
 
-    fireEvent.change(field, { target: { value: '2026-08-15' } })
-    await expect(args.onChange).toHaveBeenNthCalledWith(1, '2026-08-15')
-    await expect(field).toHaveValue('2026-08-15')
+    fireEvent.change(field, { target: { value: editedDueDay } })
+    await expect(args.onChange).toHaveBeenNthCalledWith(1, editedDueDay)
+    await expect(field).toHaveValue(editedDueDay)
 
     fireEvent.change(field, { target: { value: '' } })
     await expect(args.onChange).toHaveBeenNthCalledWith(2, null)
@@ -83,7 +86,7 @@ export const NoDueDate = /** @type {import('@storybook/react-vite').StoryObj<typ
 
 export const DueToday = /** @type {import('@storybook/react-vite').StoryObj<typeof DueIn>} */ ({
   args: {
-    dueDate: '2026-07-31',
+    dueDate: today,
     completed: false,
   },
   ...storyDocs([
@@ -92,14 +95,14 @@ export const DueToday = /** @type {import('@storybook/react-vite').StoryObj<type
   ].join(' ')),
   play: async ({ canvas, args }) => {
     const field = canvas.getByLabelText(`Due today: ${args.todoLabel}`)
-    await expect(field).toHaveValue('2026-07-31')
+    await expect(field).toHaveValue(today)
     await expect(field).not.toBeInvalid()
   },
 })
 
 export const DueInOneDay = /** @type {import('@storybook/react-vite').StoryObj<typeof DueIn>} */ ({
   args: {
-    dueDate: '2026-08-01',
+    dueDate: tomorrow,
     completed: false,
   },
   ...storyDocs([
@@ -108,14 +111,14 @@ export const DueInOneDay = /** @type {import('@storybook/react-vite').StoryObj<t
   ].join(' ')),
   play: async ({ canvas, args }) => {
     const field = canvas.getByLabelText(`Due in 1 day: ${args.todoLabel}`)
-    await expect(field).toHaveValue('2026-08-01')
+    await expect(field).toHaveValue(tomorrow)
     await expect(field).not.toBeInvalid()
   },
 })
 
 export const Overdue = /** @type {import('@storybook/react-vite').StoryObj<typeof DueIn>} */ ({
   args: {
-    dueDate: '2026-07-30',
+    dueDate: yesterday,
     completed: false,
   },
   ...storyDocs([
@@ -124,14 +127,14 @@ export const Overdue = /** @type {import('@storybook/react-vite').StoryObj<typeo
   ].join(' ')),
   play: async ({ canvas, args }) => {
     const field = canvas.getByLabelText(`1 day overdue: ${args.todoLabel}`)
-    await expect(field).toHaveValue('2026-07-30')
+    await expect(field).toHaveValue(yesterday)
     await expect(field).toBeInvalid()
   },
 })
 
 export const CompletedHidesOverdue = /** @type {import('@storybook/react-vite').StoryObj<typeof DueIn>} */ ({
   args: {
-    dueDate: '2026-07-30',
+    dueDate: yesterday,
     completed: true,
   },
   ...storyDocs([
@@ -140,7 +143,7 @@ export const CompletedHidesOverdue = /** @type {import('@storybook/react-vite').
   ].join(' ')),
   play: async ({ canvas, args }) => {
     const field = canvas.getByLabelText(`Due date: ${args.todoLabel}`)
-    await expect(field).toHaveValue('2026-07-30')
+    await expect(field).toHaveValue(yesterday)
     await expect(field).not.toBeInvalid()
   },
 })

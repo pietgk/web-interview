@@ -14,11 +14,15 @@ import { E2E_SEED_TODO_LISTS } from './e2e/fixture.js'
 // conflicting inherited flag before those child processes are created.
 delete process.env.NO_COLOR
 
+const E2E_TEST_TIMEOUT_MS = 60_000
+const WEB_SERVER_START_TIMEOUT_MS = 120_000
+const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000
+
 const e2eDataDirectory = mkdtempSync(join(tmpdir(), 'web-interview-e2e-'))
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
+  timeout: E2E_TEST_TIMEOUT_MS,
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -40,8 +44,8 @@ export default defineConfig({
       cwd: './backend',
       url: `${E2E_API_BASE}/`,
       reuseExistingServer: false,
-      timeout: 120_000,
-      gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
+      timeout: WEB_SERVER_START_TIMEOUT_MS,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: GRACEFUL_SHUTDOWN_TIMEOUT_MS },
       env: {
         ...process.env,
         APP_ENV: 'e2e',
@@ -56,8 +60,8 @@ export default defineConfig({
       cwd: './frontend',
       url: E2E_WEB_BASE,
       reuseExistingServer: false,
-      timeout: 120_000,
-      gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
+      timeout: WEB_SERVER_START_TIMEOUT_MS,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: GRACEFUL_SHUTDOWN_TIMEOUT_MS },
       env: {
         ...process.env,
         BROWSER: 'none',

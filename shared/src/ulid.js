@@ -15,8 +15,11 @@ const TIME_LENGTH = 10
 const RANDOM_LENGTH = 16
 const MAX_TIME = 2 ** 48 - 1
 
+export const ULID_LENGTH = TIME_LENGTH + RANDOM_LENGTH
+export const EARLIEST_ULID = '0'.repeat(ULID_LENGTH)
+
 /** Crockford base32 excludes I, L, O and U, so `L` and `T` are unambiguous id prefixes. */
-const ULID_SOURCE = '[0-9A-HJKMNP-TV-Z]{26}'
+const ULID_SOURCE = `[0-9A-HJKMNP-TV-Z]{${ULID_LENGTH}}`
 
 export const ULID_PATTERN = new RegExp(`^${ULID_SOURCE}$`)
 export const TODO_LIST_ID_PATTERN = new RegExp(`^L${ULID_SOURCE}$`)

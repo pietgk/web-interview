@@ -11,7 +11,14 @@ import {
   waitUntilConnected,
 } from '../../testing/storyHarness'
 
-let clock = 1_760_000_000_000
+const INITIAL_STORY_TIME_MS = 1_760_000_000_000
+const SETTLE_BUFFER_MS = 50
+const HTTP_OK_STATUS = 200
+const FIRST_LIST_LATER_DUE_DAY = '2099-02-01'
+const SECOND_LIST_EARLIER_DUE_DAY = '2099-01-01'
+const FIRST_LIST_RESORTED_DUE_DAY = '2098-01-01'
+
+let clock = INITIAL_STORY_TIME_MS
 const at = () => (clock += 1)
 
 const FIRST_LIST = listId(at())
@@ -27,7 +34,9 @@ const seedDatoms = () => [
   [SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), true],
 ]
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, TEXT_SETTLE_MS + 50))
+const settle = () => new Promise((resolve) =>
+  setTimeout(resolve, TEXT_SETTLE_MS + SETTLE_BUFFER_MS)
+)
 
 /** @param {import('@web-interview/todos/types').Datom[]} [seed] */
 const withServer = (seed = seedDatoms()) => ({
@@ -187,7 +196,7 @@ export const SavingAppearsAfterDelay = {
               /** @type {Response} */ (
                 /** @type {unknown} */ ({
                   ok: true,
-                  status: 200,
+                  status: HTTP_OK_STATUS,
                   json: async () => ({ serverTime: loaded.server.serverTime() }),
                 })
               )
@@ -202,7 +211,9 @@ export const SavingAppearsAfterDelay = {
 
     const status = canvas.getByRole('status', { name: 'Application status' })
     await expect(status).toHaveTextContent('All changes saved')
-    await new Promise((resolve) => setTimeout(resolve, SAVING_INDICATOR_DELAY_MS + 50))
+    await new Promise((resolve) =>
+      setTimeout(resolve, SAVING_INDICATOR_DELAY_MS + SETTLE_BUFFER_MS)
+    )
     await expect(status).toHaveTextContent('Saving…')
 
     releasePost?.()
@@ -415,8 +426,8 @@ export const ResortKeepsSelection = {
       const server = createStoryServer({
         seed: [
           ...seedDatoms(),
-          [FIRST_TODO, ATTRIBUTE.DUE_DATE, '2099-02-01', ulid(at()), true],
-          [SECOND_TODO, ATTRIBUTE.DUE_DATE, '2099-01-01', ulid(at()), true],
+          [FIRST_TODO, ATTRIBUTE.DUE_DATE, FIRST_LIST_LATER_DUE_DAY, ulid(at()), true],
+          [SECOND_TODO, ATTRIBUTE.DUE_DATE, SECOND_LIST_EARLIER_DUE_DAY, ulid(at()), true],
         ],
       })
       return { server }
@@ -431,9 +442,9 @@ export const ResortKeepsSelection = {
     const list = canvas.getByRole('list', { name: 'Todo lists' })
     await expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Second List')
     await userEvent.click(canvas.getByText('First List'))
-    const dueDate = canvas.getByDisplayValue('2099-02-01')
+    const dueDate = canvas.getByDisplayValue(FIRST_LIST_LATER_DUE_DAY)
     await userEvent.clear(dueDate)
-    await userEvent.type(dueDate, '2098-01-01')
+    await userEvent.type(dueDate, FIRST_LIST_RESORTED_DUE_DAY)
 
     await expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('First List')
     await expect(canvas.getByRole('button', { name: /^First List / })).toHaveAttribute(

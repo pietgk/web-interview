@@ -10,6 +10,11 @@ const FAIL = 'FAIL'
 const SKIP = 'SKIP'
 const DIM = '[2m'
 const RESET = '[0m'
+const NAME_COLUMN_WIDTH = 11
+const STATUS_COLUMN_WIDTH = 6
+const SECONDS_COLUMN_WIDTH = 7
+const CLI_USAGE_EXIT_CODE = 2
+const FAILURE_DIVIDER_LENGTH = 60
 
 const OFFLINE_SIGNS = [
   'ENOTFOUND',
@@ -92,7 +97,7 @@ const runStep = async (step) => {
 
 /** @param {Row} row */
 const formatRow = ({ name, status, seconds, note }) =>
-  `  ${name.padEnd(11)}${status.padEnd(6)}${`${seconds.toFixed(1)}s`.padStart(7)}` +
+  `  ${name.padEnd(NAME_COLUMN_WIDTH)}${status.padEnd(STATUS_COLUMN_WIDTH)}${`${seconds.toFixed(1)}s`.padStart(SECONDS_COLUMN_WIDTH)}` +
   (note ? `   ${note}` : '')
 
 const printHelp = () => {
@@ -145,7 +150,7 @@ const selectStages = (selectors) => {
     const step = findStep(selector)
     if (!step) {
       process.stderr.write(`Unknown stage or step: ${selector}\nTry: npm run verify help\n`)
-      process.exit(2)
+      process.exit(CLI_USAGE_EXIT_CODE)
     }
     wanted.add(step.name)
   }
@@ -229,7 +234,9 @@ const main = async () => {
   if (found.length > 0) process.stdout.write(`\n${found.join('\n')}\n`)
 
   for (const failure of failures) {
-    process.stdout.write(`\n${'-'.repeat(60)}\n${failure.name}\n${'-'.repeat(60)}\n`)
+    process.stdout.write(
+      `\n${'-'.repeat(FAILURE_DIVIDER_LENGTH)}\n${failure.name}\n${'-'.repeat(FAILURE_DIVIDER_LENGTH)}\n`
+    )
     process.stdout.write(failure.output)
   }
 

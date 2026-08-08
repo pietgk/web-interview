@@ -10,6 +10,19 @@ import { createFakeDatomServer } from '../testing/fakeDatomServer'
 import { createTodoClient } from './todoClient'
 import { createTodoListCommands } from './todoListCommands'
 
+const WAIT_UNTIL_TIMEOUT_MS = 2_000
+const WAIT_RETRY_MS = 5
+const MIDNIGHT_TIMER_SETTLE_MS = 1_000
+const NEXT_DAY_ADVANCE_MS = 24 * 60 * 60 * 1_000
+const HEARTBEAT_ADVANCE_MS = 60 * 60 * 1_000
+const MIDNIGHT_START_DAY = '2026-07-31'
+const DAY_AFTER_MIDNIGHT = '2026-08-01'
+const SECOND_DAY_AFTER_MIDNIGHT = '2026-08-02'
+const HTTP_OK_STATUS = 200
+const HTTP_BAD_REQUEST_STATUS = 400
+const HTTP_BAD_GATEWAY_STATUS = 502
+const STOPPED_CLIENT_TIMER_ADVANCE_MS = SAVING_INDICATOR_DELAY_MS * 2
+
 /**
  * @param {ReturnType<typeof createFakeDatomServer>} server
  * @param {Partial<Parameters<typeof createTodoClient>[0]>} [overrides]
@@ -26,11 +39,11 @@ const clientFor = (server, overrides = {}) =>
 
 /** @param {() => boolean} predicate */
 const waitUntil = async (predicate) => {
-  const deadline = Date.now() + 2_000
+  const deadline = Date.now() + WAIT_UNTIL_TIMEOUT_MS
   while (Date.now() < deadline) {
     if (predicate()) return
     await Promise.resolve()
-    await new Promise((resolve) => setTimeout(resolve, 5))
+    await new Promise((resolve) => setTimeout(resolve, WAIT_RETRY_MS))
   }
   throw new Error('timed out waiting for client condition')
 }
@@ -45,16 +58,16 @@ describe('createTodoClient', () => {
       let notifications = 0
       client.subscribeToday(() => { notifications += 1 })
       client.start()
-      await vi.waitUntil(() => client.getToday() === '2026-07-31')
+      await vi.waitUntil(() => client.getToday() === MIDNIGHT_START_DAY)
       expect(notifications).toBe(1)
 
       server.disconnect()
-      await vi.advanceTimersByTimeAsync(1_000)
-      expect(client.getToday()).toBe('2026-08-01')
+      await vi.advanceTimersByTimeAsync(MIDNIGHT_TIMER_SETTLE_MS)
+      expect(client.getToday()).toBe(DAY_AFTER_MIDNIGHT)
       expect(notifications).toBe(2)
 
-      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1_000)
-      expect(client.getToday()).toBe('2026-08-02')
+      await vi.advanceTimersByTimeAsync(NEXT_DAY_ADVANCE_MS)
+      expect(client.getToday()).toBe(SECOND_DAY_AFTER_MIDNIGHT)
       expect(notifications).toBe(3)
 
       client.stop()
@@ -70,18 +83,18 @@ describe('createTodoClient', () => {
     let notifications = 0
     client.subscribeToday(() => { notifications += 1 })
     client.start()
-    await waitUntil(() => client.getToday() === '2026-07-31')
+    await waitUntil(() => client.getToday() === MIDNIGHT_START_DAY)
     expect(notifications).toBe(1)
     const source = [...server.connections][0]
 
-    server.advance(60 * 60 * 1_000)
+    server.advance(HEARTBEAT_ADVANCE_MS)
     source.emitClock()
-    expect(client.getToday()).toBe('2026-07-31')
+    expect(client.getToday()).toBe(MIDNIGHT_START_DAY)
     expect(notifications).toBe(1)
 
-    server.advance(24 * 60 * 60 * 1_000)
+    server.advance(NEXT_DAY_ADVANCE_MS)
     source.emitClock()
-    expect(client.getToday()).toBe('2026-08-01')
+    expect(client.getToday()).toBe(DAY_AFTER_MIDNIGHT)
     expect(notifications).toBe(2)
 
     client.stop()
@@ -132,7 +145,7 @@ describe('createTodoClient', () => {
         /** @type {Response} */ (
           /** @type {unknown} */ ({
             ok: false,
-            status: 400,
+            status: HTTP_BAD_REQUEST_STATUS,
             json: async () => ({
               error: 'Validation failed',
               code: API_ERROR_CODE.VALIDATION_ERROR,
@@ -153,7 +166,7 @@ describe('createTodoClient', () => {
       rehydrating: false,
       failure: {
         kind: 'api',
-        status: 400,
+        status: HTTP_BAD_REQUEST_STATUS,
         code: API_ERROR_CODE.VALIDATION_ERROR,
         message: 'Validation failed',
         issues: [{ path: ['datoms', 0, 2], message: 'Invalid value for title' }],
@@ -185,7 +198,7 @@ describe('createTodoClient', () => {
         if (posted.length === 1) {
           return /** @type {Response} */ (/** @type {unknown} */ ({
             ok: false,
-            status: 400,
+            status: HTTP_BAD_REQUEST_STATUS,
             json: async () => ({
               error: 'Validation failed',
               code: API_ERROR_CODE.VALIDATION_ERROR,
@@ -235,7 +248,7 @@ describe('createTodoClient', () => {
       fetchImpl: async () =>
         /** @type {Response} */ (/** @type {unknown} */ ({
           ok: true,
-          status: 200,
+          status: HTTP_OK_STATUS,
           json: async () => ({}),
         })),
     })
@@ -258,7 +271,7 @@ describe('createTodoClient', () => {
       pendingCount: 0,
       failure: {
         kind: 'invalid-response',
-        status: 200,
+        status: HTTP_OK_STATUS,
         code: BROWSER_ERROR_CODE.INVALID_RESPONSE,
       },
     })
@@ -283,7 +296,7 @@ describe('createTodoClient', () => {
         })
         return /** @type {Response} */ (/** @type {unknown} */ ({
           ok: false,
-          status: 502,
+          status: HTTP_BAD_GATEWAY_STATUS,
           json: async () => ({ message: 'Not the public API error shape' }),
         }))
       },
@@ -303,7 +316,7 @@ describe('createTodoClient', () => {
       pendingCount: 0,
       failure: {
         kind: 'invalid-response',
-        status: 502,
+        status: HTTP_BAD_GATEWAY_STATUS,
         code: BROWSER_ERROR_CODE.INVALID_RESPONSE,
       },
     })
@@ -342,7 +355,7 @@ describe('createTodoClient', () => {
       await vi.waitUntil(() => client.getStatus().pendingCount === 2)
 
       reachable = true
-      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(MIDNIGHT_TIMER_SETTLE_MS)
       await vi.waitUntil(() => client.getStatus().pendingCount === 0)
 
       expect(client.getStatus().failure).toBe(null)
@@ -392,7 +405,7 @@ describe('createTodoClient', () => {
       expect(client.getStatus().pendingCount).toBe(1)
       client.stop()
 
-      await vi.advanceTimersByTimeAsync(SAVING_INDICATOR_DELAY_MS * 2)
+      await vi.advanceTimersByTimeAsync(STOPPED_CLIENT_TIMER_ADVANCE_MS)
       expect(client.getStatus().saving).toBe(false)
     } finally {
       vi.useRealTimers()

@@ -1,6 +1,9 @@
 import { expect, fn, screen, userEvent } from 'storybook/test'
 import { StatusBar } from './StatusBar'
 
+const STATUS_BAR_SCENARIO_DAY = '2026-07-31'
+const VALIDATION_ERROR_STATUS = 400
+
 /** @param {string} story */
 const storyDocs = (story) => ({
   parameters: {
@@ -19,7 +22,7 @@ const runtime = (overrides = {}) => ({
     /** @type {unknown} */ ({ reconnect: fn() })
   ),
   readModel: {},
-  today: '2026-07-31',
+  today: STATUS_BAR_SCENARIO_DAY,
   status: {
     connection: /** @type {const} */ ('live'),
     pendingCount: 0,
@@ -126,7 +129,7 @@ export const ChangesNotSaved = /** @type {import('@storybook/react-vite').StoryO
       canEdit: false,
       failure: {
         kind: 'api',
-        status: 400,
+        status: VALIDATION_ERROR_STATUS,
         code: 'VALIDATION_ERROR',
         message: 'Validation failed',
         issues: [{ path: ['datoms', 0, 2], message: 'Invalid Todo text' }],

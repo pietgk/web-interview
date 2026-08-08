@@ -4,7 +4,10 @@ import { ATTRIBUTE } from './datom.js'
 import { DatomStore } from './datomStore.js'
 import { listId, todoId, ulid } from './ulid.js'
 
-let clock = 1_770_000_000_000
+const INITIAL_STORE_TIME_MS = 1_770_000_000_000
+const STORED_DUE_DAY = '2026-08-03'
+
+let clock = INITIAL_STORE_TIME_MS
 const at = () => (clock += 1)
 
 /** Mints in ascending `tx` order unless a test deliberately reorders. */
@@ -74,7 +77,7 @@ describe('DatomStore', () => {
   it('hides an entity and its other attributes when the defining attribute is retracted', () => {
     const { store, list, todo } = seededStore()
     store.apply(datom(todo, ATTRIBUTE.COMPLETED, true, tx()))
-    store.apply(datom(todo, ATTRIBUTE.DUE_DATE, '2026-08-03', tx()))
+    store.apply(datom(todo, ATTRIBUTE.DUE_DATE, STORED_DUE_DAY, tx()))
 
     store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx(), false))
 
@@ -84,13 +87,13 @@ describe('DatomStore', () => {
   it('restores completed and dueDate when a defining attribute is re-asserted', () => {
     const { store, list, todo } = seededStore()
     store.apply(datom(todo, ATTRIBUTE.COMPLETED, true, tx()))
-    store.apply(datom(todo, ATTRIBUTE.DUE_DATE, '2026-08-03', tx()))
+    store.apply(datom(todo, ATTRIBUTE.DUE_DATE, STORED_DUE_DAY, tx()))
     store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx(), false))
 
     store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx()))
 
     assert.deepEqual(store.readModel()[list].todos, [
-      { id: todo, text: 'Ship it', completed: true, dueDate: '2026-08-03' },
+      { id: todo, text: 'Ship it', completed: true, dueDate: STORED_DUE_DAY },
     ])
   })
 

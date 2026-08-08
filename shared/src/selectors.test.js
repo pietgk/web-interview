@@ -7,6 +7,13 @@ import {
   selectTodoListSummaries,
 } from './selectors.js'
 
+const COMPLETED_DUE_DAY = '2026-08-01'
+const LATER_DUE_DAY = '2026-08-20'
+const NEXT_DUE_DAY = '2026-08-10'
+const EARLIER_COMPLETED_DUE_DAY = '2026-07-01'
+const OVERDUE_DUE_DAY = '2026-07-15'
+const VALIDATION_ERROR_STATUS = 400
+
 describe('todo-list selectors', () => {
   describe('isTodoListCompleted', () => {
     /** @param {string} id @param {boolean} completed */
@@ -36,14 +43,14 @@ describe('todo-list selectors', () => {
       id: 'release',
       title: 'Release',
       todos: [
-        { id: 'done', text: 'Done', completed: true, dueDate: '2026-08-01' },
-        { id: 'later', text: 'Later', completed: false, dueDate: '2026-08-20' },
-        { id: 'next', text: 'Next', completed: false, dueDate: '2026-08-10' },
+        { id: 'done', text: 'Done', completed: true, dueDate: COMPLETED_DUE_DAY },
+        { id: 'later', text: 'Later', completed: false, dueDate: LATER_DUE_DAY },
+        { id: 'next', text: 'Next', completed: false, dueDate: NEXT_DUE_DAY },
         { id: 'none', text: 'No date', completed: false, dueDate: null },
       ],
     })
 
-    assert.equal(summary.nextDueDate, '2026-08-10')
+    assert.equal(summary.nextDueDate, NEXT_DUE_DAY)
   })
 
   it('orders due, undated, and completed Todo Lists with stable ties', () => {
@@ -56,12 +63,12 @@ describe('todo-list selectors', () => {
     })
     const readModel = {
       undated: { id: 'undated', title: 'Undated', todos: [todo('u', false)] },
-      completed: { id: 'completed', title: 'Completed', todos: [todo('c', true, '2026-07-01')] },
-      later: { id: 'later', title: 'Later', todos: [todo('l', false, '2026-08-20')] },
-      dueTieOne: { id: 'dueTieOne', title: 'Tie one', todos: [todo('t1', false, '2026-08-10')] },
+      completed: { id: 'completed', title: 'Completed', todos: [todo('c', true, EARLIER_COMPLETED_DUE_DAY)] },
+      later: { id: 'later', title: 'Later', todos: [todo('l', false, LATER_DUE_DAY)] },
+      dueTieOne: { id: 'dueTieOne', title: 'Tie one', todos: [todo('t1', false, NEXT_DUE_DAY)] },
       empty: { id: 'empty', title: 'Empty', todos: [] },
-      dueTieTwo: { id: 'dueTieTwo', title: 'Tie two', todos: [todo('t2', false, '2026-08-10')] },
-      overdue: { id: 'overdue', title: 'Overdue', todos: [todo('o', false, '2026-07-15')] },
+      dueTieTwo: { id: 'dueTieTwo', title: 'Tie two', todos: [todo('t2', false, NEXT_DUE_DAY)] },
+      overdue: { id: 'overdue', title: 'Overdue', todos: [todo('o', false, OVERDUE_DUE_DAY)] },
     }
 
     assert.deepEqual(
@@ -138,7 +145,7 @@ describe('todo-list selectors', () => {
         pendingCount: 0,
         failure: {
           kind: 'api',
-          status: 400,
+          status: VALIDATION_ERROR_STATUS,
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
           issues: [{ path: ['datoms', 0, 2], message: 'Invalid Todo text' }],

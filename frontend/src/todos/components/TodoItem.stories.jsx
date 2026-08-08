@@ -1,4 +1,5 @@
 import { expect, fn, fireEvent, userEvent } from 'storybook/test'
+import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
 import { TodoItem } from './TodoItem'
 
 /** @param {string} story */
@@ -12,6 +13,9 @@ const storyDocs = (story) => ({
 
 /** Frozen so DueIn labels stay stable (same clock as DueIn stories). */
 const today = '2026-07-31'
+const tomorrow = '2026-08-01'
+const editedDueDay = '2026-08-05'
+const yesterday = '2026-07-30'
 
 /** @param {Partial<import('@web-interview/todos/types').Todo>} [overrides] */
 const createTodo = (overrides = {}) => ({
@@ -46,7 +50,7 @@ export default meta
 
 export const ActiveWithDueDate = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoItem>} */ ({
   args: {
-    todo: createTodo({ id: '1', text: 'Buy milk', dueDate: '2026-08-01' }),
+    todo: createTodo({ id: '1', text: 'Buy milk', dueDate: tomorrow }),
   },
   ...storyDocs([
     '**Why:** An active Todo must wire every control: settled text, completion, due date, and delete.',
@@ -56,10 +60,13 @@ export const ActiveWithDueDate = /** @type {import('@storybook/react-vite').Stor
     const label = args.todo.text
     await expect(canvas.getByRole('group', { name: `Todo: ${label}` })).toBeInTheDocument()
     await expect(canvas.getByLabelText('What to do?')).toHaveValue(label)
-    await expect(canvas.getByLabelText('What to do?')).toHaveAttribute('maxlength', '1000')
+    await expect(canvas.getByLabelText('What to do?')).toHaveAttribute(
+      'maxlength',
+      String(TODO_TEXT_MAX_LENGTH)
+    )
     await expect(canvas.getByLabelText(`Mark completed: ${label}`)).not.toBeChecked()
     const due = canvas.getByLabelText(`Due in 1 day: ${label}`)
-    await expect(due).toHaveValue('2026-08-01')
+    await expect(due).toHaveValue(tomorrow)
     await expect(due).not.toBeInvalid()
 
     await userEvent.type(canvas.getByLabelText('What to do?'), '!')
@@ -70,8 +77,8 @@ export const ActiveWithDueDate = /** @type {import('@storybook/react-vite').Stor
     await userEvent.click(canvas.getByLabelText(`Mark completed: ${label}`))
     await expect(args.onChange).toHaveBeenCalledWith({ completed: true })
 
-    fireEvent.change(due, { target: { value: '2026-08-05' } })
-    await expect(args.onChange).toHaveBeenCalledWith({ dueDate: '2026-08-05' })
+    fireEvent.change(due, { target: { value: editedDueDay } })
+    await expect(args.onChange).toHaveBeenCalledWith({ dueDate: editedDueDay })
 
     await userEvent.click(canvas.getByLabelText(`Delete todo: ${label}`))
     await expect(args.onRemove).toHaveBeenCalledTimes(1)
@@ -84,7 +91,7 @@ export const CompletedNotOverdue = /** @type {import('@storybook/react-vite').St
       id: '1',
       text: 'Done',
       completed: true,
-      dueDate: '2026-07-30',
+      dueDate: yesterday,
     }),
   },
   ...storyDocs([
@@ -96,7 +103,7 @@ export const CompletedNotOverdue = /** @type {import('@storybook/react-vite').St
     await expect(canvas.getByRole('group', { name: `Todo: ${label}` })).toBeInTheDocument()
     await expect(canvas.getByLabelText(`Mark completed: ${label}`)).toBeChecked()
     const due = canvas.getByLabelText(`Due date: ${label}`)
-    await expect(due).toHaveValue('2026-07-30')
+    await expect(due).toHaveValue(yesterday)
     await expect(due).not.toBeInvalid()
   },
 })

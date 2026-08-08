@@ -13,7 +13,12 @@ import {
 } from './todoProtocol.js'
 import { listId, todoId, ulid } from './ulid.js'
 
-let clock = 1_760_000_000_000
+const INITIAL_DATOM_TIME_MS = 1_760_000_000_000
+const VALID_DUE_DAY = '2026-08-03'
+const INVALID_NON_LEAP_DAY = '2026-02-29'
+const VALID_LEAP_DAY = '2024-02-29'
+
+let clock = INITIAL_DATOM_TIME_MS
 const at = () => (clock += 1)
 
 const LIST = listId(at())
@@ -35,7 +40,7 @@ describe('datom', () => {
     assert.equal(parse([LIST, ATTRIBUTE.TITLE, 'Release', TX, true]).success, true)
     assert.equal(parse([TODO, ATTRIBUTE.TEXT, 'Ship it', TX, true]).success, true)
     assert.equal(parse([TODO, ATTRIBUTE.COMPLETED, true, TX, true]).success, true)
-    assert.equal(parse([TODO, ATTRIBUTE.DUE_DATE, '2026-08-03', TX, true]).success, true)
+    assert.equal(parse([TODO, ATTRIBUTE.DUE_DATE, VALID_DUE_DAY, TX, true]).success, true)
   })
 
   it('rejects an unknown attribute rather than ignoring it', () => {
@@ -78,8 +83,8 @@ describe('datom', () => {
   })
 
   it('rejects a dueDate that is not a real calendar date', () => {
-    assert.equal(parse([TODO, ATTRIBUTE.DUE_DATE, '2026-02-29', TX, true]).success, false)
-    assert.equal(parse([TODO, ATTRIBUTE.DUE_DATE, '2024-02-29', TX, true]).success, true)
+    assert.equal(parse([TODO, ATTRIBUTE.DUE_DATE, INVALID_NON_LEAP_DAY, TX, true]).success, false)
+    assert.equal(parse([TODO, ATTRIBUTE.DUE_DATE, VALID_LEAP_DAY, TX, true]).success, true)
   })
 
   it('rejects a tx that is not a ULID', () => {

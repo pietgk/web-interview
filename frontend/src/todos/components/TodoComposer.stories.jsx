@@ -1,4 +1,5 @@
 import { expect, fn, userEvent } from 'storybook/test'
+import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
 import { TodoComposer } from './TodoComposer'
 
 /** @param {string} story */
@@ -42,7 +43,7 @@ export const Empty = /** @type {import('@storybook/react-vite').StoryObj<typeof 
     await expect(canvas.getByRole('group', { name: 'New todo' })).toBeInTheDocument()
     const field = canvas.getByLabelText('Add a todo')
     await expect(field).toHaveValue('')
-    await expect(field).toHaveAttribute('maxlength', '1000')
+    await expect(field).toHaveAttribute('maxlength', String(TODO_TEXT_MAX_LENGTH))
     await expect(canvas.getByRole('button', { name: 'Add todo' })).toBeInTheDocument()
 
     await userEvent.type(field, 'A')

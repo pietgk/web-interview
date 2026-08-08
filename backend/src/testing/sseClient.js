@@ -19,6 +19,8 @@
 
 /** @typedef {{type: string, data: string, id: string | undefined}} ServerSentEvent */
 
+const STREAM_POLL_INTERVAL_MS = 10
+
 /** @param {string} frame @returns {ServerSentEvent} */
 const parseFrame = (frame) => {
   /** @type {ServerSentEvent} */
@@ -88,7 +90,7 @@ export const openDatomStream = async (baseUrl, { since, lastEventId } = {}) => {
         if (Date.now() > deadline) {
           throw new Error(`Timed out waiting for stream events: ${JSON.stringify(events)}`)
         }
-        await new Promise((resolve) => setTimeout(resolve, 10))
+        await new Promise((resolve) => setTimeout(resolve, STREAM_POLL_INTERVAL_MS))
       }
       return events
     },
