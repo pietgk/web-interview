@@ -16,11 +16,11 @@ giving the title back brings its Todos with it.
 
 ## Architecture decisions
 
-- [ADR 001: Error handling across boundaries](https://github.com/pietgk/web-interview/blob/master/docs/adr/001-error-handling.md)
+- [ADR 001: Superseded error handling across boundaries](https://github.com/pietgk/web-interview/blob/master/docs/adr/001-error-handling.md)
 - [ADR 004: One datom log](https://github.com/pietgk/web-interview/blob/master/docs/adr/004-single-datom-log.md)
 - [ADR 005: Testing seams and Storybook](https://github.com/pietgk/web-interview/blob/master/docs/adr/005-testing-and-storybook.md)
 - [ADR 006: How tests are run](https://github.com/pietgk/web-interview/blob/master/docs/adr/006-test-execution-model.md)
-- [ADR 008: Proposed structured failures for datom delivery](https://github.com/pietgk/web-interview/blob/master/docs/adr/008-structured-datom-delivery-failures.md)
+- [ADR 008: Structured failures for datom delivery](https://github.com/pietgk/web-interview/blob/master/docs/adr/008-structured-datom-delivery-failures.md)
 
 ## Optional
 

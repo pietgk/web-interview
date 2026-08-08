@@ -128,12 +128,12 @@ keeps the reports as an artifact for 14 days.
 
 Architecture decision records:
 
-- [ADR 001: Error handling across domain, HTTP, and frontend boundaries](./docs/adr/001-error-handling.md)
+- [ADR 001: Superseded error handling across domain, HTTP, and frontend boundaries](./docs/adr/001-error-handling.md)
 - [ADR 004: Single-datom log with last-write-wins projection](./docs/adr/004-single-datom-log.md)
 - [ADR 005: Testing seams and Storybook](./docs/adr/005-testing-and-storybook.md)
 - [ADR 006: How tests are run](./docs/adr/006-test-execution-model.md)
 - [ADR 007: How the UI talks to the model](./docs/adr/007-ui-to-model-convention.md)
-- [ADR 008: Proposed structured failures for datom delivery](./docs/adr/008-structured-datom-delivery-failures.md)
+- [ADR 008: Structured failures for datom delivery](./docs/adr/008-structured-datom-delivery-failures.md)
 
 [ADR 002](./docs/adr/002-xstate-actors.md) and [ADR 003](./docs/adr/003-shared-datom-actor.md)
 are superseded and kept only as the record of how the model arrived at one datom log. XState is no

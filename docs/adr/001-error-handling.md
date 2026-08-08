@@ -1,11 +1,11 @@
 # ADR 001: Error handling across domain, HTTP, and frontend boundaries
 
-- Status: Accepted
+- Status: Superseded by [ADR 008](./008-structured-datom-delivery-failures.md)
 - Date: 2026-07-31
 - Decision owners: Web interview implementation team
 - Scope: Todo contract, backend store and routes, frontend API client, and tests
-- Proposed successor: [ADR 008](./008-structured-datom-delivery-failures.md), which fits the
-  event-driven datom client that replaced the request-oriented frontend API described here
+- Successor: [ADR 008](./008-structured-datom-delivery-failures.md), which fits the event-driven
+  datom client that replaced the request-oriented frontend API described here
 
 ## Context
 

@@ -197,7 +197,9 @@ retracts it again. Enter or the trailing Add button commits the row into the lis
 ## StatusBar is a pure projection of client status
 
 The application creates one client and passes the same runtime to StatusBar and Todo Lists. A pure
-selector maps `{connection, pendingCount, saving, canEdit, error}` to one ordered status line.
+selector maps `{connection, pendingCount, saving, failure}` to one ordered status line. A permanent
+rejection reads **Changes not saved** until a later write succeeds. Its details preserve the
+failure message, code, HTTP status (or **No response**), and stable issue paths and messages.
 
 "Saving…" appears only after the outbox has been non-empty for 300ms, because settle-grained
 minting followed by an immediate POST empties the outbox in roughly 50ms and an undelayed
@@ -209,9 +211,15 @@ open, because delivery is what the user cares about and saying "Saving…" forev
 
 ## Due-date formatting
 
-`getDueStatus` returns structured `{ kind, label, days }` data and accepts an injectable current
-date. Tests remain deterministic, colors depend on `kind` rather than string matching, and
-completed todos are never described as overdue.
+The client owns one observable `today` calendar-date string. It derives that value from trusted
+server time in the browser's local calendar zone, refreshes it at each local midnight, and corrects
+and reschedules it when a heartbeat adjusts the clock. After the first trusted clock value, the
+midnight refresh continues while temporarily offline.
+
+`getDueStatus` returns structured `{ kind, label, days }` data and requires that explicit `today`.
+The runtime passes the same snapshot to Todo labels and Todo List Next Due Date summaries. Tests
+remain deterministic, subscribers are notified only when the calendar date changes, colors depend
+on `kind` rather than string matching, and completed Todos are never described as overdue.
 
 ## Test pyramid
 
