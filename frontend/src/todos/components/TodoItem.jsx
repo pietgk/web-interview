@@ -4,6 +4,7 @@ import {
   IconButton,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
+import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
 import { CompletionField } from './CompletionField'
 import { DueIn } from './DueIn'
 import { TodoRow } from './TodoRow'
@@ -50,6 +51,7 @@ export const TodoItem = ({ todo, onChange, onRemove, now }) => {
         sx={{ flexGrow: 1, minWidth: '12rem' }}
         label='What to do?'
         value={text}
+        inputProps={{ maxLength: TODO_TEXT_MAX_LENGTH }}
         onChange={(event) => change(event.target.value)}
         onBlur={settle}
         onKeyDown={(event) => {

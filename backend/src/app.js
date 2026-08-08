@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import { constants as HTTP } from 'node:http2'
-import { DATOM_API_PATH, ERROR_CODE } from '@web-interview/todos/protocol'
+import { API_ERROR_CODE, DATOM_API_PATH } from '@web-interview/todos/protocol'
 import { createDatomsRouter } from './routes/datoms.js'
 
 /** @typedef {Awaited<ReturnType<typeof import('./todos/datomService.js').createDatomService>>} DatomService */
@@ -39,7 +39,7 @@ export const createApp = (datomService, { corsOrigins = [], heartbeatMs } = {}) 
     if (err instanceof SyntaxError && 'body' in err) {
       res.status(HTTP.HTTP_STATUS_BAD_REQUEST).json({
         error: 'Malformed JSON',
-        code: ERROR_CODE.MALFORMED_JSON,
+        code: API_ERROR_CODE.MALFORMED_JSON,
       })
       return
     }
@@ -47,7 +47,7 @@ export const createApp = (datomService, { corsOrigins = [], heartbeatMs } = {}) 
     console.error(err)
     res.status(HTTP.HTTP_STATUS_INTERNAL_SERVER_ERROR).json({
       error: 'Internal server error',
-      code: ERROR_CODE.INTERNAL,
+      code: API_ERROR_CODE.INTERNAL_ERROR,
     })
   }
 

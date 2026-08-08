@@ -27,6 +27,11 @@
 
 /** @typedef {'connecting' | 'live' | 'reconnecting' | 'failed'} Connection */
 
+/** @typedef {'INTERNAL_ERROR' | 'INVALID_DATOM' | 'MALFORMED_JSON' | 'VALIDATION_ERROR'} ApiErrorCode */
+/** @typedef {'INVALID_RESPONSE' | 'NETWORK_ERROR'} BrowserErrorCode */
+/** @typedef {{path: Array<string | number>, message: string}} ApiErrorIssue */
+/** @typedef {{kind: 'api', status: number, code: ApiErrorCode, message: string, issues: ApiErrorIssue[]} | {kind: 'invalid-response', status: number | null, code: BrowserErrorCode, message: string, issues: []} | {kind: 'network', status: null, code: BrowserErrorCode, message: string, issues: []}} DeliveryFailure */
+
 /**
  * What the client knows about its own delivery. `saving` is `pendingCount > 0`
  * held true only after the outbox has been non-empty long enough to be worth
@@ -37,14 +42,15 @@
  * @property {number} pendingCount
  * @property {boolean} saving
  * @property {boolean} canEdit
- * @property {string | null} error
+ * @property {boolean} rehydrating
+ * @property {DeliveryFailure | null} failure
  * @property {string | null} epoch which log the store was folded from, null until the stream says
  */
 
 /** @typedef {'error' | 'info' | 'success' | 'warning'} StatusBarSeverity */
 /** @typedef {{id: string, text: string}} StatusBarPart */
 /** @typedef {{label: string, event: 'RECONNECT'}} StatusBarAction */
-/** @typedef {{reason: string}} StatusBarDetails */
+/** @typedef {{status: number | null, code: string, message: string, issues: ApiErrorIssue[]}} StatusBarDetails */
 /**
  * @typedef {object} StatusBarModel
  * @property {StatusBarSeverity} severity

@@ -42,6 +42,7 @@ export const Empty = /** @type {import('@storybook/react-vite').StoryObj<typeof 
     await expect(canvas.getByRole('group', { name: 'New todo' })).toBeInTheDocument()
     const field = canvas.getByLabelText('Add a todo')
     await expect(field).toHaveValue('')
+    await expect(field).toHaveAttribute('maxlength', '1000')
     await expect(canvas.getByRole('button', { name: 'Add todo' })).toBeInTheDocument()
 
     await userEvent.type(field, 'A')

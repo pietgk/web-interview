@@ -24,7 +24,8 @@ const runtime = (overrides = {}) => ({
     pendingCount: 0,
     saving: false,
     canEdit: true,
-    error: null,
+    rehydrating: false,
+    failure: null,
     epoch: 'epoch',
     ...overrides,
   },
@@ -93,7 +94,13 @@ export const WaitingWhileLive = /** @type {import('@storybook/react-vite').Story
     runtime: runtime({
       pendingCount: 1,
       saving: true,
-      error: 'Could not reach the server',
+      failure: {
+        kind: 'network',
+        status: null,
+        code: 'NETWORK_ERROR',
+        message: 'Could not reach the server',
+        issues: [],
+      },
     }),
   },
   ...storyDocs([
@@ -108,6 +115,37 @@ export const WaitingWhileLive = /** @type {import('@storybook/react-vite').Story
     await expect(await screen.findByRole('dialog', { name: 'Status details' })).toHaveTextContent(
       'Could not reach the server'
     )
+  },
+})
+
+export const ChangesNotSaved = /** @type {import('@storybook/react-vite').StoryObj<typeof StatusBar>} */ ({
+  args: {
+    runtime: runtime({
+      rehydrating: true,
+      canEdit: false,
+      failure: {
+        kind: 'api',
+        status: 400,
+        code: 'VALIDATION_ERROR',
+        message: 'Validation failed',
+        issues: [{ path: ['datoms', 0, 2], message: 'Invalid Todo text' }],
+      },
+    }),
+  },
+  ...storyDocs([
+    '**Why:** A permanent rejection must remain visible while authoritative state is restored and until a later write succeeds.',
+    '**See:** `alert` Application status says Changes not saved; Details preserves HTTP status, public code, message, and issues.',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    const bar = canvas.getByRole('alert', { name: 'Application status' })
+    await expect(bar).toHaveTextContent('Changes not saved')
+    await expect(bar).not.toHaveTextContent('All changes saved')
+    await userEvent.click(canvas.getByRole('button', { name: 'Details' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Status details' })
+    await expect(dialog).toHaveTextContent('Validation failed')
+    await expect(dialog).toHaveTextContent('VALIDATION_ERROR')
+    await expect(dialog).toHaveTextContent('400')
+    await expect(dialog).toHaveTextContent('datoms.0.2: Invalid Todo text')
   },
 })
 
@@ -141,7 +179,19 @@ export const WaitingOffline = /** @type {import('@storybook/react-vite').StoryOb
 })
 
 export const ConnectionFailed = /** @type {import('@storybook/react-vite').StoryObj<typeof StatusBar>} */ ({
-  args: { runtime: runtime({ connection: 'failed', error: 'Gateway unavailable', canEdit: false }) },
+  args: {
+    runtime: runtime({
+      connection: 'failed',
+      canEdit: false,
+      failure: {
+        kind: 'network',
+        status: null,
+        code: 'NETWORK_ERROR',
+        message: 'Gateway unavailable',
+        issues: [],
+      },
+    }),
+  },
   ...storyDocs([
     '**Why:** Hard failure needs an alert, the error reason via Details, and a manual Reconnect.',
     '**See:** `alert` Connection lost; Details opens Status details with Gateway unavailable; Reconnect calls `client.reconnect()`.',
@@ -163,7 +213,7 @@ export const ConnectionFailed = /** @type {import('@storybook/react-vite').Story
 })
 
 export const ConnectionFailedNoDetails = /** @type {import('@storybook/react-vite').StoryObj<typeof StatusBar>} */ ({
-  args: { runtime: runtime({ connection: 'failed', error: null, canEdit: false }) },
+  args: { runtime: runtime({ connection: 'failed', failure: null, canEdit: false }) },
   ...storyDocs([
     '**Why:** Failure without a reason string still offers Reconnect, but must not invent a Details panel.',
     '**See:** `alert` Connection lost and Reconnect only — no Details button.',

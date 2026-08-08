@@ -56,6 +56,7 @@ export const ActiveWithDueDate = /** @type {import('@storybook/react-vite').Stor
     const label = args.todo.text
     await expect(canvas.getByRole('group', { name: `Todo: ${label}` })).toBeInTheDocument()
     await expect(canvas.getByLabelText('What to do?')).toHaveValue(label)
+    await expect(canvas.getByLabelText('What to do?')).toHaveAttribute('maxlength', '1000')
     await expect(canvas.getByLabelText(`Mark completed: ${label}`)).not.toBeChecked()
     const due = canvas.getByLabelText(`Due in 1 day: ${label}`)
     await expect(due).toHaveValue('2026-08-01')

@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test'
 import { constants as HTTP } from 'node:http2'
 import { ATTRIBUTE } from '@web-interview/todos/datom'
-import { DATOM_API_PATH, ERROR_CODE } from '@web-interview/todos/protocol'
+import {
+  API_ERROR_CODE,
+  DATOM_API_PATH,
+  TODO_TEXT_MAX_LENGTH,
+} from '@web-interview/todos/protocol'
 import { listId, todoId, ulid } from '@web-interview/todos/ulid'
 import { E2E_API_BASE } from './environment.js'
 import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
@@ -77,7 +81,7 @@ test('rejects a due date that does not exist in its month', async ({ request }) 
 
   expect(response.status()).toBe(HTTP.HTTP_STATUS_BAD_REQUEST)
   await expect(response.json()).resolves.toMatchObject({
-    code: ERROR_CODE.VALIDATION,
+    code: API_ERROR_CODE.VALIDATION_ERROR,
     issues: [
       expect.objectContaining({
         message: expect.stringMatching(/Invalid value for dueDate/),
@@ -97,7 +101,7 @@ test('rejects a transaction id dated into the future', async ({ request }) => {
 
   expect(response.status()).toBe(HTTP.HTTP_STATUS_BAD_REQUEST)
   await expect(response.json()).resolves.toMatchObject({
-    code: ERROR_CODE.INVALID_DATOM,
+    code: API_ERROR_CODE.INVALID_DATOM,
   })
 })
 
@@ -157,6 +161,36 @@ test('autosaves a todo and persists it across refresh', async ({ page }) => {
   await page.reload()
   await page.getByText(title, { exact: true }).click()
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Persisted from e2e')
+})
+
+test('restores authoritative text when the server rejects an oversized edit', async ({ page }) => {
+  const title = uniqueListTitle('Rejected oversized edit')
+  await page.goto('/')
+  await waitForApp(page)
+  await startTodoList(page, title)
+  await addTodo(page, 'Original text')
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  const textField = page.getByLabel('What to do?').first()
+  // Bypass the browser guard to exercise the authoritative server boundary, as
+  // a legacy browser or direct client can.
+  await textField.evaluate((input) => input.removeAttribute('maxlength'))
+  const rejected = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      response.url().endsWith(DATOM_API_PATH.ROOT) &&
+      response.status() === HTTP.HTTP_STATUS_BAD_REQUEST
+  )
+  await textField.fill('x'.repeat(TODO_TEXT_MAX_LENGTH + 1))
+  await textField.press('Enter')
+  await rejected
+
+  await expect(page.getByText('Changes not saved')).toBeVisible()
+  await expect(textField).toHaveValue('Original text')
+
+  await page.reload()
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Original text')
 })
 
 test('marks a todo and its list as completed and persists after refresh', async ({ page }) => {

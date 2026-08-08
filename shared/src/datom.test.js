@@ -7,7 +7,10 @@ import {
   entityTypeOf,
   listEntityOf,
 } from './datom.js'
-import { TODO_LIST_TITLE_MAX_LENGTH } from './todoProtocol.js'
+import {
+  TODO_LIST_TITLE_MAX_LENGTH,
+  TODO_TEXT_MAX_LENGTH,
+} from './todoProtocol.js'
 import { listId, todoId, ulid } from './ulid.js'
 
 let clock = 1_760_000_000_000
@@ -61,6 +64,17 @@ describe('datom', () => {
     assert.equal(parse([LIST, ATTRIBUTE.TITLE, '   ', TX, true]).success, false)
     assert.equal(parse([LIST, ATTRIBUTE.TITLE, `  ${longest}  `, TX, true]).success, true)
     assert.equal(parse([LIST, ATTRIBUTE.TITLE, `${longest}x`, TX, true]).success, false)
+  })
+
+  it('accepts Todo text at the shared limit and rejects one character more', () => {
+    assert.equal(
+      parse([TODO, ATTRIBUTE.TEXT, 'x'.repeat(TODO_TEXT_MAX_LENGTH), TX, true]).success,
+      true
+    )
+    assert.equal(
+      parse([TODO, ATTRIBUTE.TEXT, 'x'.repeat(TODO_TEXT_MAX_LENGTH + 1), TX, true]).success,
+      false
+    )
   })
 
   it('rejects a dueDate that is not a real calendar date', () => {

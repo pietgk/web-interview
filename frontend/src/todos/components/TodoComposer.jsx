@@ -1,6 +1,7 @@
 import React, { useRef } from 'react'
 import { TextField, IconButton } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
 import { focusLeft } from './focusLeft'
 import { TodoRow } from './TodoRow'
 
@@ -44,7 +45,7 @@ export const TodoComposer = ({ text, onChange, onSubmit, onCommit, focusRef }) =
             submit()
           }
         }}
-        inputProps={{ 'aria-label': 'Add a todo' }}
+        inputProps={{ 'aria-label': 'Add a todo', maxLength: TODO_TEXT_MAX_LENGTH }}
       />
       <IconButton color='secondary' onClick={submit} aria-label='Add todo'>
         <AddIcon aria-hidden />

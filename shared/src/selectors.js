@@ -68,20 +68,37 @@ export const selectTodoListSummaries = (todoLists) =>
 const titlePart = { id: 'title', text: 'Things to do' }
 
 /**
- * One status line over what the client knows about its own delivery. There is no
- * conflict path and nothing is persisted locally, so the only things worth saying
- * are whether the stream is up and whether the outbox has drained.
+ * One status line over what the client knows about delivery and recovery. A
+ * permanent rejection outranks connection and saving copy so the UI cannot call
+ * a rejected optimistic change saved while authoritative state is being restored.
  *
  * @param {TodoClientStatus} status
  * @returns {import('./types.js').StatusBarModel}
  */
-export const selectStatusBar = ({ connection, pendingCount, saving, error }) => {
+export const selectStatusBar = ({ connection, pendingCount, saving, failure }) => {
+  const details = failure
+    ? {
+        status: failure.status,
+        code: failure.code,
+        message: failure.message,
+        issues: failure.issues,
+      }
+    : null
+
+  if (failure && failure.kind !== 'network') {
+    return {
+      severity: 'error',
+      parts: [titlePart, { id: 'sync', text: 'Changes not saved' }],
+      action: null,
+      details,
+    }
+  }
   if (connection === CONNECTION.FAILED) {
     return {
       severity: 'error',
       parts: [titlePart, { id: 'connection', text: 'Connection lost' }],
       action: { label: 'Reconnect', event: 'RECONNECT' },
-      details: error ? { reason: error } : null,
+      details,
     }
   }
   if (connection === CONNECTION.CONNECTING) {
@@ -104,17 +121,17 @@ export const selectStatusBar = ({ connection, pendingCount, saving, error }) => 
         },
       ],
       action: null,
-      details: error ? { reason: error } : null,
+      details,
     }
   }
   // Delivery is what matters, and the outbox can stall while the stream is still
   // nominally open. Saying "Saving…" forever would be a lie.
-  if (error && pendingCount > 0) {
+  if (failure && pendingCount > 0) {
     return {
       severity: 'warning',
       parts: [titlePart, { id: 'sync', text: 'Waiting for connection' }],
       action: null,
-      details: { reason: error },
+      details,
     }
   }
   if (saving) {

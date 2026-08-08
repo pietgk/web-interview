@@ -2,9 +2,9 @@ import { Router } from 'express'
 import { constants as HTTP } from 'node:http2'
 import { datomsRequestSchema } from '@web-interview/todos/datom'
 import {
+  API_ERROR_CODE,
   CLOCK_EVENT,
   EPOCH_EVENT,
-  ERROR_CODE,
   HEARTBEAT_INTERVAL_MS,
   TX_FUTURE_TOLERANCE_MS,
 } from '@web-interview/todos/protocol'
@@ -98,7 +98,7 @@ export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_M
     if (!parsed.success) {
       return res.status(HTTP.HTTP_STATUS_BAD_REQUEST).json({
         error: 'Validation failed',
-        code: ERROR_CODE.VALIDATION,
+        code: API_ERROR_CODE.VALIDATION_ERROR,
         issues: formatZodIssues(parsed.error),
       })
     }
@@ -109,7 +109,7 @@ export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_M
     if (parsed.data.datoms.some((datom) => ulidTime(datom[3]) > horizon)) {
       return res.status(HTTP.HTTP_STATUS_BAD_REQUEST).json({
         error: 'Transaction id is dated too far into the future',
-        code: ERROR_CODE.INVALID_DATOM,
+        code: API_ERROR_CODE.INVALID_DATOM,
       })
     }
 

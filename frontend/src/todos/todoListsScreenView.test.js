@@ -10,7 +10,8 @@ const clientStatus = (status = {}) => ({
   pendingCount: 0,
   saving: false,
   canEdit: true,
-  error: null,
+  rehydrating: false,
+  failure: null,
   epoch: 'epoch',
   ...status,
 })

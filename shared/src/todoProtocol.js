@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export const TODO_TEXT_MAX_LENGTH = 1000
 export const TODO_LIST_TITLE_MAX_LENGTH = 100
 
@@ -33,13 +35,39 @@ export const CLOCK_EVENT = 'clock'
  */
 export const EPOCH_EVENT = 'epoch'
 
-export const ERROR_CODE = Object.freeze({
-  INTERNAL: 'INTERNAL_ERROR',
+export const API_ERROR_CODE = Object.freeze({
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
   INVALID_DATOM: 'INVALID_DATOM',
   MALFORMED_JSON: 'MALFORMED_JSON',
-  NETWORK: 'NETWORK_ERROR',
-  VALIDATION: 'VALIDATION_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
 })
+
+export const BROWSER_ERROR_CODE = Object.freeze({
+  INVALID_RESPONSE: 'INVALID_RESPONSE',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+})
+
+const apiErrorCodeSchema = z.enum([
+  API_ERROR_CODE.INTERNAL_ERROR,
+  API_ERROR_CODE.INVALID_DATOM,
+  API_ERROR_CODE.MALFORMED_JSON,
+  API_ERROR_CODE.VALIDATION_ERROR,
+])
+
+export const apiErrorIssueSchema = z
+  .object({
+    path: z.array(z.union([z.string(), z.number()])),
+    message: z.string(),
+  })
+  .strict()
+
+export const apiErrorBodySchema = z
+  .object({
+    error: z.string(),
+    code: apiErrorCodeSchema,
+    issues: z.array(apiErrorIssueSchema).optional(),
+  })
+  .strict()
 
 export const CONNECTION = Object.freeze({
   CONNECTING: 'connecting',

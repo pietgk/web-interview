@@ -54,7 +54,8 @@ describe('todo-list selectors', () => {
         pendingCount: 0,
         saving: false,
         canEdit: true,
-        error: null,
+        rehydrating: false,
+        failure: null,
         epoch: 'epoch',
         ...overrides,
       })
@@ -70,7 +71,7 @@ describe('todo-list selectors', () => {
       text: 'Things to do | Connecting…',
       action: null,
     })
-    assert.deepEqual(visible({ connection: 'failed', error: 'Stream closed' }), {
+    assert.deepEqual(visible({ connection: 'failed' }), {
       severity: 'error',
       text: 'Things to do | Connection lost',
       action: { label: 'Reconnect', event: 'RECONNECT' },
@@ -90,7 +91,17 @@ describe('todo-list selectors', () => {
       action: null,
     })
     assert.deepEqual(
-      visible({ pendingCount: 1, saving: true, error: 'Could not reach the server' }),
+      visible({
+        pendingCount: 1,
+        saving: true,
+        failure: {
+          kind: 'network',
+          status: null,
+          code: 'NETWORK_ERROR',
+          message: 'Could not reach the server',
+          issues: [],
+        },
+      }),
       {
         severity: 'warning',
         text: 'Things to do | Waiting for connection',
@@ -98,10 +109,23 @@ describe('todo-list selectors', () => {
       },
       'an outbox that cannot drain is not "saving", even while the stream is up'
     )
-    assert.equal(
-      visible({ pendingCount: 0, error: 'The server rejected a change (400)' }).text,
-      'Things to do | All changes saved',
-      'a drained outbox has nothing left to wait for'
+    assert.deepEqual(
+      visible({
+        pendingCount: 0,
+        failure: {
+          kind: 'api',
+          status: 400,
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          issues: [{ path: ['datoms', 0, 2], message: 'Invalid Todo text' }],
+        },
+      }),
+      {
+        severity: 'error',
+        text: 'Things to do | Changes not saved',
+        action: null,
+      },
+      'a permanent rejection remains visible after the rejected batch leaves the outbox'
     )
     assert.equal(
       visible({ pendingCount: 1, saving: false }).text,

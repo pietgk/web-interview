@@ -1,6 +1,11 @@
 import { ATTRIBUTE } from '@web-interview/todos/datom'
-import { CONNECTION, SAVING_INDICATOR_DELAY_MS } from '@web-interview/todos/protocol'
-import { listId, ulid } from '@web-interview/todos/ulid'
+import {
+  API_ERROR_CODE,
+  BROWSER_ERROR_CODE,
+  CONNECTION,
+  SAVING_INDICATOR_DELAY_MS,
+} from '@web-interview/todos/protocol'
+import { listId, todoId, ulid } from '@web-interview/todos/ulid'
 import { createFakeDatomServer } from '../testing/fakeDatomServer'
 import { createTodoClient } from './todoClient'
 import { createTodoListCommands } from './todoListCommands'
@@ -67,15 +72,21 @@ describe('createTodoClient', () => {
     client.stop()
   })
 
-  it('surfaces a permanent server rejection and drops the refused datom', async () => {
+  it('restores authoritative state and preserves structured API rejection details', async () => {
     const server = createFakeDatomServer({ startTime: 1_000 })
+    const id = listId(1_000)
+    server.seed([[id, ATTRIBUTE.TITLE, 'Authoritative', ulid(1_000), true]])
     const client = clientFor(server, {
       fetchImpl: async () =>
         /** @type {Response} */ (
           /** @type {unknown} */ ({
             ok: false,
             status: 400,
-            json: async () => ({}),
+            json: async () => ({
+              error: 'Validation failed',
+              code: API_ERROR_CODE.VALIDATION_ERROR,
+              issues: [{ path: ['datoms', 0, 2], message: 'Invalid value for title' }],
+            }),
           })
         ),
     })
@@ -83,14 +94,169 @@ describe('createTodoClient', () => {
     await waitUntil(() => client.getStatus().canEdit)
 
     const commands = createTodoListCommands(client)
-    const id = commands.reserveListId()
     commands.renameList(id, 'Refused')
-    await waitUntil(() => client.getStatus().error !== null)
+    await waitUntil(() => client.getStatus().failure !== null && client.getStatus().canEdit)
 
-    expect(client.getStatus().error).toBe('The server rejected a change (400)')
-    expect(client.getStatus().pendingCount).toBe(0)
-    // Optimistic apply still happened locally; the gate is that the outbox moved on.
-    expect(client.getReadModel()[id].title).toBe('Refused')
+    expect(client.getStatus()).toMatchObject({
+      pendingCount: 0,
+      rehydrating: false,
+      failure: {
+        kind: 'api',
+        status: 400,
+        code: API_ERROR_CODE.VALIDATION_ERROR,
+        message: 'Validation failed',
+        issues: [{ path: ['datoms', 0, 2], message: 'Invalid value for title' }],
+      },
+    })
+    expect(client.getReadModel()[id].title).toBe('Authoritative')
+
+    client.stop()
+  })
+
+  it('rehydrates after rejection without losing or replaying a later write', async () => {
+    const server = createFakeDatomServer({ startTime: 1_000 })
+    const list = listId(1_000)
+    const todo = todoId(list, 1_001)
+    server.seed([
+      [list, ATTRIBUTE.TITLE, 'List', ulid(1_000), true],
+      [todo, ATTRIBUTE.TEXT, 'Authoritative', ulid(1_001), true],
+    ])
+
+    /** @type {Array<import('@web-interview/todos/types').Datom[]>} */
+    const posted = []
+    /** @type {Array<() => void>} */
+    const release = []
+    const client = clientFor(server, {
+      fetchImpl: async (url, init) => {
+        const { datoms } = JSON.parse(String(init?.body))
+        posted.push(datoms)
+        await new Promise((resolve) => release.push(() => resolve(undefined)))
+        if (posted.length === 1) {
+          return /** @type {Response} */ (/** @type {unknown} */ ({
+            ok: false,
+            status: 400,
+            json: async () => ({
+              error: 'Validation failed',
+              code: API_ERROR_CODE.VALIDATION_ERROR,
+            }),
+          }))
+        }
+        return server.fetchImpl(url, init)
+      },
+    })
+    /** @type {import('@web-interview/todos/types').TodoClientStatus[]} */
+    const statuses = []
+    client.subscribe(() => statuses.push(client.getStatus()))
+    client.start()
+    await waitUntil(() => client.getStatus().canEdit)
+
+    const commands = createTodoListCommands(client)
+    commands.retitleTodo(client.getReadModel()[list].todos[0], 'Rejected')
+    await waitUntil(() => posted.length === 1)
+    commands.retitleTodo(client.getReadModel()[list].todos[0], 'Written later')
+    expect(client.getStatus().pendingCount).toBe(2)
+
+    release[0]()
+    await waitUntil(() => posted.length === 2)
+    expect(statuses.some((status) => status.rehydrating && !status.canEdit)).toBe(true)
+    expect(client.getReadModel()[list].todos[0].text).toBe('Written later')
+    expect(client.getStatus()).toMatchObject({
+      pendingCount: 1,
+      failure: { kind: 'api', code: API_ERROR_CODE.VALIDATION_ERROR },
+    })
+    expect(posted[0][0][2]).toBe('Rejected')
+    expect(posted[1]).toHaveLength(1)
+    expect(posted[1][0][2]).toBe('Written later')
+
+    release[1]()
+    await waitUntil(() => client.getStatus().pendingCount === 0)
+    expect(client.getStatus().failure).toBe(null)
+    expect(server.store.readModel()[list].todos[0].text).toBe('Written later')
+
+    client.stop()
+  })
+
+  it('treats an invalid successful response as a browser failure and rehydrates', async () => {
+    const server = createFakeDatomServer({ startTime: 1_000 })
+    const id = listId(1_000)
+    server.seed([[id, ATTRIBUTE.TITLE, 'Authoritative', ulid(1_000), true]])
+    const client = clientFor(server, {
+      fetchImpl: async () =>
+        /** @type {Response} */ (/** @type {unknown} */ ({
+          ok: true,
+          status: 200,
+          json: async () => ({}),
+        })),
+    })
+    const commands = createTodoListCommands(client)
+    /** @type {string | null | undefined} */
+    let todoDuringRehydration
+    let attemptedDuringRehydration = false
+    client.subscribe(() => {
+      if (!client.getStatus().rehydrating || attemptedDuringRehydration) return
+      attemptedDuringRehydration = true
+      todoDuringRehydration = commands.addTodo(id, 'Too late')
+    })
+    client.start()
+    await waitUntil(() => client.getStatus().canEdit)
+
+    commands.renameList(id, 'Unconfirmed')
+    await waitUntil(() => client.getStatus().failure !== null && client.getStatus().canEdit)
+
+    expect(client.getStatus()).toMatchObject({
+      pendingCount: 0,
+      failure: {
+        kind: 'invalid-response',
+        status: 200,
+        code: BROWSER_ERROR_CODE.INVALID_RESPONSE,
+      },
+    })
+    expect(todoDuringRehydration).toBe(null)
+    expect(client.getReadModel()[id].title).toBe('Authoritative')
+
+    client.stop()
+  })
+
+  it('validates an unsuccessful response even when stopped before it arrives', async () => {
+    const server = createFakeDatomServer({ startTime: 1_000 })
+    const id = listId(1_000)
+    server.seed([[id, ATTRIBUTE.TITLE, 'Authoritative', ulid(1_000), true]])
+    /** @type {() => void} */
+    let releaseResponse = () => {}
+    let requestStarted = false
+    const client = clientFor(server, {
+      fetchImpl: async () => {
+        requestStarted = true
+        await new Promise((resolve) => {
+          releaseResponse = () => resolve(undefined)
+        })
+        return /** @type {Response} */ (/** @type {unknown} */ ({
+          ok: false,
+          status: 502,
+          json: async () => ({ message: 'Not the public API error shape' }),
+        }))
+      },
+    })
+    client.start()
+    await waitUntil(() => client.getStatus().canEdit)
+
+    createTodoListCommands(client).renameList(id, 'Unconfirmed')
+    await waitUntil(() => requestStarted)
+    client.stop()
+    releaseResponse()
+    await waitUntil(() => client.getStatus().failure !== null)
+
+    expect(client.getStatus()).toMatchObject({
+      canEdit: false,
+      rehydrating: true,
+      pendingCount: 0,
+      failure: {
+        kind: 'invalid-response',
+        status: 502,
+        code: BROWSER_ERROR_CODE.INVALID_RESPONSE,
+      },
+    })
+    expect(server.connections.size).toBe(0)
 
     client.stop()
   })
@@ -117,7 +283,7 @@ describe('createTodoClient', () => {
       const commands = createTodoListCommands(client)
       const id = commands.reserveListId()
       commands.renameList(id, 'Queued')
-      await vi.waitUntil(() => client.getStatus().error === 'Could not reach the server')
+      await vi.waitUntil(() => client.getStatus().failure?.code === BROWSER_ERROR_CODE.NETWORK_ERROR)
       expect(client.getStatus().pendingCount).toBe(1)
 
       // A second failure while the retry timer is armed must not stack timers.
@@ -128,7 +294,7 @@ describe('createTodoClient', () => {
       await vi.advanceTimersByTimeAsync(1_000)
       await vi.waitUntil(() => client.getStatus().pendingCount === 0)
 
-      expect(client.getStatus().error).toBe(null)
+      expect(client.getStatus().failure).toBe(null)
       expect(posted.length).toBeGreaterThanOrEqual(1)
       expect(posted.at(-1)?.at(-1)?.[2]).toBe('Still queued')
 
@@ -191,7 +357,11 @@ describe('createTodoClient', () => {
     client.start()
     expect(client.getStatus()).toMatchObject({
       connection: CONNECTION.FAILED,
-      error: 'This browser cannot receive live updates',
+      failure: {
+        kind: 'network',
+        code: BROWSER_ERROR_CODE.NETWORK_ERROR,
+        message: 'This browser cannot receive live updates',
+      },
     })
     client.stop()
   })

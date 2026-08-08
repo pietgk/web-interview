@@ -1,5 +1,7 @@
 import { DatomStore } from '@web-interview/todos/datom-store'
 import {
+  apiErrorBodySchema,
+  BROWSER_ERROR_CODE,
   CLOCK_EVENT,
   CONNECTION,
   DATOM_API_PATH,
@@ -26,8 +28,41 @@ const sameStatus = (left, right) =>
   left.pendingCount === right.pendingCount &&
   left.saving === right.saving &&
   left.canEdit === right.canEdit &&
-  left.error === right.error &&
+  left.rehydrating === right.rehydrating &&
+  left.failure === right.failure &&
   left.epoch === right.epoch
+
+/** @param {string} message */
+const networkFailure = (message) => ({
+  kind: /** @type {const} */ ('network'),
+  status: null,
+  code: BROWSER_ERROR_CODE.NETWORK_ERROR,
+  message,
+  issues: /** @type {[]} */ ([]),
+})
+
+/** @param {number | null} status */
+const invalidResponseFailure = (status) => ({
+  kind: /** @type {const} */ ('invalid-response'),
+  status,
+  code: BROWSER_ERROR_CODE.INVALID_RESPONSE,
+  message: 'The server returned an invalid response',
+  issues: /** @type {[]} */ ([]),
+})
+
+/** @param {Response} response */
+const failureFromResponse = async (response) => {
+  const body = await response.json().catch(() => null)
+  const parsed = apiErrorBodySchema.safeParse(body)
+  if (!parsed.success) return invalidResponseFailure(response.status)
+  return {
+    kind: /** @type {const} */ ('api'),
+    status: response.status,
+    code: parsed.data.code,
+    message: parsed.data.error,
+    issues: parsed.data.issues ?? [],
+  }
+}
 
 /**
  * The browser half of the log: a `DatomStore`, an `EventSource` reading it down,
@@ -63,6 +98,7 @@ export const createTodoClient = ({
   let epoch = null
   let stopped = true
   let draining = false
+  let rehydrating = false
   /** @type {ReturnType<typeof setTimeout> | null} */
   let retryTimer = null
   /** @type {ReturnType<typeof setTimeout> | null} */
@@ -70,8 +106,8 @@ export const createTodoClient = ({
 
   /** @type {import('@web-interview/todos/types').Connection} */
   let connection = CONNECTION.CONNECTING
-  /** @type {string | null} */
-  let error = null
+  /** @type {import('@web-interview/todos/types').DeliveryFailure | null} */
+  let failure = null
   let saving = false
 
   /**
@@ -93,8 +129,9 @@ export const createTodoClient = ({
     connection,
     pendingCount: outbox.length,
     saving,
-    canEdit: clockOffset !== null,
-    error,
+    canEdit: clockOffset !== null && !rehydrating,
+    rehydrating,
+    failure,
     epoch,
   })
 
@@ -149,8 +186,19 @@ export const createTodoClient = ({
     }, OUTBOX_RETRY_MS)
   }
 
+  const beginRehydration = () => {
+    // The rejected prefix has already left the outbox. Disable editing before
+    // clearing optimistic state, then request the complete authoritative set.
+    // The snapshot's trailing clock reapplies only the later outbox suffix.
+    rehydrating = true
+    cursor = undefined
+    publish()
+    store.clear()
+    resync()
+  }
+
   const drain = async () => {
-    if (draining || stopped || outbox.length === 0) return
+    if (draining || rehydrating || stopped || outbox.length === 0) return
     draining = true
     try {
       while (outbox.length > 0 && !stopped) {
@@ -164,22 +212,30 @@ export const createTodoClient = ({
             body: JSON.stringify({ datoms: batch }),
           })
         } catch {
-          error = 'Could not reach the server'
+          failure = networkFailure('Could not reach the server')
           scheduleRetry()
           publish()
           return
         }
 
-        outbox.splice(0, batch.length)
         if (response.ok) {
+          outbox.splice(0, batch.length)
           halfRoundTripMs = (monotonicNow() - sentAt) / 2
-          const body = await response.json().catch(() => ({}))
-          if (typeof body.serverTime === 'number') adoptServerTime(body.serverTime)
-          error = null
+          const body = await response.json().catch(() => null)
+          if (typeof body?.serverTime !== 'number') {
+            failure = invalidResponseFailure(response.status)
+            beginRehydration()
+            return
+          }
+          adoptServerTime(body.serverTime)
+          failure = null
         } else {
           // The server only refuses datoms it will never accept, so retrying one
           // would wedge the outbox behind it forever.
-          error = `The server rejected a change (${response.status})`
+          outbox.splice(0, batch.length)
+          failure = await failureFromResponse(response)
+          beginRehydration()
+          return
         }
         syncSavingIndicator()
         publish()
@@ -199,7 +255,7 @@ export const createTodoClient = ({
 
   const connect = () => {
     if (!EventSourceImpl) {
-      error = 'This browser cannot receive live updates'
+      failure = networkFailure('This browser cannot receive live updates')
       setConnection(CONNECTION.FAILED)
       return
     }
@@ -211,7 +267,6 @@ export const createTodoClient = ({
     source = next
 
     next.onopen = () => {
-      error = null
       setConnection(CONNECTION.LIVE)
       void drain()
     }
@@ -244,6 +299,11 @@ export const createTodoClient = ({
       const { serverTime } = JSON.parse(/** @type {MessageEvent} */ (event).data)
       if (typeof serverTime !== 'number') return
       adoptServerTime(serverTime)
+      if (rehydrating) {
+        for (const datom of outbox) store.apply(datom)
+        rehydrating = false
+        void drain()
+      }
       publish()
     })
     next.onerror = () => {
@@ -272,7 +332,7 @@ export const createTodoClient = ({
    * @returns {Datom | null}
    */
   const write = (entity, attribute, value, op) => {
-    if (clockOffset === null) return null
+    if (clockOffset === null || rehydrating) return null
     /** @type {Datom} */
     const datom = [entity, attribute, value, mint.tx(), op]
     store.apply(datom)

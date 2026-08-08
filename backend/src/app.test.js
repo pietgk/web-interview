@@ -6,7 +6,10 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ATTRIBUTE } from '@web-interview/todos/datom'
-import { ERROR_CODE } from '@web-interview/todos/protocol'
+import {
+  API_ERROR_CODE,
+  apiErrorBodySchema,
+} from '@web-interview/todos/protocol'
 import { ulid, ulidTime } from '@web-interview/todos/ulid'
 import { createApp } from './app.js'
 import { DatomJournal } from './todos/datomJournal.js'
@@ -62,6 +65,9 @@ describe('datom API', () => {
       body: JSON.stringify({ datoms }),
       ...init,
     })
+
+  /** @param {globalThis.Response} response */
+  const errorBody = async (response) => apiErrorBodySchema.parse(await response.json())
 
   /** @param {Parameters<typeof openDatomStream>[1]} [options] */
   const stream = async (options) => {
@@ -247,7 +253,10 @@ describe('datom API', () => {
     const response = await post([[list, ATTRIBUTE.TITLE, 'From the future', ulid(serverTime + 5_001), true]])
 
     assert.equal(response.status, HTTP.HTTP_STATUS_BAD_REQUEST)
-    assert.equal((/** @type {{code: string}} */ (await response.json())).code, ERROR_CODE.INVALID_DATOM)
+    assert.deepEqual(await errorBody(response), {
+      error: 'Transaction id is dated too far into the future',
+      code: API_ERROR_CODE.INVALID_DATOM,
+    })
     assert.notEqual(service.store.readModel()[list].title, 'From the future')
   })
 
@@ -271,7 +280,10 @@ describe('datom API', () => {
     ])))
 
     assert.equal(response.status, HTTP.HTTP_STATUS_BAD_REQUEST)
-    assert.equal((/** @type {{code: string}} */ (await response.json())).code, ERROR_CODE.VALIDATION)
+    const body = await errorBody(response)
+    assert.equal(body.code, API_ERROR_CODE.VALIDATION_ERROR)
+    assert.equal(body.error, 'Validation failed')
+    assert.ok(body.issues?.some((issue) => issue.path.join('.') === 'datoms.0.1'))
     assert.equal(service.store.readModel(), before)
   })
 
@@ -283,7 +295,10 @@ describe('datom API', () => {
     })
 
     assert.equal(response.status, HTTP.HTTP_STATUS_BAD_REQUEST)
-    assert.equal((/** @type {{code: string}} */ (await response.json())).code, ERROR_CODE.MALFORMED_JSON)
+    assert.deepEqual(await errorBody(response), {
+      error: 'Malformed JSON',
+      code: API_ERROR_CODE.MALFORMED_JSON,
+    })
   })
 
   it('emits CORS headers only for configured origins', async () => {
