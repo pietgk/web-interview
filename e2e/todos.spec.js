@@ -144,7 +144,7 @@ test('shows the seeded Todo Lists that survived the server restart', async ({ pa
   await expect(page.getByLabel('What to do?')).toHaveValue(PRIMARY_TODO_TEXT)
 })
 
-test('autosaves a todo and persists it across refresh', async ({ page }) => {
+test('settles a todo edit with Enter before reload', async ({ page }) => {
   const title = uniqueListTitle('Autosave')
   await page.goto('/')
   await waitForApp(page)
@@ -161,6 +161,26 @@ test('autosaves a todo and persists it across refresh', async ({ page }) => {
   await page.reload()
   await page.getByText(title, { exact: true }).click()
   await expect(page.getByLabel('What to do?').first()).toHaveValue('Persisted from e2e')
+})
+
+test('restores the previously settled value when reloaded inside the autosave window', async ({ page }) => {
+  const title = uniqueListTitle('Unsettled reload')
+  await page.clock.install({ time: Date.now() })
+  await page.goto('/')
+  await waitForApp(page)
+  await startTodoList(page, title)
+  const added = waitForWrite(page)
+  await addTodo(page, 'Previously settled')
+  await added
+  await expect(page.getByText('All changes saved')).toBeVisible()
+
+  const textField = page.getByLabel('What to do?').first()
+  await textField.fill('Draft inside settle window')
+  await expect(textField).toHaveValue('Draft inside settle window')
+
+  await page.reload()
+  await page.getByText(title, { exact: true }).click()
+  await expect(page.getByLabel('What to do?').first()).toHaveValue('Previously settled')
 })
 
 test('restores authoritative text when the server rejects an oversized edit', async ({ page }) => {

@@ -182,10 +182,11 @@ Without this, typing a twenty-character Todo would mint twenty datoms on `text`,
 superseded within a second, and there is no transaction envelope left to group them. Leaving a
 field by switching Todo Lists settles rather than discards, so the edit survives.
 
-Autosave guarantees persistence after an edit settles; it does not make draft text inside the
-500ms settling window durable. A hard reload during that window may restore the previously settled
-value. Durable in-flight drafts are deferred until product requirements or user evidence justify
-the lifecycle, local-storage, and conflict semantics they require.
+Enter and blur settle synchronously; the idle path settles after 500ms. Autosave guarantees
+persistence after one of those boundaries, but it does not make draft text inside the settling
+window durable. A hard reload before the timer runs restores the previously settled value. Durable
+in-flight drafts are deferred until product requirements or user evidence justify the lifecycle,
+local-storage, and conflict semantics they require.
 
 ## Ghost composer
 
