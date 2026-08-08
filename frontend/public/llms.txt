@@ -20,6 +20,7 @@ giving the title back brings its Todos with it.
 - [ADR 004: One datom log](https://github.com/pietgk/web-interview/blob/master/docs/adr/004-single-datom-log.md)
 - [ADR 005: Testing seams and Storybook](https://github.com/pietgk/web-interview/blob/master/docs/adr/005-testing-and-storybook.md)
 - [ADR 006: How tests are run](https://github.com/pietgk/web-interview/blob/master/docs/adr/006-test-execution-model.md)
+- [ADR 008: Proposed structured failures for datom delivery](https://github.com/pietgk/web-interview/blob/master/docs/adr/008-structured-datom-delivery-failures.md)
 
 ## Optional
 

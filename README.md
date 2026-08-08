@@ -23,7 +23,8 @@ two** of the four additional tasks.
 
 ## What was built
 
-All five, plus the correctness work each one implied:
+All five. The implementation also deliberately goes beyond the brief to make consistency,
+failure handling, durability, and product trade-offs concrete enough to discuss and challenge:
 
 - Shared browser/server datom store folding an append-only log by last-write-wins
 - Crash-safe, append-only JSONL persistence across server restarts
@@ -31,6 +32,11 @@ All five, plus the correctness work each one implied:
 - In-memory outbox that drains on reconnect within a session (edits do not survive a reload when not connected to the server)
 - Shared Zod runtime contract and deterministic read-model projection
 - Completion-aware due-date status
+
+A brief-sized implementation could stop at an in-memory server store, ordinary API writes, and
+settle-based autosave. The datom journal, live convergence, session outbox, Todo List lifecycle,
+and urgency-based ordering are deliberate explorations rather than requirements implied by the
+assignment.
 
 ![Architecture: UI to model to datoms, and how each layer is verified](./docs/architecture.svg)
 
@@ -127,6 +133,7 @@ Architecture decision records:
 - [ADR 005: Testing seams and Storybook](./docs/adr/005-testing-and-storybook.md)
 - [ADR 006: How tests are run](./docs/adr/006-test-execution-model.md)
 - [ADR 007: How the UI talks to the model](./docs/adr/007-ui-to-model-convention.md)
+- [ADR 008: Proposed structured failures for datom delivery](./docs/adr/008-structured-datom-delivery-failures.md)
 
 [ADR 002](./docs/adr/002-xstate-actors.md) and [ADR 003](./docs/adr/003-shared-datom-actor.md)
 are superseded and kept only as the record of how the model arrived at one datom log. XState is no

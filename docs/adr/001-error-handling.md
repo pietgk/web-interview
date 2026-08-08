@@ -4,6 +4,8 @@
 - Date: 2026-07-31
 - Decision owners: Web interview implementation team
 - Scope: Todo contract, backend store and routes, frontend API client, and tests
+- Proposed successor: [ADR 008](./008-structured-datom-delivery-failures.md), which fits the
+  event-driven datom client that replaced the request-oriented frontend API described here
 
 ## Context
 
@@ -390,4 +392,3 @@ The remaining migration work is:
 6. Add the layer-specific tests defined above.
 
 This migration changes error representation, not successful resource responses.
-

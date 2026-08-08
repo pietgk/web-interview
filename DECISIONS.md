@@ -26,13 +26,18 @@ The reasoning behind the stages, the coverage gate and the Node pin is in
 
 - **Main:** Persist todo lists across server restarts in an append-only JSONL journal
 - **Autosave:** No Save button; edits mint one datom when a field settles
-- **Real time:** Multiple clients and browser tabs converge without interaction
+- **Real time (deliberate extension):** Multiple clients and browser tabs converge without interaction
 - **Completed items:** Toggle per todo
 - **Completed lists:** Derived indicator when every item is completed
-- **Todo List lifecycle:** Create, rename, and delete whole Todo Lists in one datom each
+- **Todo List lifecycle (deliberate extension):** Create, rename, and delete whole Todo Lists in one datom each
 - **Due dates:** Remaining and overdue labels, with completed items shown as `Completed`
 - **StatusBar:** One global connection, delivery, and recovery surface
 - **Tests:** Seam-based coverage, Storybook play for components, shared/backend unit gates, thin Playwright — [`docs/adr/005-testing-and-storybook.md`](./docs/adr/005-testing-and-storybook.md)
+
+A brief-sized solution could stop at an in-memory server store, ordinary API writes, and
+settle-based autosave. The datom journal, live convergence, session outbox, Todo List lifecycle,
+and automatic ordering are deliberate interview discussion surfaces. They make consistency,
+failure semantics, durability, and UX trade-offs observable; the assignment does not require them.
 
 ## Persistence: one datom per line in a JSONL journal
 
@@ -157,6 +162,11 @@ The navigation order is a pure projection of the read model. Incomplete Todo Lis
 Date come first by date, undated and empty Todo Lists retain creation order, and completed Todo
 Lists retain creation order at the end.
 
+This ordering is a product hypothesis, not a proven UX improvement: surfacing urgent Todo Lists may
+help prioritization enough to justify losing stable spatial order. The active Todo List remains
+selected when it moves, and creation order is the deterministic tie-breaker. A real product should
+validate the trade-off with users before adding preferences, drag ordering, or more sort modes.
+
 ## List completion is derived
 
 List completion is never stored. A non-empty list is completed when every visible todo is
@@ -171,6 +181,11 @@ Enter, whichever comes first. Discrete actions (completed, due date, delete) min
 Without this, typing a twenty-character Todo would mint twenty datoms on `text`, nineteen of them
 superseded within a second, and there is no transaction envelope left to group them. Leaving a
 field by switching Todo Lists settles rather than discards, so the edit survives.
+
+Autosave guarantees persistence after an edit settles; it does not make draft text inside the
+500ms settling window durable. A hard reload during that window may restore the previously settled
+value. Durable in-flight drafts are deferred until product requirements or user evidence justify
+the lifecycle, local-storage, and conflict semantics they require.
 
 ## Ghost composer
 
@@ -220,6 +235,7 @@ so the test names state the rule rather than the mechanism.
   2000 1.2s, 4000 4.6s, against ~2ms for a single projection at 4000). It compounds the missing
   tombstone horizon, because tombstones are iterated by every projection and rendered by none
 - Offline edits surviving a reload
+- In-flight draft text surviving a hard reload before it settles
 - Selected-list persistence across refresh
 - Journal checkpoints and compaction
 - Manual Todo reordering, which would need an `order` attribute again

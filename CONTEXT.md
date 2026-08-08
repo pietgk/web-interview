@@ -21,6 +21,11 @@ A Todo exists while it has text. Deleting one takes its text away, and giving th
 brings its completion and due date with it.
 _Avoid_: Item, task
 
+**Completed Todo List**:
+A Todo List containing at least one Todo, where every Todo is completed. An empty Todo List is not
+completed.
+_Avoid_: Done Todo List, completed list
+
 **Next Due Date**:
 The earliest due date among the incomplete Todos in a Todo List. It is absent when no incomplete Todo has a due date.
 _Avoid_: First due date, list due date
