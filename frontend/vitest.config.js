@@ -11,7 +11,7 @@ import { defineConfig } from 'vitest/config'
 // project, and failed with "No projects matched the filter". Hence this file,
 // which exists to be discovered and to name both projects.
 //
-// It is deliberately NOT what the root process runs. Root `vitest.config.js`
+// It is deliberately NOT what the root process runs. Root `vitest.config.mjs`
 // points straight at `vitest.logic.config.js`, because pulling the browser
 // project into the root process is what ADR 006 records as stalling.
 export default defineConfig({

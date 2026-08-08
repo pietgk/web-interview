@@ -31,8 +31,9 @@ CI gates **near-100%** coverage on:
 - backend journal and API
 
 Components are judged by **story states, play functions, and a11y**, not by a hard line-% on JSX.
-Coverage reports still help find untested seams; they are not a vanity percentage across the
-whole tree.
+The canonical evidence report still shows informational per-file JSX coverage and Storybook
+discovery counts so unvisited paths are visible; those percentages do not affect the logic
+ratchet. They are diagnostic evidence, not a vanity target across the whole tree.
 
 ### Who tests what (no permanent overlap)
 

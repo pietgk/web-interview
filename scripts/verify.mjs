@@ -127,10 +127,12 @@ const printHelp = () => {
 const coverageHeadline = async () => {
   try {
     const summary = JSON.parse(
-      await readFile(resolve(ROOT, 'coverage/coverage-summary.json'), 'utf8')
+      await readFile(resolve(ROOT, 'coverage/evidence-summary.json'), 'utf8')
     )
-    const { statements, branches, functions } = summary.total
-    return `${statements.pct}% stmt · ${branches.pct}% branch · ${functions.pct}% func`
+    const { statements, branches, functions } = summary.gatedLogic
+    /** @param {{covered: number, total: number}} value */
+    const pct = ({ covered, total }) => total === 0 ? 100 : (covered * 100 / total).toFixed(2)
+    return `${pct(statements)}% stmt · ${pct(branches)}% branch · ${pct(functions)}% func`
   } catch {
     return 'no summary written'
   }
@@ -178,7 +180,12 @@ const main = async () => {
   // starts clean, and a run that cannot produce both simply does not judge.
   const regenerates = names.includes('unit')
   const canJudgeCoverage = names.includes('unit') && names.includes('storybook')
-  if (regenerates) await rm(resolve(ROOT, '.vitest-reports'), { recursive: true, force: true })
+  if (regenerates) {
+    await Promise.all([
+      rm(resolve(ROOT, '.vitest-reports'), { recursive: true, force: true }),
+      rm(resolve(ROOT, '.test-evidence'), { recursive: true, force: true }),
+    ])
+  }
 
   const rows = []
   let red = false

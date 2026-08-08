@@ -24,8 +24,9 @@ The current gate is green, but its evidence has three trust gaps:
 3. `coverage/` is ignored and its HTML has no Git revision or dirty-state provenance. A stale
    local report looks current, and CI uploads Lighthouse reports but discards coverage details.
 
-The current global merged result is 2149/2173 statements, 549/571 branches, 150/152 functions,
-and 2140/2164 lines. These are orientation totals only. The gate remains per-file.
+At plan-authoring time the global merged result was 2149/2173 statements, 549/571 branches,
+150/152 functions, and 2140/2164 lines. Those were orientation totals only; the gate remains
+per-file and the current generated report is authoritative.
 
 ## Confirmed policy
 
@@ -67,7 +68,7 @@ it owns:
 
 Keep filesystem access, Git inspection, environment variables, and process exit codes in a thin
 CLI adapter at the process seam. Tests cross the module interface using in-memory fixtures. Do not
-spread comparison rules between `vitest.config.js`, `verify.mjs`, and the workflow.
+spread comparison rules between `vitest.config.mjs`, `verify.mjs`, and the workflow.
 
 ## Artifacts and interfaces
 
@@ -136,11 +137,14 @@ summary; the workflow only uploads files.
 2. Implement the pure coverage-evidence module and thin CLI adapter.
 3. Generate the initial exact baseline from a complete merged run.
 4. Replace the manual per-file Vitest thresholds with the coverage-evidence check. Keep coverage
-   inclusion, exclusions, and reporters in `vitest.config.js`. Use Vitest 4's mandatory AST-aware
+   inclusion, exclusions, and reporters in `vitest.config.mjs`. Use Vitest 4's mandatory AST-aware
    V8 remapping; do not recreate the removed `ignoreEmptyLines` compatibility hack.
 5. Integrate check and ratchet modes into `verify` and add `npm run coverage:ratchet`.
 6. Make `coverage/report.html` the linked local artifact and add the detailed GitHub summary.
 7. Upload `coverage/` in CI with the same retention as Lighthouse.
+8. Account for every production source by evidence owner. Keep JSX coverage informational, but
+   fail on missing ownership, story/exemption coverage, Storybook discovery/execution, or coverage
+   collection so UI gaps remain visible without turning percentages into the UI test policy.
 8. Update README instructions only after the commands and artifacts exist.
 9. Run the full gate, inspect the HTML in a real browser, and reconcile every displayed total with
    `coverage-summary.json` before declaring the work done.

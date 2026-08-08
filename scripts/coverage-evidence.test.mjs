@@ -55,6 +55,25 @@ test('accepts an exact per-file baseline match', () => {
   assert.deepEqual(Object.keys(evaluation.files[0].current), METRICS)
 })
 
+test('keeps informational UI coverage outside the exact logic ratchet', () => {
+  const logicPath = 'shared/src/example.js'
+  const uiPath = 'frontend/src/App.jsx'
+  const logicCoverage = fileCoverage()
+  const evaluation = evaluateCoverage({
+    summary: summary({
+      [logicPath]: logicCoverage,
+      [uiPath]: fileCoverage({ statements: tuple(1, 5) }),
+    }),
+    baseline: baseline({ [logicPath]: logicCoverage }),
+    repositoryRoot: REPOSITORY_ROOT,
+    gatedPaths: [logicPath],
+  })
+
+  assert.equal(evaluation.verdict, 'pass')
+  assert.deepEqual(evaluation.files.map(({ path }) => path), [logicPath])
+  assert.deepEqual(evaluation.global.statements, logicCoverage.statements)
+})
+
 test('rejects an added uncovered item in both check and ratchet modes', () => {
   const path = 'backend/src/example.js'
   const expected = fileCoverage()
@@ -259,12 +278,39 @@ test('renders escaped Markdown and HTML in the canonical evidence order', () => 
       generatedAt: '2026-08-08T12:34:56.000Z',
       scope: 'merged unit + Storybook',
     },
+    sourceEvidence: {
+      verdict: 'pass',
+      issues: [],
+      categoryCounts: {
+        'logic-ratchet': 1,
+        'storybook-ui': 1,
+        'e2e-bootstrap': 1,
+        'test-support': 0,
+        'type-only': 1,
+      },
+      sources: [
+        { path: hostilePath, category: 'logic-ratchet', rationale: 'exact coverage' },
+        { path: 'frontend/src/App.jsx', category: 'storybook-ui', rationale: 'browser stories' },
+      ],
+      ui: [{
+        path: 'frontend/src/App.jsx',
+        evidence: 'frontend/src/App.stories.jsx',
+        declaredStories: 2,
+        declaredPlays: 2,
+        executedStories: 2,
+        coverage: fileCoverage({ branches: tuple(2, 3) }),
+      }],
+      uiTotals: fileCoverage({ branches: tuple(2, 3) }),
+    },
   })
 
   const markdown = renderCoverageMarkdown(evaluation)
   assert.match(markdown, /abc&lt;&amp;&gt;\\\|\\`/)
   assert.match(markdown, /shared\/src\/a&amp;&lt;b&gt;\\\|\.js/)
   assert.match(markdown, /0\/0 \(100\.00%\)/)
+  assert.match(markdown, /UI source coverage \(informational\)/)
+  assert.match(markdown, /frontend\/src\/App\.jsx/)
+  assert.match(markdown, /2\/2 stories executed/)
 
   const html = renderCoverageHtml(evaluation)
   assert.doesNotMatch(html, /abc<&>/)
@@ -272,11 +318,17 @@ test('renders escaped Markdown and HTML in the canonical evidence order', () => 
   assert.match(html, /abc&lt;&amp;&gt;\|&#96;/)
   assert.match(html, /shared\/src\/a&amp;&lt;b&gt;\|\.js/)
   assert.match(html, /href="index\.html"/)
+  assert.match(html, /UI source coverage \(informational\)/)
+  assert.match(html, /Source evidence ownership/)
+  assert.match(html, /frontend\/src\/App\.stories\.jsx/)
+  assert.match(html, /class="ui-table"/)
 
   const orderedHeadings = [
     'Coverage evidence',
-    'Global orientation totals',
-    'Recursive workspace rollups',
+    'Gated logic totals',
+    'Gated logic recursive workspace rollups',
+    'Source evidence ownership',
+    'UI source coverage (informational)',
     'Changes requiring action',
     'Gated files',
     'Istanbul explorer',

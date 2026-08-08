@@ -65,7 +65,7 @@ assertions are still `node:assert/strict`, which Vitest reports natively. `watch
 single Vitest process over four projects with real cross-workspace change detection, and there is
 one assertion style to read instead of two.
 
-`vitest.config.js` at the root lists four projects, each pointing at a config inside its own
+`vitest.config.mjs` at the root lists four projects, each pointing at a config inside its own
 workspace so it resolves its own dependencies. This repo installs per workspace rather than
 through npm workspaces. The frontend entry names `frontend/vitest.logic.config.js` rather than
 `frontend/vitest.config.js`, for the reason in the next paragraph.
@@ -101,7 +101,7 @@ The addon renames the browser project to `storybook:<configDir>` itself when it 
 still reaches the logic project **without** going through the file that names the browser project,
 which is why the root config points at `vitest.logic.config.js` directly. Reproduced both ways:
 deleting `frontend/vitest.config.js` restores the original error at the same stack frame, and
-restoring it runs all 51 story tests under the addon's own filter.
+restoring it runs every story test under the addon's own filter.
 
 ### Coverage is collected in `unit` and `browser`, judged in `quality`
 
@@ -142,10 +142,11 @@ ruler. This was necessary for determinism: repeated Vitest 3 Storybook runs alte
 32/33 and 33/34 branches for `todoModel.js`, and between 14/15 and 15/16 for
 `useSettledText.js`, while the one uncovered branch in each file never changed. Optional covered
 ranges were appearing and disappearing. Repeated AST-remapped runs produced identical maps.
-Both coverage producers enable `excludeAfterRemap` so source maps cannot add test or JSX files
-after the initial logic-only include filter. The Storybook producer also excludes JSX and test
-suffixes explicitly because Vitest's partial-path coverage matcher otherwise treats `*.js` as a
-match for the prefix of `*.jsx`.
+Both coverage producers enable `excludeAfterRemap` so source maps cannot add tests or unintended files
+after the initial include filter. The Storybook producer collects production UI sources for an
+informational section while explicitly excluding stories, tests, the DOM bootstrap, and its test
+harness. The exact comparator filters the merged report back to the classified logic seam, so JSX
+percentages cannot change the logic verdict.
 
 **The original thresholds in `vitest.config.js` were a lockfile, not a target.** The target remains
 100% statements, lines and functions with 90% branches. Those committed numbers recorded what the
@@ -204,14 +205,28 @@ baseline.
 
 One coverage-evidence module owns comparison, ratcheting, provenance, rollups, and rendering. Its
 canonical report identifies the Git revision, dirty state, generation time, and the merged unit +
-Storybook scope; shows global and explicitly recursive workspace orientation totals; and shows
-every gated file against its baseline. Istanbul's `coverage/index.html` remains the line-level
-explorer, not the policy dashboard. CI publishes the complete `coverage/` directory for 14 days
-and appends the canonical Markdown summary to the workflow run, matching Lighthouse's treatment.
+Storybook scope; shows gated-logic and explicitly recursive workspace totals; and shows every gated
+file against its baseline. The same report has two additional evidence views:
+
+- Source ownership classifies every non-test source as exact-ratcheted logic, Storybook UI, E2E
+  bootstrap, Storybook test support, or type-only. An unclassified file or a baseline/category
+  mismatch fails verification.
+- UI source coverage shows exact informational tuples for every Storybook-owned source, together
+  with declared stories, declared plays, and story tests actually executed in Chromium. Missing
+  coverage, a missing story or reviewed exemption, discovery drift, or a failed story is a hard
+  source-evidence failure. The percentages themselves are not thresholds and do not affect the
+  logic ratchet.
+
+`TodoRow.jsx` is the sole reviewed component exemption because it owns layout only and is exercised
+through `TodoItem` and `TodoComposer`; `theme.js` is owned by the Storybook preview;
+`frontend/src/index.jsx` and `backend/src/index.js` are E2E-owned bootstraps. Istanbul's
+`coverage/index.html` remains the line-level explorer, not the policy dashboard. CI publishes the
+complete `coverage/` directory for 14 days and appends the canonical Markdown summary to the
+workflow run, matching Lighthouse's treatment.
 
 Implementation is specified in
 [the coverage evidence and reporting plan](../plans/coverage-evidence-ratchet.md). The generated
-baseline and canonical report now implement this decision; `vitest.config.js` retains only the
+baseline and canonical report now implement this decision; `vitest.config.mjs` retains only the
 coverage collection contract.
 
 ### A diagram must not describe more than it renders

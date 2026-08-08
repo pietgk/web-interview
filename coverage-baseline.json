@@ -184,8 +184,8 @@
     },
     "frontend/src/todos/todoClient.js": {
       "statements": {
-        "covered": 230,
-        "total": 233
+        "covered": 231,
+        "total": 234
       },
       "branches": {
         "covered": 79,
@@ -275,7 +275,7 @@
     "frontend/src/todos/useGhostComposer.js": {
       "statements": {
         "covered": 20,
-        "total": 20
+        "total": 23
       },
       "branches": {
         "covered": 8,
@@ -293,7 +293,7 @@
     "frontend/src/todos/useSettledText.js": {
       "statements": {
         "covered": 43,
-        "total": 44
+        "total": 52
       },
       "branches": {
         "covered": 9,
@@ -311,7 +311,7 @@
     "frontend/src/todos/useTodoLists.js": {
       "statements": {
         "covered": 15,
-        "total": 15
+        "total": 21
       },
       "branches": {
         "covered": 4,

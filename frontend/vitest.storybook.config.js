@@ -31,12 +31,18 @@ export default mergeConfig(
       // stories prove, not only on what its unit test proves.
       coverage: {
         provider: 'v8',
-        // Must mirror the frontend entries in the root config's GATED_SEAMS, or
-        // the merged report loses whatever only the stories exercise.
-        include: ['src/todos/**/*.js', 'src/testing/*.js'],
+        // Collect both exact-ratcheted logic and informational UI evidence.
+        // The evidence module keeps those policy categories separate.
+        include: ['src/**/*.js', 'src/**/*.jsx'],
         // Vitest matches coverage includes as partial paths, so `*.js` also
         // matches the prefix of `*.jsx` unless the suffix is explicit here.
-        exclude: ['**/*.jsx', '**/*.test.js', '**/*.spec.js'],
+        exclude: [
+          '**/*.test.js',
+          '**/*.spec.js',
+          '**/*.stories.jsx',
+          'src/index.jsx',
+          'src/testing/storyHarness.jsx',
+        ],
         // Browser bundles remap to their original JSX and test sources only
         // after collection. Keep the evidence contract on logic seams.
         excludeAfterRemap: true,

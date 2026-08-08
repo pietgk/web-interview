@@ -68,3 +68,7 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 `coverage-baseline.json` is a **lockfile, not a target**. It records the exact per-file tuples the
 suite proves today and can only ratchet up through `npm run coverage:ratchet`. Do not edit or
 recalibrate it to make a run pass.
+
+Every production source file must have exactly one evidence owner in
+`scripts/source-evidence.mjs`. JSX coverage is informational, but missing ownership, Storybook
+discovery/execution, or UI coverage is a failing gate.

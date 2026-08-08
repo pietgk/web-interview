@@ -17,6 +17,7 @@ node_modules
 .DS_Store
 /coverage/
 /.vitest-reports/
+/.test-evidence/
 # Scratch dirs from ad-hoc coverage measurement runs
 /.wide-coverage/
 /.wide-reports/
