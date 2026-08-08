@@ -85,6 +85,8 @@ export const createTodoClient = ({
   const outbox = []
   /** @type {Set<() => void>} */
   const listeners = new Set()
+  /** @type {Set<() => void>} */
+  const todayListeners = new Set()
 
   /** @type {EventSource | null} */
   let source = null
@@ -103,6 +105,8 @@ export const createTodoClient = ({
   let retryTimer = null
   /** @type {ReturnType<typeof setTimeout> | null} */
   let savingTimer = null
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
+  let todayTimer
 
   /** @type {import('@web-interview/todos/types').Connection} */
   let connection = CONNECTION.CONNECTING
@@ -119,6 +123,8 @@ export const createTodoClient = ({
    */
   let clockOffset = null
   let halfRoundTripMs = 0
+  /** @type {string | null} */
+  let today = null
 
   const serverNow = () =>
     Math.round(monotonicNow() + /** @type {number} */ (clockOffset))
@@ -172,10 +178,42 @@ export const createTodoClient = ({
     saving = false
   }
 
+  /** @param {number} time */
+  const localCalendarDate = (time) => {
+    const date = new Date(time)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  const scheduleToday = () => {
+    clearTimeout(todayTimer)
+    const now = serverNow()
+    const date = new Date(now)
+    const nextMidnight = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate() + 1
+    ).getTime()
+    todayTimer = setTimeout(syncToday, Math.max(1, nextMidnight - now))
+  }
+
+  const syncToday = () => {
+    todayTimer = undefined
+    const next = localCalendarDate(serverNow())
+    if (next !== today) {
+      today = next
+      for (const listener of todayListeners) listener()
+    }
+    scheduleToday()
+  }
+
   /** @param {number} serverTime */
   const adoptServerTime = (serverTime) => {
     // The reading is half a round trip old by the time it lands here.
     clockOffset = serverTime + halfRoundTripMs - monotonicNow()
+    syncToday()
   }
 
   const scheduleRetry = () => {
@@ -354,8 +392,15 @@ export const createTodoClient = ({
       return () => listeners.delete(listener)
     },
 
+    /** @param {() => void} listener */
+    subscribeToday(listener) {
+      todayListeners.add(listener)
+      return () => todayListeners.delete(listener)
+    },
+
     getReadModel: () => store.readModel(),
     getStatus: () => status,
+    getToday: () => today,
 
     start() {
       if (!stopped) return
@@ -371,6 +416,8 @@ export const createTodoClient = ({
       retryTimer = null
       if (savingTimer) clearTimeout(savingTimer)
       savingTimer = null
+      clearTimeout(todayTimer)
+      todayTimer = undefined
     },
 
     reconnect() {

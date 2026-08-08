@@ -36,6 +36,7 @@ const meta = /** @type {import('@storybook/react-vite').Meta<typeof TodoListForm
   component: TodoListForm,
   args: {
     todoList: baseList,
+    today: '2026-07-31',
     onMaterialize: fn(),
     onTitleChange: fn(),
     onCancelDraft: fn(),

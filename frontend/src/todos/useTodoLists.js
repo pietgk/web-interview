@@ -3,7 +3,7 @@ import { deleteLegacyReplica } from './legacyReplica'
 import { createTodoClient } from './todoClient'
 
 /** @typedef {ReturnType<typeof createTodoClient>} TodoClient */
-/** @typedef {{client: TodoClient, readModel: import('@web-interview/todos/types').TodoLists, status: import('@web-interview/todos/types').TodoClientStatus}} TodoRuntime */
+/** @typedef {{client: TodoClient, readModel: import('@web-interview/todos/types').TodoLists, status: import('@web-interview/todos/types').TodoClientStatus, today: string | null}} TodoRuntime */
 
 /** @param {{createClient?: () => TodoClient}} [options] */
 export const useTodoLists = ({ createClient = createTodoClient } = {}) => {
@@ -21,6 +21,11 @@ export const useTodoLists = ({ createClient = createTodoClient } = {}) => {
     client.getStatus,
     client.getStatus
   )
+  const today = useSyncExternalStore(
+    client.subscribeToday,
+    client.getToday,
+    client.getToday
+  )
 
   useEffect(() => {
     deleteLegacyReplica()
@@ -28,5 +33,5 @@ export const useTodoLists = ({ createClient = createTodoClient } = {}) => {
     return () => client.stop()
   }, [client])
 
-  return { client, readModel, status }
+  return { client, readModel, status, today }
 }

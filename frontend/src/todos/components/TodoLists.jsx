@@ -41,12 +41,12 @@ const DeleteTodoListDialog = lazy(() => import('./DeleteTodoListDialog'))
 /** @typedef {import('@web-interview/todos/types').TodoList} TodoList */
 /** @typedef {import('../useTodoLists').TodoRuntime} TodoRuntime */
 
-/** @param {import('@web-interview/todos/selectors').TodoListSummary} summary */
-const ListRecap = (summary) => {
+/** @param {{summary: import('@web-interview/todos/selectors').TodoListSummary, today: string | null}} props */
+const ListRecap = ({ summary, today }) => {
   const completion = summary.totalCount === 0
     ? 'No todos yet'
     : `${summary.completedCount} of ${summary.totalCount} completed`
-  const due = getDueStatus(summary.nextDueDate)
+  const due = today ? getDueStatus(summary.nextDueDate, { today }) : null
   return (
     <Box component='span' sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
       {completion}
@@ -62,8 +62,8 @@ const ListRecap = (summary) => {
   )
 }
 
-/** @param {{todoList: TodoList, summary: import('@web-interview/todos/selectors').TodoListSummary, selected: boolean, onSelect: () => void, onDelete: () => void}} props */
-const TodoListRow = ({ todoList, summary, selected, onSelect, onDelete }) => (
+/** @param {{todoList: TodoList, summary: import('@web-interview/todos/selectors').TodoListSummary, today: string | null, selected: boolean, onSelect: () => void, onDelete: () => void}} props */
+const TodoListRow = ({ todoList, summary, today, selected, onSelect, onDelete }) => (
   <ListItem
     disablePadding
     secondaryAction={
@@ -89,14 +89,14 @@ const TodoListRow = ({ todoList, summary, selected, onSelect, onDelete }) => (
           <ReceiptIcon aria-hidden />
         )}
       </ListItemIcon>
-      <ListItemText primary={summary.title} secondary={<ListRecap {...summary} />} />
+      <ListItemText primary={summary.title} secondary={<ListRecap summary={summary} today={today} />} />
     </ListItemButton>
   </ListItem>
 )
 
 /** @param {{runtime: TodoRuntime, style?: React.CSSProperties}} props */
 export const TodoLists = ({ runtime, style }) => {
-  const { client, readModel, status } = runtime
+  const { client, readModel, status, today } = runtime
   const commands = useMemo(() => createTodoListCommands(client), [client])
   const [uiState, dispatch] = useReducer(todoListsUiReducer, initialTodoListsUiState)
   const titleInputRef = useRef(/** @type {HTMLInputElement | null} */ (null))
@@ -166,6 +166,7 @@ export const TodoLists = ({ runtime, style }) => {
                   key={summary.id}
                   todoList={todoList}
                   summary={summary}
+                  today={today}
                   selected={summary.id === uiState.activeListId}
                   onSelect={() => dispatch({ type: 'SELECT_LIST', listId: summary.id })}
                   onDelete={() => {
@@ -204,6 +205,7 @@ export const TodoLists = ({ runtime, style }) => {
           key={activeList.id}
           todoList={activeList}
           commands={commands}
+          today={/** @type {string} */ (today)}
           draft={drafting}
           autoFocusTitle={drafting}
           titleFocusRef={titleInputRef}

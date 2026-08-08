@@ -13,11 +13,11 @@ const dueInLabel = (status) => {
  *   completed: boolean,
  *   onChange: (dueDate: string | null) => void,
  *   todoLabel: string,
- *   now?: Date
+ *   today: string
  * }} props
  */
-export const DueIn = ({ dueDate, completed, onChange, todoLabel, now }) => {
-  const dueStatus = completed ? null : getDueStatus(dueDate, { now })
+export const DueIn = ({ dueDate, completed, onChange, todoLabel, today }) => {
+  const dueStatus = completed ? null : getDueStatus(dueDate, { today })
   const label = dueInLabel(dueStatus)
 
   return (

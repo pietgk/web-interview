@@ -28,14 +28,10 @@ const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', {
   numeric: 'always',
 })
 
-/** @param {Date} date */
-const startOfLocalDay = (date) =>
-  new Date(date.getFullYear(), date.getMonth(), date.getDate())
-
 /** @param {string} value */
 const parseDateOnly = (value) => {
   const [year, month, day] = value.split('-').map(Number)
-  return new Date(year, month - 1, day)
+  return Date.UTC(year, month - 1, day)
 }
 
 /**
@@ -77,10 +73,10 @@ const dueLabel = (days, value, unit) => {
  * Structured due-date status for display.
  * Completed todos are never described as overdue/remaining.
  * @param {string | null} dueDate
- * @param {{completed?: boolean, now?: Date}} [options]
+ * @param {{completed?: boolean, today: string}} options
  * @returns {DueStatus | null}
  */
-export const getDueStatus = (dueDate, { completed = false, now = new Date() } = {}) => {
+export const getDueStatus = (dueDate, { completed = false, today }) => {
   if (completed) {
     return {
       kind: 'completed',
@@ -93,10 +89,9 @@ export const getDueStatus = (dueDate, { completed = false, now = new Date() } = 
   if (!dueDate) return null
 
   const due = parseDateOnly(dueDate)
-  if (Number.isNaN(due.getTime())) return null
-
-  const today = startOfLocalDay(now)
-  const days = Math.round((due.getTime() - today.getTime()) / MS_PER_DAY)
+  const current = parseDateOnly(today)
+  if (Number.isNaN(due) || Number.isNaN(current)) return null
+  const days = Math.round((due - current) / MS_PER_DAY)
 
   if (days === 0) {
     return { kind: 'today', label: 'Due today', days: 0, value: 0, unit: 'day' }

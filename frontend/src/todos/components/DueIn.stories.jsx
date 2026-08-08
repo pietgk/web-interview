@@ -12,7 +12,7 @@ const storyDocs = (story) => ({
 })
 
 /** Frozen so due labels stay stable in Docs and play (not “today” from the wall clock). */
-const now = new Date(2026, 6, 31)
+const today = '2026-07-31'
 
 /**
  * Keeps dueDate in sync so change → clear can both fire against a controlled field.
@@ -39,14 +39,14 @@ const meta = /** @type {import('@storybook/react-vite').Meta<typeof DueIn>} */ (
   args: {
     todoLabel: 'Buy milk',
     onChange: fn(),
-    now,
+    today,
   },
   parameters: {
     docs: {
       description: {
         component: [
           '**DueIn** is the date field for one Todo. The visible label tracks due status (`Due date`, `Due today`, `Due in 1 day`, `1 day overdue`, …). Overdue also sets the field error state.',
-          '`todoLabel` is not shown — it only builds the accessible name `{status label}: {todoLabel}` (same idea as CompletionField). Stories use `Buy milk` and a fixed `now` (31 Jul 2026) so labels do not drift. When `completed` is true, status is cleared and the label falls back to **Due date**.',
+          '`todoLabel` is not shown - it only builds the accessible name `{status label}: {todoLabel}` (same idea as CompletionField). Stories use `Buy milk` and a fixed `today` (31 Jul 2026) so labels do not drift. When `completed` is true, status is cleared and the label falls back to **Due date**.',
           'These plays assert the field value, status label (via accessible name), and error state for each story; `NoDueDate` also checks `onChange` (via a stateful wrapper so the controlled value updates).',
         ].join('\n\n'),
       },
@@ -87,7 +87,7 @@ export const DueToday = /** @type {import('@storybook/react-vite').StoryObj<type
     completed: false,
   },
   ...storyDocs([
-    '**Why:** A due date equal to `now` is called out as today, without error styling.',
+    '**Why:** A due date equal to `today` is called out as today, without error styling.',
     '**See:** Value `2026-07-31`, accessible name `Due today: Buy milk`, not invalid.',
   ].join(' ')),
   play: async ({ canvas, args }) => {

@@ -19,6 +19,7 @@ const runtime = (overrides = {}) => ({
     /** @type {unknown} */ ({ reconnect: fn() })
   ),
   readModel: {},
+  today: '2026-07-31',
   status: {
     connection: /** @type {const} */ ('live'),
     pendingCount: 0,

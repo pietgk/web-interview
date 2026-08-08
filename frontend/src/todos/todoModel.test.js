@@ -26,7 +26,7 @@ describe('todoModel', () => {
   })
 
   describe('getDueStatus', () => {
-    const now = new Date(2026, 6, 31) // 31 Jul 2026 local
+    const today = '2026-07-31'
 
     it.each([
       [null, false, null],
@@ -68,11 +68,11 @@ describe('todoModel', () => {
         },
       ],
     ])('dueDate %s completed=%s', (dueDate, completed, expected) => {
-      expect(getDueStatus(dueDate, { completed, now })).toEqual(expected)
+      expect(getDueStatus(dueDate, { completed, today })).toEqual(expected)
     })
 
     it('does not describe a completed todo as overdue', () => {
-      const status = getDueStatus('2026-07-30', { completed: true, now })
+      const status = getDueStatus('2026-07-30', { completed: true, today })
       if (!status) throw new Error('Expected a completed due-date status')
       expect(status.kind).toBe('completed')
       expect(status.label).not.toMatch(/overdue/i)
@@ -87,7 +87,7 @@ describe('todoModel', () => {
       ['2026-06-16', '1 month overdue', 1, 'month'],
       ['2025-01-29', '2 years overdue', 2, 'year'],
     ])('humanizes %s as %s', (dueDate, label, value, unit) => {
-      expect(getDueStatus(dueDate, { now })).toMatchObject({ label, value, unit })
+      expect(getDueStatus(dueDate, { today })).toMatchObject({ label, value, unit })
     })
   })
 })

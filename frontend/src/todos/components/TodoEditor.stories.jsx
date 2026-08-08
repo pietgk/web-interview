@@ -49,6 +49,7 @@ export const WithComposerAndTodo = /** @type {import('@storybook/react-vite').St
         <TodoComposer text='' onChange={fn()} onSubmit={fn()} />
         <TodoItem
           todo={{ id: '1', text: 'Buy milk', completed: false, dueDate: null }}
+          today='2026-07-31'
           onChange={fn()}
           onRemove={fn()}
         />

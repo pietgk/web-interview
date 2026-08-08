@@ -11,7 +11,7 @@ const storyDocs = (story) => ({
 })
 
 /** Frozen so DueIn labels stay stable (same clock as DueIn stories). */
-const now = new Date(2026, 6, 31)
+const today = '2026-07-31'
 
 /** @param {Partial<import('@web-interview/todos/types').Todo>} [overrides] */
 const createTodo = (overrides = {}) => ({
@@ -28,14 +28,14 @@ const meta = /** @type {import('@storybook/react-vite').Meta<typeof TodoItem>} *
   args: {
     onChange: fn(),
     onRemove: fn(),
-    now,
+    today,
   },
   parameters: {
     docs: {
       description: {
         component: [
           '**TodoItem** is one Todo row: Done (`CompletionField`), due date (`DueIn`), **What to do?** text, and delete. The row group is named `Todo: {text}` (or `untitled` when blank); the same label is passed into the child fields’ accessible names.',
-          'Text edits settle on blur/Enter via `useSettledText` — keystrokes do not call `onChange({ text })` until then. Completion and due date patch immediately. Due status uses the story `now` (31 Jul 2026). Deep DueIn/CompletionField cases live in those components’ stories; here we prove wiring and the completed-clears-overdue handoff.',
+          'Text edits settle on blur/Enter via `useSettledText` - keystrokes do not call `onChange({ text })` until then. Completion and due date patch immediately. Due status uses the story `today` (31 Jul 2026). Deep DueIn/CompletionField cases live in those components’ stories; here we prove wiring and the completed-clears-overdue handoff.',
         ].join('\n\n'),
       },
     },

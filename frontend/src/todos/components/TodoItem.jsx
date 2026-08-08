@@ -24,10 +24,10 @@ const todoLabel = (todo) => {
  *   todo: Todo,
  *   onChange: (patch: TodoPatch) => void,
  *   onRemove: () => void,
- *   now?: Date
+ *   today: string
  * }} props
  */
-export const TodoItem = ({ todo, onChange, onRemove, now }) => {
+export const TodoItem = ({ todo, onChange, onRemove, today }) => {
   const label = todoLabel(todo)
   const { text, change, settle } = useSettledText(todo.text, (next) =>
     onChange({ text: next })
@@ -45,7 +45,7 @@ export const TodoItem = ({ todo, onChange, onRemove, now }) => {
         completed={todo.completed}
         onChange={(dueDate) => onChange({ dueDate })}
         todoLabel={label}
-        now={now}
+        today={today}
       />
       <TextField
         sx={{ flexGrow: 1, minWidth: '12rem' }}

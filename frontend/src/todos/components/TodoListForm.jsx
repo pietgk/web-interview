@@ -13,6 +13,7 @@ import { useGhostComposer } from '../useGhostComposer'
  * @param {{
  *   todoList: TodoList,
  *   commands: TodoListCommands,
+ *   today: string,
  *   draft?: boolean,
  *   autoFocusTitle?: boolean,
  *   titleFocusRef?: React.MutableRefObject<HTMLInputElement | null>,
@@ -24,6 +25,7 @@ import { useGhostComposer } from '../useGhostComposer'
 export const TodoListForm = ({
   todoList,
   commands,
+  today,
   draft = false,
   autoFocusTitle = false,
   titleFocusRef,
@@ -65,6 +67,7 @@ export const TodoListForm = ({
               <TodoItem
                 key={todo.id}
                 todo={todo}
+                today={today}
                 onChange={(patch) => {
                   if ('text' in patch) {
                     commands.retitleTodo(todo, /** @type {string} */ (patch.text))

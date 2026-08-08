@@ -36,6 +36,57 @@ const waitUntil = async (predicate) => {
 }
 
 describe('createTodoClient', () => {
+  it('updates today at each local midnight while offline', async () => {
+    vi.useFakeTimers()
+    try {
+      const startTime = new Date(2026, 6, 31, 23, 59, 59).getTime()
+      const server = createFakeDatomServer({ startTime })
+      const client = clientFor(server)
+      let notifications = 0
+      client.subscribeToday(() => { notifications += 1 })
+      client.start()
+      await vi.waitUntil(() => client.getToday() === '2026-07-31')
+      expect(notifications).toBe(1)
+
+      server.disconnect()
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(client.getToday()).toBe('2026-08-01')
+      expect(notifications).toBe(2)
+
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1_000)
+      expect(client.getToday()).toBe('2026-08-02')
+      expect(notifications).toBe(3)
+
+      client.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('corrects and reschedules today from heartbeats without duplicate notifications', async () => {
+    const startTime = new Date(2026, 6, 31, 12).getTime()
+    const server = createFakeDatomServer({ startTime })
+    const client = clientFor(server)
+    let notifications = 0
+    client.subscribeToday(() => { notifications += 1 })
+    client.start()
+    await waitUntil(() => client.getToday() === '2026-07-31')
+    expect(notifications).toBe(1)
+    const source = [...server.connections][0]
+
+    server.advance(60 * 60 * 1_000)
+    source.emitClock()
+    expect(client.getToday()).toBe('2026-07-31')
+    expect(notifications).toBe(1)
+
+    server.advance(24 * 60 * 60 * 1_000)
+    source.emitClock()
+    expect(client.getToday()).toBe('2026-08-01')
+    expect(notifications).toBe(2)
+
+    client.stop()
+  })
+
   it('reconnect() rebuilds the stream after a hard failure', async () => {
     const server = createFakeDatomServer({ startTime: 1_000 })
     const client = clientFor(server)

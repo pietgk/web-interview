@@ -239,6 +239,57 @@ test('shows a due-in label for a due date and persists after refresh', async ({ 
   await expect(page.getByLabel(dueInYearsLabel)).toHaveValue('2099-01-15')
 })
 
+test('refreshes visible and accessible due status across local midnight', async ({ page, request }) => {
+  const title = uniqueListTitle('Midnight refresh')
+  const text = 'Cross midnight'
+  const list = listId(Date.now())
+  const todo = todoId(list, Date.now())
+  const staleTx = '0'.repeat(26)
+  const created = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: {
+      datoms: [
+        [list, ATTRIBUTE.TITLE, title, staleTx, true],
+        [todo, ATTRIBUTE.TEXT, text, staleTx, true],
+      ],
+    },
+  })
+  expect(created.ok()).toBe(true)
+  const { serverTime } = await created.json()
+
+  await page.clock.install({ time: serverTime })
+  const { dueDate, untilMidnight } = await page.evaluate(() => {
+    const now = new Date()
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const year = midnight.getFullYear()
+    const month = String(midnight.getMonth() + 1).padStart(2, '0')
+    const day = String(midnight.getDate()).padStart(2, '0')
+    return {
+      dueDate: `${year}-${month}-${day}`,
+      untilMidnight: midnight.getTime() - Date.now(),
+    }
+  })
+  const dated = await request.post(`${E2E_API_BASE}${DATOM_API_PATH.ROOT}`, {
+    headers: { 'Content-Type': 'application/json' },
+    data: {
+      datoms: [[todo, ATTRIBUTE.DUE_DATE, dueDate, staleTx, true]],
+    },
+  })
+  expect(dated.ok()).toBe(true)
+
+  await page.goto('/')
+  await waitForApp(page)
+  await page.getByText(title, { exact: true }).click()
+  const listButton = page.getByRole('button', { name: new RegExp(`^${title} `) })
+  await expect(listButton).toContainText('Due in 1 day')
+  await expect(page.getByLabel(`Due in 1 day: ${text}`)).toHaveValue(dueDate)
+
+  await page.clock.runFor(untilMidnight + 1_000)
+
+  await expect(listButton).toContainText('Due today')
+  await expect(page.getByLabel(`Due today: ${text}`)).toHaveValue(dueDate)
+})
+
 test('keeps a todo edit when switching lists before the text settles', async ({ page }) => {
   const title = uniqueListTitle('Switch away')
   await page.goto('/')
