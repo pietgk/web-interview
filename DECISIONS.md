@@ -167,10 +167,10 @@ help prioritization enough to justify losing stable spatial order. The active To
 selected when it moves, and creation order is the deterministic tie-breaker. A real product should
 validate the trade-off with users before adding preferences, drag ordering, or more sort modes.
 
-## List completion is derived
+## Completed Todo List is derived
 
-List completion is never stored. A non-empty list is completed when every visible todo is
-completed. Both the navigation summary and the active editor read the local projection, so they
+A Completed Todo List is never stored. A non-empty Todo List is completed when every visible Todo
+is completed. Both the navigation summary and the active editor read the local projection, so they
 update before the server has acknowledged anything.
 
 ## Edit granularity: mint on settle

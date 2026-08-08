@@ -10,10 +10,6 @@
  * @property {RelativeDueUnit | null} unit
  */
 
-/** @param {Todo[]} [todos] */
-export const isListCompleted = (todos = []) =>
-  todos.length > 0 && todos.every((todo) => todo.completed)
-
 /**
  * `text` is a Todo's defining attribute, so a ghost composer that settles blank
  * has nothing to assert and takes its Todo away with it.

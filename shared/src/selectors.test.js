@@ -1,12 +1,36 @@
 import { describe, it } from 'vitest'
 import assert from 'node:assert/strict'
 import {
+  isTodoListCompleted,
   selectListSummary,
   selectStatusBar,
   selectTodoListSummaries,
 } from './selectors.js'
 
 describe('todo-list selectors', () => {
+  describe('isTodoListCompleted', () => {
+    /** @param {string} id @param {boolean} completed */
+    const todo = (id, completed) => ({ id, text: id, completed, dueDate: null })
+
+    it('is false for an empty Todo List', () => {
+      assert.equal(isTodoListCompleted([]), false)
+    })
+
+    it('is true when every Todo is completed', () => {
+      assert.equal(
+        isTodoListCompleted([todo('first', true), todo('second', true)]),
+        true
+      )
+    })
+
+    it('is false when any Todo is incomplete', () => {
+      assert.equal(
+        isTodoListCompleted([todo('first', true), todo('second', false)]),
+        false
+      )
+    })
+  })
+
   it('derives Next Due Date from the earliest incomplete Todo only', () => {
     const summary = selectListSummary({
       id: 'release',

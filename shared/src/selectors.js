@@ -7,7 +7,7 @@ import { CONNECTION } from './todoProtocol.js'
 /** @typedef {{id: string, title: string, completed: boolean, completedCount: number, totalCount: number, nextDueDate: string | null}} TodoListSummary */
 
 /** @param {Todo[]} [todos] */
-export const isListCompleted = (todos = []) =>
+export const isTodoListCompleted = (todos = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
 
 /**
@@ -17,7 +17,7 @@ export const isListCompleted = (todos = []) =>
 export const selectListSummary = (todoList) => ({
   id: todoList.id,
   title: todoList.title,
-  completed: isListCompleted(todoList.todos),
+  completed: isTodoListCompleted(todoList.todos),
   completedCount: todoList.todos.filter((todo) => todo.completed).length,
   totalCount: todoList.todos.length,
   nextDueDate: todoList.todos.reduce(
@@ -31,8 +31,8 @@ export const selectListSummary = (todoList) => ({
 
 /**
  * Display order: Todo Lists with something due first and soonest-first among
- * them, then those with nothing due, then the completed ones. Ties fall back to
- * creation order.
+ * them, then those with nothing due, then Completed Todo Lists. Ties fall back
+ * to creation order.
  *
  * `sourceIndex` is that creation order, and it is load-bearing rather than
  * incidental. `DatomStore` inserts Todo Lists into the read model in ascending

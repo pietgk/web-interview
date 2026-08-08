@@ -1,4 +1,4 @@
-import { getDueStatus, isDematerializableTodo, isListCompleted } from './todoModel'
+import { getDueStatus, isDematerializableTodo } from './todoModel'
 
 /** @param {Partial<import('@web-interview/todos/types').Todo>} [overrides] */
 const todo = (overrides = {}) => ({
@@ -25,35 +25,12 @@ describe('todoModel', () => {
     })
   })
 
-  describe('isListCompleted', () => {
-    it('is false for an empty list', () => {
-      expect(isListCompleted([])).toBe(false)
-    })
-
-    it('is true when every todo is completed', () => {
-      expect(
-        isListCompleted([
-          todo({ id: '1', completed: true }),
-          todo({ id: '2', completed: true }),
-        ])
-      ).toBe(true)
-    })
-
-    it('is false when any todo is incomplete', () => {
-      expect(
-        isListCompleted([
-          todo({ id: '1', completed: true }),
-          todo({ id: '2', completed: false }),
-        ])
-      ).toBe(false)
-    })
-  })
-
   describe('getDueStatus', () => {
     const now = new Date(2026, 6, 31) // 31 Jul 2026 local
 
     it.each([
       [null, false, null],
+      ['not-a-date', false, null],
       [
         '2026-07-31',
         false,
