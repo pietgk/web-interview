@@ -101,13 +101,24 @@ Run any part by name, and ask it what it covers:
 | `npm run verify browser` | One stage |
 | `npm run verify lint e2e` | Any mix of stages and steps |
 | `npm run verify help` | Prints what every stage and step covers |
+| `npm run coverage:ratchet` | Regenerates merged coverage and accepts only non-regressing evidence changes |
 
 CI is a single step running this same file in the same order, so a green local run cannot be
 surprised by a red build.
 
-**Coverage** is merged from the `unit` and `browser` stages and judged in `quality`. The headline
-prints on the `coverage` row; `open coverage/index.html` for per-file, per-line detail. Only
-non-UI logic is gated; components are judged by story states, play functions and a11y.
+**Coverage** is merged from the unit and Storybook runs, then checked against exact per-file
+`{ covered, total }` tuples in `coverage-baseline.json`. The canonical local report is
+`coverage/report.html`; it records the full Git revision, source state, generation time, global
+orientation totals, explicitly recursive `shared`, `backend`, and `frontend` totals, and every
+gated file. Its link to `coverage/index.html` opens Istanbul's line-level explorer, whose directory
+rows count direct files only rather than recursive workspace totals.
+
+Normal verification never changes the baseline. It fails on regressions, gated file-set changes,
+and improvements that have not been reviewed. Run `npm run coverage:ratchet` to regenerate both
+coverage inputs and update the baseline only when every changed metric preserves both the
+uncovered count and exact covered proportion. CI publishes the detailed Markdown summary and keeps
+the complete coverage report as a separate artifact for 14 days. Only non-UI logic is gated;
+components are judged by story states, play functions and a11y.
 
 **Lighthouse** builds the frontend with source maps, starts isolated seeded backend and
 production-preview servers, and runs three desktop audits. Performance, Accessibility, Best

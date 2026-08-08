@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, mergeConfig } from 'vitest/config'
+import { playwright } from '@vitest/browser-playwright'
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
 import viteConfig from './vite.config.js'
 
@@ -10,7 +11,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 // Chromium. It is the only reason `verify browser` costs what it does.
 //
 // This config is launched from `frontend/`, not from the root Vitest process,
-// so that @vitest/browser resolves to exactly one copy. See ADR 006.
+// so that the browser provider and runner resolve through one install. See ADR 006.
 export default mergeConfig(
   { ...viteConfig, server: undefined, preview: undefined },
   defineConfig({
@@ -33,12 +34,18 @@ export default mergeConfig(
         // Must mirror the frontend entries in the root config's GATED_SEAMS, or
         // the merged report loses whatever only the stories exercise.
         include: ['src/todos/**/*.js', 'src/testing/*.js'],
+        // Vitest matches coverage includes as partial paths, so `*.js` also
+        // matches the prefix of `*.jsx` unless the suffix is explicit here.
+        exclude: ['**/*.jsx', '**/*.test.js', '**/*.spec.js'],
+        // Browser bundles remap to their original JSX and test sources only
+        // after collection. Keep the evidence contract on logic seams.
+        excludeAfterRemap: true,
         reporter: ['text-summary'],
       },
       browser: {
         enabled: true,
         headless: true,
-        provider: 'playwright',
+        provider: playwright({}),
         instances: [{ browser: 'chromium' }],
       },
     },

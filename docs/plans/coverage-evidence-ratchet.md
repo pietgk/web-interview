@@ -136,7 +136,8 @@ summary; the workflow only uploads files.
 2. Implement the pure coverage-evidence module and thin CLI adapter.
 3. Generate the initial exact baseline from a complete merged run.
 4. Replace the manual per-file Vitest thresholds with the coverage-evidence check. Keep coverage
-   inclusion, exclusions, reporters, and `ignoreEmptyLines` in `vitest.config.js`.
+   inclusion, exclusions, and reporters in `vitest.config.js`. Use Vitest 4's mandatory AST-aware
+   V8 remapping; do not recreate the removed `ignoreEmptyLines` compatibility hack.
 5. Integrate check and ratchet modes into `verify` and add `npm run coverage:ratchet`.
 6. Make `coverage/report.html` the linked local artifact and add the detailed GitHub summary.
 7. Upload `coverage/` in CI with the same retention as Lighthouse.

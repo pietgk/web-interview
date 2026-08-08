@@ -16,7 +16,7 @@ API/journal tests, React Testing Library component tests, `createFakeDatomServer
 datom I/O, and Playwright e2e against a real Vite + backend stack. We want Storybook for
 isolated component development and component tests (CSF, play functions, a11y, Vitest addon),
 without overlapping jobs or chasing a global 100% line-coverage gate. Latest Storybook works on
-React 18 with our Vite 6 / Vitest 3 stack; React 19 is optional and blocked in practice by MUI 5
+React 18 with our Vite 6 / Vitest 4 stack; React 19 is optional and blocked in practice by MUI 5
 peer ranges.
 
 ## Decision

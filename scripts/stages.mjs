@@ -118,7 +118,8 @@ export const STAGES = [
         blurb: 'every story play function and axe pass',
         invocations: [
           {
-            // Launched from `frontend/` so @vitest/browser resolves to one copy.
+            // Launched from `frontend/` so its browser provider and runner
+            // resolve through one install.
             // Under the root Vitest process this run stalls. See ADR 006.
             command: bin('frontend', 'vitest'),
             args: [
@@ -160,16 +161,15 @@ export const STAGES = [
       },
       {
         name: 'coverage',
-        blurb: 'merged unit + storybook coverage against the per-file floors',
+        blurb: 'merged unit + storybook coverage against the exact per-file baseline',
         invocations: [
           {
             command: bin('.', 'vitest'),
             args: ['--mergeReports=.vitest-reports', '--coverage', '--reporter=dot'],
-            // Thresholds describe the merged report; only this step is judged.
-            env: { COVERAGE_GATE: '1' },
           },
+          { command: 'node', args: ['scripts/coverage-evidence-cli.mjs'] },
         ],
-        artifact: 'coverage/index.html',
+        artifact: 'coverage/report.html',
       },
     ],
   },

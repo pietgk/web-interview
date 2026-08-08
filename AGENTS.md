@@ -65,6 +65,6 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 | Why the implementation makes its choices | `DECISIONS.md` |
 | How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
 
-Coverage thresholds in `vitest.config.js` are a **lockfile, not a target**. They record what the
-suite proves today so the gate stays green and can only ratchet up. Do not lower an entry to make
-a run pass.
+`coverage-baseline.json` is a **lockfile, not a target**. It records the exact per-file tuples the
+suite proves today and can only ratchet up through `npm run coverage:ratchet`. Do not edit or
+recalibrate it to make a run pass.

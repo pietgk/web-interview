@@ -70,12 +70,12 @@ workspace so it resolves its own dependencies. This repo installs per workspace 
 through npm workspaces. The frontend entry names `frontend/vitest.logic.config.js` rather than
 `frontend/vitest.config.js`, for the reason in the next paragraph.
 
-**The `storybook` project is deliberately not in that list.** Under the root Vitest process it
-resolves `frontend/node_modules/@vitest/browser` while the runner is the root's own copy, and the
-run stalls partway through the story files (reproduced twice, 4 of 12 files then no progress for
-minutes). Run from `frontend/`, the same config file finishes in ~13s. So `verify browser`
-launches it there. The cause was not isolated further; the duplicate install is the strong
-circumstantial explanation, and converting to npm workspaces would remove it.
+**The `storybook` project is deliberately not in that list.** Under the root Vitest process its
+browser provider resolves through the frontend install while the runner resolves through the
+root install, and the run stalls partway through the story files (reproduced twice, 4 of 12 files
+then no progress for minutes). Run from `frontend/`, the same config file finishes in ~13s. So
+`verify browser` launches it there. The cause was not isolated further; the duplicate install is
+the strong circumstantial explanation, and converting to npm workspaces would remove it.
 
 This does not weaken the "one runner" decision. The goal was one watch loop and one assertion
 style, not literally one process - `verify` already orchestrates eslint, tsc, Playwright and
@@ -135,14 +135,21 @@ empty-outbox return, which cannot fire because both mutations of the outbox are 
 synchronously by `syncSavingIndicator`, and that clears the timer whenever the outbox is empty.
 Everything else that looks defensive is merely untested, and belongs in a test.
 
-`ignoreEmptyLines` is on. Without it v8 counts comment lines inside an uncovered region as
-uncovered statements, so documenting why a branch is unreachable makes the number worse. That was
-measured, not assumed: annotating the ULID throw dropped the file from 98.16% to 96.39% before
-this was enabled, and it reads 99.13% after.
+Vitest 4's V8 provider uses only AST-aware remapping. It excludes comments and empty lines without
+the removed `ignoreEmptyLines` option and derives the coverage map from source syntax instead of
+legacy runtime ranges. The exact baseline required a one-time recalibration when adopting that
+ruler. This was necessary for determinism: repeated Vitest 3 Storybook runs alternated between
+32/33 and 33/34 branches for `todoModel.js`, and between 14/15 and 15/16 for
+`useSettledText.js`, while the one uncovered branch in each file never changed. Optional covered
+ranges were appearing and disappearing. Repeated AST-remapped runs produced identical maps.
+Both coverage producers enable `excludeAfterRemap` so source maps cannot add test or JSX files
+after the initial logic-only include filter. The Storybook producer also excludes JSX and test
+suffixes explicitly because Vitest's partial-path coverage matcher otherwise treats `*.js` as a
+match for the prefix of `*.jsx`.
 
-**The thresholds in `vitest.config.js` are a lockfile, not a target.** The target is 100%
-statements, lines and functions with 90% branches. The committed numbers are what the suite
-proves today, so the gate lands green and can only ratchet upward. Raising them is deferred work.
+**The original thresholds in `vitest.config.js` were a lockfile, not a target.** The target remains
+100% statements, lines and functions with 90% branches. Those committed numbers recorded what the
+suite proved at the time so the first gate landed green and could only ratchet upward.
 
 **A threshold that depends on machine speed is a bug in the tests, not a number to pad.**
 `todoClient.js` was the case. A local reading of 98.87% branches was committed as a 98% floor; CI
@@ -164,13 +171,14 @@ needs no slack. **Padding the threshold would have preserved the untested branch
 race.** Where a number genuinely cannot be made deterministic, ratchet it from a CI run rather than
 a local one.
 
-Vitest applies the global floor to every file, including files matched by a glob key - a glob can
-only raise a file, never exempt it. So the global numbers sit at the weakest file and each glob
-entry pins a stronger file at what it already achieves. Without those entries a file at 100%
-could slide to 85% unnoticed, which is exactly how coverage becomes a vanity number.
+Vitest applied the global floor to every file, including files matched by a glob key - a glob
+could only raise a file, never exempt it. The global numbers therefore sat at the weakest file and
+each glob entry pinned a stronger file at what it already achieved. Without those entries a file
+at 100% could slide to 85% unnoticed, which is exactly how coverage becomes a vanity number.
 
-Thresholds are enabled only when `COVERAGE_GATE=1`, which the `coverage` step sets. Every other
-run collects coverage without being judged against floors calibrated for the merged report.
+The interim thresholds were enabled only when `COVERAGE_GATE=1`, which the `coverage` step set.
+Every other run collected coverage without being judged against floors calibrated for the merged
+report.
 
 ### Coverage evidence is exact, attributable, and ratcheted explicitly
 
@@ -180,7 +188,7 @@ stale threshold behind indefinitely. The ignored HTML report also carries no sou
 dirty-state provenance, while its directory rows count only direct children even though their
 labels look like recursive workspace totals.
 
-The accepted replacement is a committed, generated per-file baseline containing exact
+The implemented replacement is a committed, generated per-file baseline containing exact
 `{ covered, total }` pairs for statements, branches, functions, and lines. Normal verification
 requires the current merged report to equal that baseline. An explicit ratchet command may update
 it only when every changed metric preserves both invariants:
@@ -202,8 +210,9 @@ explorer, not the policy dashboard. CI publishes the complete `coverage/` direct
 and appends the canonical Markdown summary to the workflow run, matching Lighthouse's treatment.
 
 Implementation is specified in
-[the coverage evidence and reporting plan](../plans/coverage-evidence-ratchet.md). Until that plan
-lands, the integer thresholds in `vitest.config.js` remain the active interim gate.
+[the coverage evidence and reporting plan](../plans/coverage-evidence-ratchet.md). The generated
+baseline and canonical report now implement this decision; `vitest.config.js` retains only the
+coverage collection contract.
 
 ### A diagram must not describe more than it renders
 
@@ -328,18 +337,12 @@ order, so a green local run cannot be surprised by a red build.
 - The coverage lockfile has one entry per gated file and needs updating as coverage improves. That
   verbosity is the price of making regressions impossible; it collapses to a flat 100/90 once the
   deferred work lands.
-- Root now installs `vitest`, `@vitest/browser`, `happy-dom` and `eslint`, duplicating versions
-  already present in `frontend/`. They must stay in lockstep. Converting to npm workspaces would
-  remove both the duplication and the Storybook-under-root stall.
-- Both the root and `frontend/` override `glob` to `^13` - they install `@vitest/coverage-v8`
-  separately, so overriding only the root left the warning coming from the frontend tree.
-  `@vitest/coverage-v8` depends on `test-exclude`, which
-  pins `glob ^10`, and glob's maintainer marks every version except the newest as deprecated - so
-  a clean `npm ci` printed a scary deprecation notice. `npm audit` reports no advisory against the
-  version actually installed, so this was noise rather than risk, but noise in `npm ci` output is
-  how real warnings get ignored. Coverage reports byte-identical numbers on glob 13, which is what
-  makes the override safe. Drop it once vitest ships a `test-exclude` that tracks glob itself.
-  Note that npm rejects comment keys inside `overrides`, which is why this explanation lives here.
+- Root and `frontend/` install exactly matching Vitest and coverage-provider versions, while
+  `frontend/` owns `@vitest/browser-playwright`. They must stay in lockstep because blob-report
+  merging rejects mixed Vitest versions. Converting to npm workspaces would remove both the
+  duplication and the Storybook-under-root stall.
+- The old `glob` overrides are gone because Vitest 4's coverage provider no longer depends on
+  `test-exclude`.
 
 ## Deferred
 
