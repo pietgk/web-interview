@@ -67,12 +67,18 @@ export const NoDueDate = /** @type {import('@storybook/react-vite').StoryObj<typ
   render: (args) => <StatefulDueIn {...args} />,
   ...storyDocs([
     '**Why:** With no date, the field is a neutral date picker — not overdue or remaining — and edits must reach the parent.',
-    '**See:** Empty value, accessible name `Due date: Buy milk`, not invalid; changing the date calls `onChange` with that date, clearing calls `onChange(null)`.',
+    '**See:** Empty value, accessible name `Due date: Buy milk`, not invalid; changing the date calls `onChange` with that date, clearing calls `onChange(null)`; the document declares a `color-scheme`, so the browser paints the picker icon to match the theme.',
   ].join(' ')),
   play: async ({ canvas, args }) => {
     const field = canvas.getByLabelText(`Due date: ${args.todoLabel}`)
     await expect(field).toHaveValue('')
     await expect(field).not.toBeInvalid()
+
+    // This is the only field whose affordance the browser paints rather than
+    // MUI, so it is the only one that goes wrong when the document does not say
+    // which scheme it is in: at `normal` the picker icon stays a dark glyph on a
+    // dark card. Asserting the mode itself would only hold under one theme.
+    await expect(getComputedStyle(document.documentElement).colorScheme).not.toBe('normal')
 
     fireEvent.change(field, { target: { value: editedDueDay } })
     await expect(args.onChange).toHaveBeenNthCalledWith(1, editedDueDay)

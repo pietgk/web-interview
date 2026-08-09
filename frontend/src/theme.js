@@ -7,7 +7,7 @@ import { createTheme } from '@mui/material/styles'
  * value to sit on the same baseline as the fields beside it. Written in rem so
  * it scales with the browser font size like everything else here.
  *
- * Mirrored values drift silently, so `theme.stories.jsx` measures a real
+ * Mirrored values drift silently, so `TodoItem.stories.jsx` measures a real
  * TextField against this and fails when MUI moves.
  */
 const CONTROL_HEIGHT = '3.5rem'

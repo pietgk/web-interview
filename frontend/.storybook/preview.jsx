@@ -2,6 +2,15 @@ import { withThemeFromJSXProvider } from '@storybook/addon-themes'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import { darkTheme, lightTheme } from '../src/theme'
 
+/**
+ * `withThemeFromJSXProvider` renders `GlobalStyles` with no props, so the
+ * `enableColorScheme` the app passes in `index.jsx` has to come from a wrapper.
+ * Without it `html` stays at `color-scheme: normal` and the browser paints its
+ * own widgets light under the dark theme - the date field's picker icon lands as
+ * a near-black glyph on a near-black card.
+ */
+const ColorSchemedBaseline = () => <CssBaseline enableColorScheme />
+
 /** @type { import('@storybook/react-vite').Preview } */
 const preview = {
   // Generate a Docs page for every story file (same as tags: ['autodocs'] on each meta).
@@ -38,7 +47,7 @@ const preview = {
       },
       defaultTheme: 'light',
       Provider: ThemeProvider,
-      GlobalStyles: CssBaseline,
+      GlobalStyles: ColorSchemedBaseline,
     }),
   ],
 }
