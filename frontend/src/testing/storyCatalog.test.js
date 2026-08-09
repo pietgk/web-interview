@@ -17,9 +17,9 @@ const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  */
 const PRESENTATIONAL_PRIMITIVES = {
   'todos/components/TodoRow.jsx':
-    'Layout wrapper only: a role="group" div with flex styles and children. It ' +
-    'owns no domain state, and its accessible name is supplied by TodoItem and ' +
-    'TodoComposer, whose stories cover it.',
+    'Layout wrapper only: a role="group" box that places named slots on the ' +
+    'shared Todo column grid. It owns no domain state, and its accessible name ' +
+    'is supplied by TodoItem and TodoComposer, whose stories cover it.',
 }
 
 /** Not components: the DOM entry point and the harness stories themselves use. */

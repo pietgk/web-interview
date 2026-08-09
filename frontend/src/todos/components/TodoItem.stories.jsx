@@ -108,6 +108,30 @@ export const CompletedNotOverdue = /** @type {import('@storybook/react-vite').St
   },
 })
 
+export const ControlsShareOneHeight = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoItem>} */ ({
+  args: {
+    todo: createTodo({ id: '1', text: 'Buy milk', dueDate: tomorrow }),
+  },
+  ...storyDocs([
+    '**Why:** Done is not an input, so it cannot inherit the height MUI gives the two fields beside it - `theme.todos.control.height` mirrors that height by hand.',
+    'A mirrored value drifts silently: change MUI’s density or upgrade the library and the completion box keeps its old height while the fields move. This story is the gate that makes that loud.',
+    '**See:** Done, the due date field and What to do? all render at exactly one height.',
+  ].join(' ')),
+  play: async ({ canvas, args }) => {
+    const row = canvas.getByRole('group', { name: `Todo: ${args.todo.text}` })
+    const [completion, dueDate, text] = Array.from(row.children)
+    const heights = [completion, dueDate, text].map((cell) =>
+      Math.round(cell.getBoundingClientRect().height)
+    )
+
+    await expect(
+      new Set(heights).size,
+      `Done, due date and text rendered at ${heights.join('/')}px. ` +
+        'theme.todos.control.height no longer matches MUI’s outlined input.'
+    ).toBe(1)
+  },
+})
+
 export const Untitled = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoItem>} */ ({
   args: {
     todo: createTodo({ id: '1', text: '   ', dueDate: null }),
