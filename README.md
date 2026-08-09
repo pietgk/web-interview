@@ -75,6 +75,9 @@ frontend.
 | `npm run preview` | Interactive demo: drives the app, and can stop the backend mid-session to show reconnect and outbox drain. click the client links a few times to get multiple sessions. |
 | `npm run kill` | Frees every port this repo binds |
 
+Storybook source-file links open in Zed. To use VS Code instead, change `LAUNCH_EDITOR=zed` in
+`frontend/package.json` to `LAUNCH_EDITOR=code` and make sure the `code` CLI is on `PATH`.
+
 ## Verifying
 
 The complete testing and validation model lives in [`docs/testing-and-validation.md`](./docs/testing-and-validation.md).
