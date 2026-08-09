@@ -6,7 +6,7 @@
   "scripts": {
     "watch": "node scripts/watch.mjs",
     "verify": "node scripts/verify.mjs",
-    "coverage:ratchet": "COVERAGE_EVIDENCE_MODE=ratchet node scripts/verify.mjs unit storybook coverage",
+    "coverage:update-baseline": "COVERAGE_EVIDENCE_MODE=update-baseline node scripts/verify.mjs unit storybook coverage",
     "test": "node scripts/verify.mjs",
     "lint": "node scripts/verify.mjs lint",
     "typecheck": "npm run build:types && node scripts/check-declarations.mjs && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
@@ -29,7 +29,6 @@
     "@web-interview/todos": "file:shared",
     "eslint": "^9.39.5",
     "globals": "^17.9.0",
-    "happy-dom": "^20.11.1",
     "lighthouse": "13.4.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10"

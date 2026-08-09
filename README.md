@@ -38,7 +38,7 @@ settle-based autosave. The datom journal, live convergence, session outbox, Todo
 and urgency-based ordering are deliberate explorations rather than requirements implied by the
 assignment.
 
-![Architecture: UI to model to datoms, and how each layer is verified](./docs/architecture.svg)
+![Product architecture: UI to model to datoms](./docs/architecture.svg)
 
 The same diagram is editable as an Excalidraw scene: `npm run whiteboard` opens Excalidraw.
 
@@ -77,64 +77,17 @@ frontend.
 
 ## Verifying
 
-Two commands. Leave the first open while you work; run the second before you commit.
+The complete testing and validation model lives in [`docs/testing-and-validation.md`](./docs/testing-and-validation.md).
+For humans, there are two primary commands:
 
 | Command | Cost | What it does |
 | --- | --- | --- |
-| `npm run watch` | ~2s per change | All Node + happy-dom tests and typecheck, as one GREEN/RED line |
-| `npm run verify` | ~70s | Everything CI runs, in the order CI runs it |
+| `npm run watch` | ~2s per change | Continuous Node test and typecheck feedback |
+| `npm test` | ~70s | The complete authoritative verdict, in the same order as CI |
 
-`verify` runs four stages and stops at the first that fails, because a failure makes the stages
-after it meaningless:
-
-| Stage | Runs | Nothing runs until | Time |
-| --- | --- | --- | --- |
-| `static` | typecheck, lint, diagrams, audit | - (nothing executes) | ~4s |
-| `unit` | shared, backend, frontend logic, scripts | Node | ~2s |
-| `browser` | Storybook play + a11y, Playwright | real Chromium | ~24s |
-| `quality` | build, Lighthouse, coverage | a production bundle | ~40s |
-
-Run any part by name, and ask it what it covers:
-
-| Command | Runs |
-| --- | --- |
-| `npm run verify browser` | One stage |
-| `npm run verify lint e2e` | Any mix of stages and steps |
-| `npm run verify help` | Prints what every stage and step covers |
-| `npm run coverage:ratchet` | Regenerates merged coverage and accepts only non-regressing evidence changes |
-
-CI is a single step running this same file in the same order, so a green local run cannot be
-surprised by a red build.
-
-**Coverage** is merged from the unit and Storybook runs, then checked against exact per-file
-`{ covered, total }` tuples in `coverage-baseline.json`. The canonical local report is
-`coverage/report.html`; it records the full Git revision, source state, generation time, global
-gated-logic totals, explicitly recursive `shared`, `backend`, and `frontend` totals, and every
-gated file. It also accounts for every production source file by evidence owner and reports
-informational Storybook coverage plus declared/executed story counts for every UI source. Its link
-to `coverage/index.html` opens Istanbul's line-level explorer, whose directory rows count direct
-files only rather than recursive workspace totals.
-
-Normal verification never changes the baseline. It fails on regressions, gated file-set changes,
-and improvements that have not been reviewed. Run `npm run coverage:ratchet` to regenerate both
-coverage inputs and update the baseline only when every changed metric preserves both the
-uncovered count and exact covered proportion. CI publishes the detailed Markdown summary and keeps
-the complete coverage report as a separate artifact for 14 days. Only non-UI logic is gated;
-components are judged by story states, play functions and a11y.
-
-UI percentages are deliberately informational: they expose unvisited JSX paths without turning
-component testing into percentage chasing. Missing ownership, a missing component story or
-reviewed exemption, a Storybook discovery mismatch, a failed browser story, or missing UI coverage
-still fails verification. `frontend/src/index.jsx` and `backend/src/index.js` are classified as
-E2E-owned bootstraps; Storybook test support and type-only sources are classified separately.
-
-**Lighthouse** builds the frontend with source maps, starts isolated seeded backend and
-production-preview servers, and runs three desktop audits. Performance, Accessibility, Best
-Practices, SEO and Agentic Browsing must all stay at 100, and initial JavaScript transfer and
-estimated unused JavaScript are held to explicit budgets. Agentic Browsing covers how readable the
-site is to AI agents, which means `frontend/public/llms.txt` must stay valid Markdown with an H1
-and links. Reports land in `lighthouse-reports/`; CI publishes the summary on the workflow run and
-keeps the reports as an artifact for 14 days.
+Selective verification remains available. Use `npm run verify help` for the current stage and step
+names, or select a stage or step such as `npm run verify browser` or `npm run verify lint e2e`.
+Agents must not start `npm run watch`, because it never exits.
 
 `npm run lint` autofixes before it judges, so it will modify files.
 

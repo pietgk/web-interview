@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { ROOT } from './stages.mjs'
 
-// Everything here runs in Node or happy-dom and finishes in about two seconds.
+// Everything here runs in Node and finishes in about two seconds.
 // Storybook and Playwright are deliberately absent: they need a real browser,
 // which is what `verify browser` is for. The component loop is `npm run storybook`.
 const WATCHED = ['shared/src', 'backend/src', 'frontend/src', 'scripts']

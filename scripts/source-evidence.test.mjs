@@ -13,12 +13,12 @@ const fileCoverage = (covered = 1, total = 1) => ({
 
 test('classifies every production source seam explicitly', () => {
   const examples = {
-    'shared/src/datom.js': 'logic-ratchet',
+    'shared/src/datom.js': 'logic-baseline',
     'shared/src/types.js': 'type-only',
-    'backend/src/app.js': 'logic-ratchet',
+    'backend/src/app.js': 'logic-baseline',
     'backend/src/index.js': 'e2e-bootstrap',
-    'frontend/src/todos/todoModel.js': 'logic-ratchet',
-    'frontend/src/testing/fakeDatomServer.js': 'logic-ratchet',
+    'frontend/src/todos/todoModel.js': 'logic-baseline',
+    'frontend/src/testing/fakeDatomServer.js': 'logic-baseline',
     'frontend/src/App.jsx': 'storybook-ui',
     'frontend/src/theme.js': 'storybook-ui',
     'frontend/src/todos/components/TodoItem.jsx': 'storybook-ui',
@@ -34,7 +34,7 @@ test('classifies every production source seam explicitly', () => {
   assert.equal(classifySourcePath('backend/src/app.test.js'), undefined)
 })
 
-test('accounts for source ownership and reports UI execution separately from the logic ratchet', () => {
+test('accounts for source ownership and reports UI execution separately from the logic baseline', () => {
   const appPath = 'frontend/src/App.jsx'
   const storyPath = 'frontend/src/App.stories.jsx'
   const logicPath = 'shared/src/datom.js'
@@ -64,7 +64,7 @@ test('accounts for source ownership and reports UI execution separately from the
 
   assert.equal(evidence.verdict, 'pass')
   assert.deepEqual(evidence.categoryCounts, {
-    'logic-ratchet': 1,
+    'logic-baseline': 1,
     'storybook-ui': 1,
     'e2e-bootstrap': 1,
     'test-support': 0,

@@ -10,7 +10,7 @@ export default defineConfig({
   },
   test: {
     name: 'frontend',
-    environment: 'happy-dom',
+    environment: 'node',
     globals: true,
     include: ['src/**/*.{test,spec}.{js,jsx}'],
     server: {

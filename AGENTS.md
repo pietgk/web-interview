@@ -65,8 +65,11 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 | Why the implementation makes its choices | `DECISIONS.md` |
 | How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
 
+[`docs/testing-and-validation.md`](docs/testing-and-validation.md) is the canonical explanation
+of the protection model and verification pipeline.
+
 `coverage-baseline.json` is a **lockfile, not a target**. It records the exact per-file tuples the
-suite proves today and can only ratchet up through `npm run coverage:ratchet`. Do not edit or
+suite proves today and can only be updated through `npm run coverage:update-baseline`. Do not edit or
 recalibrate it to make a run pass.
 
 Every production source file must have exactly one evidence owner in

@@ -18,7 +18,7 @@ const MARKDOWN_PATH = `${ROOT}/coverage/summary.md`
 const HTML_PATH = `${ROOT}/coverage/report.html`
 const EVIDENCE_SUMMARY_PATH = `${ROOT}/coverage/evidence-summary.json`
 const STORY_RESULTS_PATH = `${ROOT}/.test-evidence/storybook.json`
-const VALID_MODES = new Set(['check', 'ratchet'])
+const VALID_MODES = new Set(['check', 'update-baseline'])
 
 /** @param {string} path @returns {Promise<Record<string, any>>} */
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
@@ -82,8 +82,8 @@ const main = async () => {
   if (!VALID_MODES.has(requestedMode)) {
     throw new Error(`Unknown coverage evidence mode: ${requestedMode}`)
   }
-  /** @type {'check' | 'ratchet'} */
-  const mode = /** @type {'check' | 'ratchet'} */ (requestedMode)
+  /** @type {'check' | 'update-baseline'} */
+  const mode = /** @type {'check' | 'update-baseline'} */ (requestedMode)
   const [summary, rawBaseline, storyResults, sources] = await Promise.all([
     readJson(SUMMARY_PATH),
     readJson(BASELINE_PATH),
@@ -95,7 +95,7 @@ const main = async () => {
   }
   const baseline = /** @type {ReturnType<typeof createCoverageBaseline>} */ (rawBaseline)
   const gatedPaths = sources.sourcePaths.filter((path) =>
-    classifySourcePath(path)?.category === 'logic-ratchet'
+    classifySourcePath(path)?.category === 'logic-baseline'
   )
 
   let activeBaseline = baseline
@@ -106,7 +106,7 @@ const main = async () => {
     mode,
     gatedPaths,
   })
-  if (mode === 'ratchet' && evaluation.verdict === 'pass') {
+  if (mode === 'update-baseline' && evaluation.verdict === 'pass') {
     const updatedBaseline = createCoverageBaseline({ summary, repositoryRoot: ROOT, gatedPaths })
     await writeFile(BASELINE_PATH, `${JSON.stringify(updatedBaseline, null, 2)}\n`)
     activeBaseline = updatedBaseline
@@ -123,7 +123,7 @@ const main = async () => {
     summary,
     baseline: activeBaseline,
     repositoryRoot: ROOT,
-    mode: mode === 'ratchet' ? 'check' : mode,
+    mode: mode === 'update-baseline' ? 'check' : mode,
     gatedPaths,
     sourceEvidence,
   })
@@ -140,8 +140,8 @@ const main = async () => {
     return
   }
   process.stdout.write(
-    mode === 'ratchet'
-      ? 'Coverage baseline ratcheted without regressions.\n'
+    mode === 'update-baseline'
+      ? 'Coverage baseline updated without regressions.\n'
       : 'Coverage evidence exactly matches the committed baseline.\n'
   )
 }

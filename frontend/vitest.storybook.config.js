@@ -31,7 +31,7 @@ export default mergeConfig(
       // stories prove, not only on what its unit test proves.
       coverage: {
         provider: 'v8',
-        // Collect both exact-ratcheted logic and informational UI evidence.
+        // Collect both exact-baseline logic and informational UI evidence.
         // The evidence module keeps those policy categories separate.
         include: ['src/**/*.js', 'src/**/*.jsx'],
         // Vitest matches coverage includes as partial paths, so `*.js` also

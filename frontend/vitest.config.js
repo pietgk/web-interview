@@ -7,7 +7,7 @@ import { defineConfig } from 'vitest/config'
 // Vitest root, and then filters for a project named `storybook:<configDir>`.
 //
 // `vitest.storybook.config.js` is not a name it scans for, so before this file
-// existed the addon fell back to the happy-dom logic config, found no such
+// existed the addon fell back to the logic config, found no such
 // project, and failed with "No projects matched the filter". Hence this file,
 // which exists to be discovered and to name both projects.
 //

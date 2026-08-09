@@ -1,6 +1,6 @@
 import { relative, resolve, sep } from 'node:path'
 
-/** @typedef {'logic-ratchet' | 'storybook-ui' | 'e2e-bootstrap' | 'test-support' | 'type-only'} SourceEvidenceCategory */
+/** @typedef {'logic-baseline' | 'storybook-ui' | 'e2e-bootstrap' | 'test-support' | 'type-only'} SourceEvidenceCategory */
 /** @typedef {{category: SourceEvidenceCategory, rationale: string}} SourceClassification */
 /** @typedef {'statements' | 'branches' | 'functions' | 'lines'} CoverageMetric */
 /** @typedef {Record<CoverageMetric, {covered: number, total: number}>} FileCoverage */
@@ -8,8 +8,8 @@ import { relative, resolve, sep } from 'node:path'
 const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
 /** @type {readonly CoverageMetric[]} */
 const COVERAGE_METRICS = ['statements', 'branches', 'functions', 'lines']
-const CATEGORIES = /** @type {const} */ ([
-  'logic-ratchet',
+export const CATEGORIES = /** @type {const} */ ([
+  'logic-baseline',
   'storybook-ui',
   'e2e-bootstrap',
   'test-support',
@@ -86,7 +86,7 @@ export const classifySourcePath = (path) => {
     /^frontend\/src\/todos\/.*\.js$/.test(path) ||
     /^frontend\/src\/testing\/[^/]+\.js$/.test(path)
   ) {
-    return { category: 'logic-ratchet', rationale: 'exact per-file unit and Storybook coverage ratchet' }
+    return { category: 'logic-baseline', rationale: 'exact per-file unit and Storybook coverage baseline' }
   }
   return undefined
 }
@@ -118,7 +118,7 @@ export const createSourceEvidence = ({
   ]))
 
   const logicPaths = sources
-    .filter(({ category }) => category === 'logic-ratchet')
+    .filter(({ category }) => category === 'logic-baseline')
     .map(({ path }) => path)
   const baselineSet = new Set(baselinePaths)
   for (const path of logicPaths) {

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config'
 
-// One Vitest process for everything that runs in Node or happy-dom. Each project
+// One Vitest process for everything that runs in Node. Each project
 // keeps its own config so it resolves its own dependencies from its own
 // node_modules - this repo installs per workspace, not through npm workspaces.
 //
