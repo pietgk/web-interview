@@ -17,7 +17,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "kill": "lsof -ti tcp:3000 -sTCP:LISTEN | xargs kill"
   },
   "browserslist": [
     ">0.2%",
