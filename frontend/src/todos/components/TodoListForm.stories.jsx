@@ -83,71 +83,44 @@ export const Populated = /** @type {import('@storybook/react-vite').StoryObj<typ
   },
 })
 
-/** The outlined box around a field, which is the rectangle the eye lines up. */
-const boxOf = (/** @type {HTMLElement} */ input) =>
-  /** @type {HTMLElement} */ (input.closest('.MuiFormControl-root'))
-    .getBoundingClientRect()
+/*
+ * The two stories below pin a viewport and carry no `play`, deliberately.
+ *
+ * They used to assert their own layout: that the Todo's controls shared a top
+ * on desktop, that the text field sat below the completion box on mobile. Both
+ * sides of every one of those comparisons came out of the same layout pass, so
+ * they only ever restated what Chromium had just computed - given `flex-wrap`
+ * and a narrow box, the browser has no choice but to wrap. They proved the
+ * browser works, not that this row does.
+ *
+ * They were also brittle in the expensive direction: a redesign to a 2x2 mobile
+ * row would fail them while being perfectly good, and plenty of broken layouts
+ * would still satisfy them.
+ *
+ * A geometry assertion is worth writing when it compares two independently
+ * sourced values - see `TodoItem` > Controls share one height, which measures
+ * our mirrored `control.height` against whatever MUI's own input computes, and
+ * so catches a real drift. Nothing here has a second source, so there is
+ * nothing to catch. Pinning these layouts is a job for visual regression.
+ *
+ * They still earn their place as documented responsive states, and each one
+ * still runs the axe pass at its own width.
+ */
 
-/** Every control of the one Todo in `baseList`, in row order. */
-const todoRowCells = (
-  /** @type {ReturnType<typeof import('storybook/test').within>} */ canvas
-) => ({
-  completion: boxOf(canvas.getByLabelText(`Mark completed: ${baseList.todos[0].text}`)),
-  dueDate: boxOf(canvas.getByLabelText(`Due date: ${baseList.todos[0].text}`)),
-  text: boxOf(canvas.getByLabelText('What to do?')),
-})
-
-export const ColumnsAlignOnDesktop = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+export const Desktop = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
   globals: { viewport: { value: 'desktop' } },
   ...storyDocs([
-    '**Why:** The composer fills only the `text` slot of a Todo row, so its field has to land on the same column as the text of every Todo beneath it. Before `TodoRow` owned placement, the two started 272px apart.',
-    '**See:** At desktop width the Todo’s three controls sit on one line, and Add a todo shares its left edge with What to do?.',
+    '**Why:** The composer fills only the `text` slot of a Todo row, so its field lands on the same column as the text of every Todo beneath it. Before `TodoRow` owned placement, the two started 272px apart.',
+    '**See:** One line per Todo, and Add a todo sharing its left edge with What to do?.',
   ].join(' ')),
-  play: async ({ canvas }) => {
-    const { completion, dueDate, text } = todoRowCells(canvas)
-
-    // Columns only mean anything while the row is one line. Check that first, or
-    // a fully wrapped row could satisfy the alignment check by accident.
-    await expect(
-      Math.round(dueDate.top),
-      'the due date has wrapped away from the completion box'
-    ).toBe(Math.round(completion.top))
-    await expect(
-      Math.round(text.top),
-      'the text field has wrapped away from the completion box'
-    ).toBe(Math.round(completion.top))
-
-    await expect(
-      Math.round(boxOf(canvas.getByLabelText('Add a todo')).left),
-      'the composer and the Todo text field are no longer on one column'
-    ).toBe(Math.round(text.left))
-  },
 })
 
-export const RowWrapsOnMobile = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+export const SmallMobile = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
   globals: { viewport: { value: 'mobile1' } },
   ...storyDocs([
-    '**Why:** Four columns cannot fit a phone. Holding them open there would push the row wider than the screen and make the Todo text unreachable, so below `sm` the row drops back to the wrapping layout it has always used.',
-    '**See:** At 320px the text field sits below the completion box rather than beside it, and nothing on the page can be scrolled sideways.',
+    '**Why:** Four columns need 28rem and cannot fit a phone. Holding them open would push the row past the screen and put the Todo text out of reach, so below `sm` the row drops back to the wrapping layout it has always used.',
+    '**See:** At 320px each control takes its own line and nothing runs off the side.',
   ].join(' ')),
-  play: async ({ canvas }) => {
-    const { completion, text } = todoRowCells(canvas)
-
-    await expect(
-      Math.round(text.top),
-      'the row is still holding columns open at a width that cannot fit them'
-    ).toBeGreaterThan(Math.round(completion.bottom))
-
-    // The failure the wrap exists to prevent. Four fixed tracks need 28rem, so a
-    // grid here would burst its container and put the text out of reach. Measure
-    // the row against its own box rather than the window: Storybook applies a
-    // viewport by sizing the story's container, not by resizing the browser.
-    const row = canvas.getByRole('group', { name: `Todo: ${baseList.todos[0].text}` })
-    await expect(
-      row.scrollWidth,
-      'the Todo row is wider than the space it has, so it scrolls sideways'
-    ).toBeLessThanOrEqual(row.clientWidth)
-  },
 })
 
 export const UnmaterializedDraft = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({

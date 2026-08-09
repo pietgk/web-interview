@@ -105,12 +105,16 @@ alpha of its resting border, the white it lays over an elevated dark surface. A 
 silently, so each is covered by the `TodoItem` story **Controls share one height**, which measures
 the real components and fails when MUI moves.
 
-What the tokens buy is covered the same way. `TodoListForm` pins a viewport through Storybook's
-built-in `globals.viewport` and measures the result: **Columns align on desktop** proves the
-composer lands on the Todo text column, and **Row wraps on mobile** proves the row gives those
-columns up at 320px rather than forcing a phone to scroll sideways. Measure the offset from the
-row, never the absolute left edge - both fields share an edge in either layout, so only the indent
-tells the two apart.
+That guard works because it has two independent sources: one side is our constant, the other is
+whatever MUI's own component computes, and an upgrade can pull them apart. **Apply that test before
+writing any geometry assertion.** Measuring one element against another in the same layout pass
+proves nothing - it restates what the browser just computed, so it verifies the browser rather than
+the code, and it fails on any redesign that is merely different rather than wrong.
+
+What the tokens buy visually is therefore *not* gated by a play function. `TodoListForm` pins
+viewports through Storybook's built-in `globals.viewport` and leaves **Desktop** and **Small
+mobile** as documented states to look at, each running its own axe pass. Pinning how they look is a
+job for visual regression, which this repo does not have yet.
 
 ## Structural literals and exemptions
 
