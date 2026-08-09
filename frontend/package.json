@@ -16,7 +16,7 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "storybook": "LAUNCH_EDITOR=zed storybook dev -p 6006",
+    "storybook": "LAUNCH_EDITOR=$EDITOR storybook dev -p 6006",
     "build-storybook": "storybook build",
     "kill": "lsof -ti tcp:3000 -sTCP:LISTEN | xargs kill"
   },
