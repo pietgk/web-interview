@@ -150,7 +150,7 @@ percentages cannot change the logic verdict.
 
 **The original thresholds in `vitest.config.js` were a lockfile, not a target.** The target remains
 100% statements, lines and functions with 90% branches. Those committed numbers recorded what the
-suite proved at the time so the first gate landed green and could only ratchet upward.
+suite proved at the time so the first gate landed green and could only move upward.
 
 **A threshold that depends on machine speed is a bug in the tests, not a number to pad.**
 `todoClient.js` was the case. A local reading of 98.87% branches was committed as a 98% floor; CI
@@ -169,7 +169,7 @@ machine. The second turned out to be unreachable and is marked as such at the co
 
 With both fixed the file is at 100% branches by construction rather than by luck, so its entry
 needs no slack. **Padding the threshold would have preserved the untested branch and hidden the
-race.** Where a number genuinely cannot be made deterministic, ratchet it from a CI run rather than
+race.** Where a number genuinely cannot be made deterministic, record it from a CI run rather than
 a local one.
 
 Vitest applied the global floor to every file, including files matched by a glob key - a glob
@@ -181,7 +181,7 @@ The interim thresholds were enabled only when `COVERAGE_GATE=1`, which the `cove
 Every other run collected coverage without being judged against floors calibrated for the merged
 report.
 
-### Coverage evidence is exact, attributable, and ratcheted explicitly
+### Coverage evidence is exact, attributable, and updated explicitly
 
 The integer thresholds above were the first working gate, but they are not an exact lockfile. A
 file at 89.79% with an 89% threshold can regress without failing, and an improved file can leave a
@@ -191,7 +191,7 @@ labels look like recursive workspace totals.
 
 The implemented replacement is a committed, generated per-file baseline containing exact
 `{ covered, total }` pairs for statements, branches, functions, and lines. Normal verification
-requires the current merged report to equal that baseline. An explicit ratchet command may update
+requires the current merged report to equal that baseline. An explicit baseline-update command may update
 it only when every changed metric preserves both invariants:
 
 - the uncovered count does not increase;
@@ -200,22 +200,22 @@ it only when every changed metric preserves both invariants:
 Neither invariant can compensate for a failure of the other, and gains in one file cannot offset
 regressions in another. This catches both newly untested behaviour and denominator changes such as
 removing covered code while leaving the same misses behind. An improvement also fails normal CI
-until the generated baseline is explicitly ratcheted and its diff reviewed. CI never rewrites the
+until the generated baseline is explicitly updated and its diff reviewed. CI never rewrites the
 baseline.
 
-One coverage-evidence module owns comparison, ratcheting, provenance, rollups, and rendering. Its
+One coverage-evidence module owns comparison, baseline updates, provenance, rollups, and rendering. Its
 canonical report identifies the Git revision, dirty state, generation time, and the merged unit +
 Storybook scope; shows gated-logic and explicitly recursive workspace totals; and shows every gated
 file against its baseline. The same report has two additional evidence views:
 
-- Source ownership classifies every non-test source as exact-ratcheted logic, Storybook UI, E2E
+- Source ownership classifies every non-test source as exact-baseline logic, Storybook UI, E2E
   bootstrap, Storybook test support, or type-only. An unclassified file or a baseline/category
   mismatch fails verification.
 - UI source coverage shows exact informational tuples for every Storybook-owned source, together
   with declared stories, declared plays, and story tests actually executed in Chromium. Missing
   coverage, a missing story or reviewed exemption, discovery drift, or a failed story is a hard
   source-evidence failure. The percentages themselves are not thresholds and do not affect the
-  logic ratchet.
+  logic baseline.
 
 `TodoRow.jsx` is the sole reviewed component exemption because it owns layout only and is exercised
 through `TodoItem` and `TodoComposer`; `theme.js` is owned by the Storybook preview;
@@ -224,10 +224,9 @@ through `TodoItem` and `TodoComposer`; `theme.js` is owned by the Storybook prev
 complete `coverage/` directory for 14 days and appends the canonical Markdown summary to the
 workflow run, matching Lighthouse's treatment.
 
-Implementation is specified in
-[the coverage evidence and reporting plan](../plans/coverage-evidence-ratchet.md). The generated
-baseline and canonical report now implement this decision; `vitest.config.mjs` retains only the
-coverage collection contract.
+The current contributor flow is specified in
+[Testing and validation](../testing-and-validation.md). The generated baseline and canonical
+report implement this decision; `vitest.config.mjs` retains only the coverage collection contract.
 
 ### A diagram must not describe more than it renders
 

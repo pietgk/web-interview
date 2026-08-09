@@ -200,6 +200,26 @@ file is also a contract change and appears in the coverage report.
 Normal verification never rewrites the baseline. After reviewing a genuine improvement, run
 `npm run coverage:update-baseline`; do not keep both an old and a new baseline command.
 
+### Example: review and record an improvement
+
+This is the complete human flow when a change improves coverage:
+
+1. Run the authoritative verdict: `mise exec node@22 -- npm test`.
+2. If coverage reports an improvement, open `coverage/report.html` and inspect every changed file
+   and metric. Confirm that the uncovered count did not increase and the covered proportion did
+   not decrease.
+3. Review the source and tests that caused the improvement. This is the decision point; do not
+   update the baseline merely to turn a failing check green.
+4. Record the reviewed contract with `mise exec node@22 -- npm run coverage:update-baseline`.
+5. Inspect `git diff -- coverage-baseline.json` and keep the baseline change with the source change.
+6. Run `mise exec node@22 -- npm test` again. The final verdict must be green against the newly
+   recorded baseline.
+
+The update command regenerates unit and Storybook evidence together, merges it, refuses regressions,
+updates `coverage-baseline.json`, and rewrites the same coverage reports. A regression still fails
+the update command; baseline updates are only for reviewed improvements or deliberate file-set
+changes that satisfy the coverage contract.
+
 ### How coverage evidence flows
 
 - **Vitest:** loads shared, backend, frontend logic, and repository-script tests in Node; its V8
