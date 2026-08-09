@@ -27,8 +27,10 @@ design act.
 3. Does a number control behavior, time, a protocol representation, or an external contract?
    - Bind the complete numeric expression to one descriptive `const`.
 4. Does structural syntax already make the value evident?
-   - Keep it literal when it is an index, a simple count, fixture data, style geometry, or a clear
-     non-contract assertion outcome.
+   - Keep it literal when it is an index, a simple count, fixture data, *structural* style geometry
+     such as `flexGrow: 1` or `gridColumn`, or a clear non-contract assertion outcome.
+   - A **dimension** is not structural. `width: '11rem'` is a design decision nobody named; it
+     belongs in `frontend/src/theme.js` as a token. See [design tokens](#design-tokens).
 5. Does the meaning already have a higher-level abstraction?
    - Use that abstraction. Do not reconstruct it from lower-level constants or primitives.
 
@@ -80,6 +82,35 @@ primitive type, unit, or value.
 Use the highest-level available abstraction. `shared/src/ulid.js`, for example, owns
 `ULID_LENGTH` and `EARLIEST_ULID`. A stale cursor scenario uses `EARLIEST_ULID`; it does not repeat
 the encoded width or rebuild the value.
+
+## Design tokens
+
+The same standard, one layer down. A duration written as `86400000` hides why it matters; a width
+written as `'11rem'` hides it in exactly the same way, and for longer, because nothing executes to
+prove it wrong.
+
+Every dimension the frontend chooses lives in `frontend/src/theme.js`, bound to a named `const`
+with the reason, and is reached as `theme.todos.*`. The rule of thumb: **anything under
+`theme.todos` is a decision we made; everything else is a decision MUI made for us.** Storybook's
+*Foundations / Design tokens* page renders the namespace straight from the theme object, so the
+documentation cannot drift from the values in use.
+
+Enforcement is a `no-restricted-syntax` selector in `frontend/eslint.config.js`, not a rule in the
+semantic-constants plugin: it needs no repository knowledge beyond "a px/rem/em literal on a
+dimension property". Plain numbers on those properties stay legal, because MUI routes them through
+`theme.spacing` and they are therefore already derived.
+
+Some tokens mirror a value MUI owns but does not export - the height of an outlined input, the
+alpha of its resting border, the white it lays over an elevated dark surface. A mirror drifts
+silently, so each is covered by the `TodoItem` story **Controls share one height**, which measures
+the real components and fails when MUI moves.
+
+What the tokens buy is covered the same way. `TodoListForm` pins a viewport through Storybook's
+built-in `globals.viewport` and measures the result: **Columns align on desktop** proves the
+composer lands on the Todo text column, and **Row wraps on mobile** proves the row gives those
+columns up at 320px rather than forcing a phone to scroll sideways. Measure the offset from the
+row, never the absolute left edge - both fields share an edge in either layout, so only the indent
+tells the two apart.
 
 ## Structural literals and exemptions
 

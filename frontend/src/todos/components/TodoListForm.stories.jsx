@@ -83,6 +83,58 @@ export const Populated = /** @type {import('@storybook/react-vite').StoryObj<typ
   },
 })
 
+/** Left edge of a field's outlined box, which is what the eye reads as a column. */
+const leftEdgeOf = (/** @type {HTMLElement} */ input) =>
+  Math.round(
+    /** @type {HTMLElement} */ (input.closest('.MuiFormControl-root'))
+      .getBoundingClientRect().left
+  )
+
+/**
+ * Both fields share a left edge in either layout - indented together on the
+ * grid, or stacked together at the row's edge once it wraps. Only the offset
+ * from the row itself tells the two apart, so every assertion below needs it.
+ */
+const composerIndent = (
+  /** @type {ReturnType<typeof import('storybook/test').within>} */ canvas
+) => {
+  const row = canvas.getByRole('group', { name: 'New todo' })
+  return leftEdgeOf(canvas.getByLabelText('Add a todo')) - Math.round(row.getBoundingClientRect().left)
+}
+
+export const ColumnsAlignOnDesktop = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+  globals: { viewport: { value: 'desktop' } },
+  ...storyDocs([
+    '**Why:** The composer fills only the `text` slot of a Todo row, so its field has to land on the same column as the text of every Todo beneath it. Before `TodoRow` owned placement these two started 272px apart.',
+    '**See:** At desktop width, Add a todo shares a left edge with What to do?, and both sit in from the row’s own edge — the completion and due-date columns are being held open.',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    await expect(
+      leftEdgeOf(canvas.getByLabelText('Add a todo')),
+      'the composer and the Todo text field are no longer on one column'
+    ).toBe(leftEdgeOf(canvas.getByLabelText('What to do?')))
+
+    await expect(
+      composerIndent(canvas),
+      'the composer is at the row’s edge, so the leading columns are not held'
+    ).toBeGreaterThan(0)
+  },
+})
+
+export const RowWrapsOnMobile = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+  globals: { viewport: { value: 'mobile1' } },
+  ...storyDocs([
+    '**Why:** Four columns cannot fit a phone, so below `sm` the row drops back to the wrapping flex layout it has always used. The column grid must not be what makes the row unusable on mobile.',
+    '**See:** At 320px the composer starts at the row’s own edge — no column is held open, because there is no room to hold one.',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    await expect(
+      composerIndent(canvas),
+      'the row is still holding columns open at a width that cannot fit them'
+    ).toBe(0)
+  },
+})
+
 export const UnmaterializedDraft = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
   args: {
     draft: true,

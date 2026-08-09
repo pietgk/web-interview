@@ -43,6 +43,32 @@ const datomImport = {
 /** @type {string[]} */
 const notYetMigrated = []
 
+// ADR 007, defence 3: only the commands module writes datoms. Matching on the
+// property name rather than on `client.assert` catches the aliased and
+// destructured forms too. `todoClient.js` defines these as object properties,
+// which is not a member expression, so it needs no exemption.
+const datomWrite = {
+  selector: 'MemberExpression[property.name=/^(assert|retract)$/]',
+  message:
+    'ADR 007: only todos/todoListCommands.js writes datoms. Call a named command instead.',
+}
+
+// A dimension written at a call site is a design decision nobody named. The
+// semantic-constants standard exempts structural style geometry - a `flexGrow`
+// or a `gridColumn` says what it means - but a bare `width: '11rem'` does not.
+//
+// Only px/rem/em literals are caught. Plain numbers stay legal because on these
+// properties MUI already routes them through `theme.spacing`, so they are
+// derived rather than invented.
+const themedDimension = {
+  selector:
+    'Property[key.name=/^(width|height|minWidth|maxWidth|minHeight|maxHeight|top|right|bottom|left|gap|columnGap|rowGap|padding|paddingX|paddingY|paddingTop|paddingRight|paddingBottom|paddingLeft|margin|marginX|marginY|marginTop|marginRight|marginBottom|marginLeft|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml)$/]' +
+    ' > Literal[value=/^-?[0-9]*\\.?[0-9]+(px|rem|em)$/]',
+  message:
+    'Name this dimension in src/theme.js and read it as theme.todos.*, so the ' +
+    'decision lives in one place. See docs/semantic-constants.md.',
+}
+
 export default [
   { ignores: ['dist/**', 'build/**', 'node_modules/**'] },
   js.configs.recommended,
@@ -88,21 +114,19 @@ export default [
     },
   },
   {
-    // ADR 007, defence 3: only the commands module writes datoms. Matching on
-    // the property name rather than on `client.assert` catches the aliased and
-    // destructured forms too. `todoClient.js` defines these as object
-    // properties, which is not a member expression, so it needs no exemption.
     files: ['src/**/*.{js,jsx}'],
     ignores: ['src/todos/todoListCommands.js', ...notYetMigrated],
     rules: {
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: 'MemberExpression[property.name=/^(assert|retract)$/]',
-          message:
-            'ADR 007: only todos/todoListCommands.js writes datoms. Call a named command instead.',
-        },
-      ],
+      'no-restricted-syntax': ['error', datomWrite, themedDimension],
+    },
+  },
+  {
+    // The commands module is the one file allowed to write datoms, but nothing
+    // exempts it from naming its dimensions. A flat-config block can only
+    // replace `no-restricted-syntax` wholesale, so it gets its own list.
+    files: ['src/todos/todoListCommands.js'],
+    rules: {
+      'no-restricted-syntax': ['error', themedDimension],
     },
   },
   {

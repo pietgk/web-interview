@@ -1,0 +1,138 @@
+import { Meta } from '@storybook/addon-docs/blocks'
+import { lightTheme, darkTheme } from './theme'
+
+<Meta title="Foundations/Design tokens" />
+
+export const Row = ({ children }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '6px 0' }}>{children}</div>
+)
+
+export const Name = ({ children }) => (
+  <code style={{ minWidth: '18rem', fontSize: '0.8125rem' }}>{children}</code>
+)
+
+export const Value = ({ children }) => (
+  <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', opacity: 0.7 }}>{children}</span>
+)
+
+export const Swatch = ({ color, border }) => (
+  <span
+    style={{
+      width: 40,
+      height: 24,
+      borderRadius: 4,
+      background: color,
+      border: border ?? '1px solid rgba(0,0,0,0.15)',
+      flex: 'none',
+    }}
+  />
+)
+
+export const Palette = ({ theme, label }) => (
+  <>
+    <h4>{label}</h4>
+    {['primary', 'secondary', 'error', 'warning', 'info', 'success'].map((slot) => (
+      <Row key={slot}>
+        <Swatch color={theme.palette[slot].main} />
+        <Name>palette.{slot}.main</Name>
+        <Value>{theme.palette[slot].main}</Value>
+      </Row>
+    ))}
+    <Row>
+      <Swatch color={theme.palette.background.paper} />
+      <Name>palette.background.paper</Name>
+      <Value>{theme.palette.background.paper}</Value>
+    </Row>
+    <Row>
+      <Swatch color={theme.palette.text.primary} />
+      <Name>palette.text.primary</Name>
+      <Value>{theme.palette.text.primary}</Value>
+    </Row>
+  </>
+)
+
+export const Spacing = ({ theme }) => (
+  <>
+    {[0.25, 0.5, 1, 2, 3, 7].map((step) => (
+      <Row key={step}>
+        <span
+          style={{
+            height: 16,
+            width: theme.spacing(step),
+            background: theme.palette.primary.main,
+            borderRadius: 2,
+            flex: 'none',
+          }}
+        />
+        <Name>theme.spacing({step})</Name>
+        <Value>{theme.spacing(step)}</Value>
+      </Row>
+    ))}
+  </>
+)
+
+export const TypeScale = ({ theme }) => (
+  <>
+    {['h1', 'h4', 'h6', 'body1', 'body2', 'caption'].map((variant) => (
+      <Row key={variant}>
+        <span style={{ ...theme.typography[variant], margin: 0, minWidth: '10rem' }}>Ag</span>
+        <Name>typography.{variant}</Name>
+        <Value>{theme.typography[variant].fontSize}</Value>
+      </Row>
+    ))}
+  </>
+)
+
+export const Tokens = ({ theme }) => {
+  const flatten = (value, path = []) =>
+    typeof value === 'object' && value !== null
+      ? Object.entries(value).flatMap(([key, child]) => flatten(child, [...path, key]))
+      : [[path.join('.'), value]]
+
+  return flatten(theme.todos).map(([path, value]) => (
+    <Row key={path}>
+      <Name>theme.todos.{path}</Name>
+      <Value>{String(value)}</Value>
+    </Row>
+  ))
+}
+
+# Design tokens
+
+Every value on this page is read from the theme object at render time. Nothing here is
+transcribed, so this page cannot drift from what the app actually uses - if a token changes,
+this page changes with it.
+
+The rule the codebase follows: **anything under `theme.todos` is a decision we made. Everything
+else is a decision MUI made for us.** When you need a value that is not here, add a named token
+rather than a literal at the call site - see
+[the semantic constants standard](https://github.com/pietgk/web-interview/blob/master/docs/semantic-constants.md).
+
+## Our tokens
+
+<Tokens theme={lightTheme} />
+
+Three of these mirror values MUI owns but does not export: `control.height`,
+`control.borderOpacity` and `control.focusBorderWidth`. The completion box is not an input, so it
+cannot inherit them - it copies them to sit on the same baseline as the fields beside it. The
+`TodoItem` story **Controls share one height** is the gate that fails when MUI moves and the copy
+goes stale.
+
+## Spacing
+
+The 8px base MUI ships with. `layout.gutter` and `listRow.actionClearance` are expressed in these
+units, which is why they are plain numbers rather than strings.
+
+<Spacing theme={lightTheme} />
+
+## Type scale
+
+<TypeScale theme={lightTheme} />
+
+## Palette
+
+Both modes ship. The app follows the operating system through `prefers-color-scheme`; use the
+toolbar theme switcher to review either one.
+
+<Palette theme={lightTheme} label="Light" />
+<Palette theme={darkTheme} label="Dark" />
