@@ -80,7 +80,7 @@ const TodoListRow = ({ todoList, summary, today, selected, onSelect, onDelete })
       selected={selected}
       aria-current={selected ? 'true' : undefined}
       onClick={onSelect}
-      sx={{ paddingRight: 7 }}
+      sx={(theme) => ({ paddingRight: theme.todos.listRow.actionClearance })}
     >
       <ListItemIcon>
         {summary.completed ? (
@@ -94,8 +94,10 @@ const TodoListRow = ({ todoList, summary, today, selected, onSelect, onDelete })
   </ListItem>
 )
 
-/** @param {{runtime: TodoRuntime, style?: React.CSSProperties}} props */
-export const TodoLists = ({ runtime, style }) => {
+/** @typedef {import('@mui/material/styles').Theme} Theme */
+
+/** @param {{runtime: TodoRuntime, sx?: import('@mui/material').SxProps<Theme>}} props */
+export const TodoLists = ({ runtime, sx }) => {
   const { client, readModel, status, today } = runtime
   const commands = useMemo(() => createTodoListCommands(client), [client])
   const [uiState, dispatch] = useReducer(todoListsUiReducer, initialTodoListsUiState)
@@ -148,7 +150,7 @@ export const TodoLists = ({ runtime, style }) => {
 
   return (
     <Fragment>
-      <Card style={style} component='section' aria-labelledby='todo-lists-heading'>
+      <Card sx={sx} component='section' aria-labelledby='todo-lists-heading'>
         <CardContent>
           <Typography id='todo-lists-heading' component='h2' variant='h6'>
             My Todo Lists

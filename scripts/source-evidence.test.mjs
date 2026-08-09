@@ -24,11 +24,15 @@ test('classifies every production source seam explicitly', () => {
     'frontend/src/todos/components/TodoItem.jsx': 'storybook-ui',
     'frontend/src/index.jsx': 'e2e-bootstrap',
     'frontend/src/testing/storyHarness.jsx': 'test-support',
+    'frontend/src/themeTokens.d.ts': 'type-only',
   }
 
   for (const [path, expected] of Object.entries(examples)) {
     assert.equal(classifySourcePath(path)?.category, expected, path)
   }
+  // The rule is the suffix, not the path: a declaration file anywhere emits no
+  // runtime, and a `.js` beside it is still an unowned seam.
+  assert.equal(classifySourcePath('shared/src/anything.d.ts')?.category, 'type-only')
   assert.equal(classifySourcePath('frontend/src/unowned.js'), undefined)
   assert.equal(classifySourcePath('frontend/src/App.stories.jsx'), undefined)
   assert.equal(classifySourcePath('backend/src/app.test.js'), undefined)

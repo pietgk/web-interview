@@ -38,7 +38,7 @@ export const TodoListForm = ({
 
   return (
     <Card
-      sx={{ margin: '0 1rem' }}
+      sx={(theme) => ({ marginX: theme.todos.layout.gutter })}
       component='section'
       aria-label={draft ? 'New Todo List' : `Todo List: ${todoList.title}`}
     >

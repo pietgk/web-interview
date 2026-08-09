@@ -57,7 +57,15 @@ export const StatusBar = ({ runtime }) => {
         >
           {status.parts.map((part, index) => (
             <React.Fragment key={part.id}>
-              {index > 0 && <Box component='span' aria-hidden sx={{ opacity: 0.45 }}>·</Box>}
+              {index > 0 && (
+                <Box
+                  component='span'
+                  aria-hidden
+                  sx={{ opacity: (theme) => theme.todos.emphasis.muted }}
+                >
+                  ·
+                </Box>
+              )}
               <Typography
                 component={part.id === 'title' ? 'h1' : 'span'}
                 variant={part.id === 'title' ? 'h6' : 'body2'}

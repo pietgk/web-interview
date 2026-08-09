@@ -22,7 +22,7 @@ export const DueIn = ({ dueDate, completed, onChange, todoLabel, today }) => {
 
   return (
     <TextField
-      sx={{ width: '11rem' }}
+      sx={{ width: (theme) => theme.todos.field.dueDate }}
       label={label}
       type='date'
       value={dueDate || ''}

@@ -83,6 +83,46 @@ export const Populated = /** @type {import('@storybook/react-vite').StoryObj<typ
   },
 })
 
+/*
+ * The two stories below pin a viewport and carry no `play`, deliberately.
+ *
+ * They used to assert their own layout: that the Todo's controls shared a top
+ * on desktop, that the text field sat below the completion box on mobile. Both
+ * sides of every one of those comparisons came out of the same layout pass, so
+ * they only ever restated what Chromium had just computed - given `flex-wrap`
+ * and a narrow box, the browser has no choice but to wrap. They proved the
+ * browser works, not that this row does.
+ *
+ * They were also brittle in the expensive direction: a redesign to a 2x2 mobile
+ * row would fail them while being perfectly good, and plenty of broken layouts
+ * would still satisfy them.
+ *
+ * A geometry assertion is worth writing when it compares two independently
+ * sourced values - see `TodoItem` > Controls share one height, which measures
+ * our mirrored `control.height` against whatever MUI's own input computes, and
+ * so catches a real drift. Nothing here has a second source, so there is
+ * nothing to catch. Pinning these layouts is a job for visual regression.
+ *
+ * They still earn their place as documented responsive states, and each one
+ * still runs the axe pass at its own width.
+ */
+
+export const Desktop = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+  globals: { viewport: { value: 'desktop' } },
+  ...storyDocs([
+    '**Why:** The composer fills only the `text` slot of a Todo row, so its field lands on the same column as the text of every Todo beneath it. Before `TodoRow` owned placement, the two started 272px apart.',
+    '**See:** One line per Todo, and Add a todo sharing its left edge with What to do?.',
+  ].join(' ')),
+})
+
+export const SmallMobile = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
+  globals: { viewport: { value: 'mobile1' } },
+  ...storyDocs([
+    '**Why:** Four columns need 28rem and cannot fit a phone. Holding them open would push the row past the screen and put the Todo text out of reach, so below `sm` the row drops back to the wrapping layout it has always used.',
+    '**See:** At 320px each control takes its own line and nothing runs off the side.',
+  ].join(' ')),
+})
+
 export const UnmaterializedDraft = /** @type {import('@storybook/react-vite').StoryObj<typeof TodoListForm>} */ ({
   args: {
     draft: true,
