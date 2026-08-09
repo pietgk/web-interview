@@ -6,6 +6,7 @@ import { relative, resolve, sep } from 'node:path'
 /** @typedef {Record<CoverageMetric, {covered: number, total: number}>} FileCoverage */
 
 const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
+const DECLARATION_PATTERN = /\.d\.[cm]?ts$/
 /** @type {readonly CoverageMetric[]} */
 const COVERAGE_METRICS = ['statements', 'branches', 'functions', 'lines']
 export const CATEGORIES = /** @type {const} */ ([
@@ -66,6 +67,12 @@ export const classifySourcePath = (path) => {
 
   if (path === 'shared/src/types.js') {
     return { category: 'type-only', rationale: 'JSDoc declarations with no runtime code' }
+  }
+  // A declaration file emits nothing, so there is no execution to evidence. This
+  // is a rule rather than a path list because it holds for any `.d.ts` by
+  // construction, and the alternative is a new exemption per file.
+  if (DECLARATION_PATTERN.test(path)) {
+    return { category: 'type-only', rationale: 'ambient declarations with no runtime code' }
   }
   if (path === 'backend/src/index.js' || path === 'frontend/src/index.jsx') {
     return { category: 'e2e-bootstrap', rationale: 'process or DOM bootstrap exercised by Playwright' }
