@@ -2,21 +2,15 @@
 
 ## Status
 
-**Slice 3 (~200% zoom / rem smoke): ready to land** on `feat/os-a11y-prefs-zoom` —
-Playwright proves primary composed controls stay visible and usable when the root
-font size is doubled; `npm run verify` green.
-
-**Slice 2 (`prefers-contrast: more`): ready to land** on
-`feat/os-a11y-prefs-contrast-more` (separate branch; does not block this slice).
-
-**Slice 1 (motion + forced-colors): landed** on master via PR #4.
+**Slices 1–3 landed** on master (PRs #4, #5, #6): reduced-motion, forced-colors,
+`prefers-contrast: more`, and ~200% zoom / rem smoke.
 
 This is an engineering / platform plan, not Todo domain language. Do not add it to `CONTEXT.md`.
 
 ## Next session handoff
 
-After remaining slices land, start a **new chat/context** from updated `master`. Do not
-re-litigate parked grill decisions above unless requirements change.
+Start a **new chat/context** from updated `master`. Do not re-litigate parked grill decisions
+above unless requirements change.
 
 ### Already done (do not redo)
 
@@ -24,7 +18,7 @@ re-litigate parked grill decisions above unless requirements change.
 | --- | --- | --- |
 | `prefers-reduced-motion` | `theme.motion.reducedMotion: 'system'` in `frontend/src/theme.js` | `e2e/a11y-prefs.spec.js` (dialog `transitionDuration` 0s); Foundations story |
 | `forced-colors` | `enhanceHighContrast(...)` on light/dark themes | same e2e (selected list `forcedColorAdjust: none`); Foundations story |
-| `prefers-contrast: more` | `theme.todos.contrastMore` + `@media` on outlined inputs / CompletionField / StatusBar muted / empty-list text | Foundations story (`contrastMoreTokens` / `contrastMoreOutline`); e2e `emulateMedia({ contrast: 'more' })` on completion outline — **on `feat/os-a11y-prefs-contrast-more`** |
+| `prefers-contrast: more` | `theme.todos.contrastMore` + `@media` on outlined inputs / CompletionField / StatusBar muted / empty-list text | Foundations story (`contrastMoreTokens` / `contrastMoreOutline`); e2e `emulateMedia({ contrast: 'more' })` on completion outline |
 | ~200% zoom / rem | Layout already rem-based (`theme.todos` widths/heights); no product CSS change | `e2e/a11y-prefs.spec.js` doubles `documentElement` font-size and keeps Add List / list / composer / todo / Done usable |
 
 ### Remaining v1 work (suggested order)
