@@ -34,12 +34,19 @@ let backendStopRequested = false
 /** @type {import('node:readline').Interface | null} */
 let prompt = null
 
-/** The servers write to stdout whenever they like, so redraw after every one. */
-const reprompt = () => prompt?.prompt()
-
 /** @param {ChildProcess | null} child */
 const isAlive = (child) =>
   child !== null && child.exitCode === null && child.signalCode === null
+
+/** Backend up/down is the state this demo toggles; keep it in the prompt itself. */
+const statusPrompt = () => `${isAlive(backend) ? 'up' : 'down'} >> `
+
+/** The servers write to stdout whenever they like, so redraw after every one. */
+const reprompt = () => {
+  if (!prompt) return
+  prompt.setPrompt(statusPrompt())
+  prompt.prompt()
+}
 
 /** @param {ChildProcess} child @param {number} timeoutMs */
 const waitForExit = (child, timeoutMs = 5_000) => new Promise((done) => {
@@ -144,7 +151,7 @@ const stopBackend = async () => {
   await waitForExit(child)
 }
 
-const startPreview = () => {
+const startPreview = async () => {
   const child = spawn(process.execPath, [
     VITE,
     'preview',
@@ -165,6 +172,12 @@ const startPreview = () => {
     console.error(`\nPreview server stopped unexpectedly (${signal ?? code}).`)
     void shutdown(1)
   })
+
+  // Wait until the preview is answering so its startup banner lands before the
+  // interactive prompt; otherwise the two fight for the same line.
+  if (await waitForUrl(PREVIEW_URL)) return
+  console.error(`Preview did not answer on ${PREVIEW_URL}.`)
+  await shutdown(1)
 }
 
 /** @param {number} exitCode */
@@ -269,11 +282,11 @@ if (buildExit !== 0) {
 }
 
 // The browser opens its datom stream as soon as the page loads, so the backend
-// comes up first.
+// comes up first. The prompt waits for both so their banners finish first.
 await startBackend()
-startPreview()
+await startPreview()
 
-prompt = createInterface({ input: process.stdin, output: process.stdout, prompt: '> ' })
+prompt = createInterface({ input: process.stdin, output: process.stdout, prompt: statusPrompt() })
 prompt.on('line', async (line) => {
   await runCommand(line)
   if (!shuttingDown) reprompt()
