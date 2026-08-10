@@ -2,10 +2,50 @@
 
 ## Status
 
-**MUI 9.3 platform accepted (ADR 009); prefs still parked.** Land the upgrade PR first; resume the
-prefs grill afterward (motion / `enhanceHighContrast` / contrast more / zoom / toolbar spike).
+**Slice 1 (motion + forced-colors): ready to land** on
+`feat/os-a11y-prefs-motion-forced-colors` — theme wiring, Foundations story, Playwright smokes;
+`npm run verify` green.
+
+**Next session:** start a **new chat/context** from updated `master` after this PR merges. Do not
+continue prefs design in the long grill thread. Handoff below.
 
 This is an engineering / platform plan, not Todo domain language. Do not add it to `CONTEXT.md`.
+
+## Next session handoff
+
+Open a fresh agent session. Read this plan + [ADR 009](../adr/009-material-ui-9-platform.md). Do
+**not** re-litigate parked grill decisions above unless requirements change.
+
+### Already done (do not redo)
+
+| Pref | Implementation | Proof |
+| --- | --- | --- |
+| `prefers-reduced-motion` | `theme.motion.reducedMotion: 'system'` in `frontend/src/theme.js` | `e2e/a11y-prefs.spec.js` (dialog `transitionDuration` 0s); Foundations story |
+| `forced-colors` | `enhanceHighContrast(...)` on light/dark themes | same e2e (selected list `forcedColorAdjust: none`); Foundations story |
+
+### Remaining v1 work (suggested order)
+
+1. **`prefers-contrast: more`** — still hand-rolled (no MUI first-class API). Strengthen
+   `theme.todos` borders / muted opacity / weak text under `@media (prefers-contrast: more)` for
+   both light and dark. Proof: Storybook preference state + Playwright `emulateMedia({ contrast:
+   'more' })` thin smoke.
+2. **~200% zoom / rem smoke** — composed App/TodoLists still exposes primary controls at large
+   page zoom (or root font scale). One Storybook or Playwright check.
+3. **Storybook prefs toolbar spike** — thin **custom globals** for reduced-motion / contrast more /
+   forced-colors (not `storybook-addon-css-user-preferences`). Kill if it fights `addon-themes` or
+   Vitest browser. Ergonomics only; gates stay stories + Playwright.
+
+### Out of this program
+
+- Track **C** (screen reader / keyboard journey expansion)
+- `prefers-reduced-transparency`, in-app OS-override toggles
+- MUI / React upgrades (platform already on 9.3 + React 18)
+
+### Suggested first prompt for the next session
+
+> Continue OS a11y prefs from `docs/plans/a11y-os-prefs-and-mui-platform.md` — implement
+> `prefers-contrast: more` next (hand-rolled theme tokens), with Storybook + Playwright proof per
+> the parked plan. Do not reopen motion/forced-colors unless broken.
 
 ## Parked grill decisions (prefs program)
 

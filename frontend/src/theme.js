@@ -1,4 +1,4 @@
-import { createTheme } from '@mui/material/styles'
+import { createTheme, enhanceHighContrast } from '@mui/material/styles'
 
 /**
  * The height MUI gives an outlined input at default density.
@@ -67,6 +67,12 @@ const LIGHT_PAGE_BACKDROP = '#f1f1f1'
 const ELEVATED_SURFACE_OVERLAY = 0.05
 
 /**
+ * Follow the OS `prefers-reduced-motion` setting for MUI transitions (Dialog
+ * Fade included). `'never'` is MUI's default and would ignore that preference.
+ */
+const REDUCED_MOTION = /** @type {const} */ ('system')
+
+/**
  * Tokens this app owns, under one namespace so they cannot collide with MUI's
  * own theme keys. Reach them from any `sx` callback as `theme.todos.*`; the
  * shape is declared in `themeTokens.d.ts` - which cannot be named `theme.d.ts`,
@@ -76,6 +82,9 @@ const ELEVATED_SURFACE_OVERLAY = 0.05
  * @type {import('@mui/material/styles').ThemeOptions}
  */
 const foundations = {
+  motion: {
+    reducedMotion: REDUCED_MOTION,
+  },
   todos: {
     control: {
       height: CONTROL_HEIGHT,
@@ -104,10 +113,22 @@ const foundations = {
   },
 }
 
+/**
+ * Finish a theme with Windows High Contrast / `forced-colors` overrides so
+ * selected rows, inputs, and icons keep system-color affordances.
+ *
+ * @param {import('@mui/material/styles').Theme} theme
+ */
+const withOsAccessibility = (theme) => enhanceHighContrast(theme)
+
 /** Shared MUI themes for the app and Storybook (palette.mode is the light/dark switch). */
-export const lightTheme = createTheme(
-  { ...foundations, palette: { mode: 'light' } },
-  { todos: { layout: { backdrop: LIGHT_PAGE_BACKDROP } } }
+export const lightTheme = withOsAccessibility(
+  createTheme(
+    { ...foundations, palette: { mode: 'light' } },
+    { todos: { layout: { backdrop: LIGHT_PAGE_BACKDROP } } }
+  )
 )
 
-export const darkTheme = createTheme({ ...foundations, palette: { mode: 'dark' } })
+export const darkTheme = withOsAccessibility(
+  createTheme({ ...foundations, palette: { mode: 'dark' } })
+)
