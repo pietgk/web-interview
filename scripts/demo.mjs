@@ -108,7 +108,7 @@ const startBackend = async () => {
     )
     // Editing stays enabled once the client has a server clock; edits queue in
     // the in-memory outbox and drain on reconnect.
-    console.log("Edits still work and queue up. Type 'start' to bring it back and watch them drain.")
+    console.log("Edits still work and queue up. Type 'toggle' to bring it back and watch them drain.")
     // A requested stop is still inside a command, which redraws the prompt once
     // it finishes. Only an exit nobody asked for needs its own redraw.
     if (!backendStopRequested) reprompt()
@@ -130,6 +130,14 @@ const stopBackend = async () => {
   const child = /** @type {ChildProcess} */ (backend)
   child.kill('SIGTERM')
   await waitForExit(child)
+}
+
+const toggleBackend = async () => {
+  if (isAlive(backend)) {
+    await stopBackend()
+    return
+  }
+  await startBackend()
 }
 
 const startPreview = async () => {
@@ -178,22 +186,17 @@ const shutdown = async (exitCode = 0) => {
 
 /** @type {Command[]} */
 const COMMANDS = [
-  { name: 'stop', help: 'stop the backend, to show the lost-connection state', run: () => stopBackend() },
-  { name: 'start', help: 'start the backend again and watch the app recover', run: () => startBackend() },
   {
-    name: 'restart',
-    help: 'stop and start the backend',
-    run: async () => {
-      await stopBackend()
-      await startBackend()
-    },
+    name: 'toggle',
+    help: 'flip the backend (lost-connection ↔ recover / outbox drain)',
+    run: () => toggleBackend(),
   },
   { name: 'quit', aliases: ['exit'], help: 'stop everything and exit', run: () => shutdown(0) },
   { name: 'help', aliases: ['?'], help: 'show this list', run: () => printCommands() },
 ]
 
 function printCommands() {
-  console.log('\nDemo controls. Any unambiguous prefix works, so q, r, sto and sta are enough:')
+  console.log('\nDemo controls. Any unambiguous prefix works, so q and t are enough:')
   for (const { name, help } of COMMANDS) console.log(`  ${name.padEnd(8)}${help}`)
   console.log('')
 }
