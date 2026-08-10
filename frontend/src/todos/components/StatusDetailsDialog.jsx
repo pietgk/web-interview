@@ -19,9 +19,13 @@ export const StatusDetailsDialog = ({ open, details, onClose }) => (
         <Box>
           <DialogContentText>{details.message}</DialogContentText>
           <Box component='dl' sx={{ display: 'grid', gridTemplateColumns: 'max-content minmax(0, 1fr)', gap: 1, margin: 0 }}>
-            <Typography component='dt' fontWeight='bold'>Code</Typography>
+            <Typography component='dt' sx={{
+              fontWeight: 'bold'
+            }}>Code</Typography>
             <Typography component='dd' sx={{ margin: 0, overflowWrap: 'anywhere' }}>{details.code}</Typography>
-            <Typography component='dt' fontWeight='bold'>HTTP status</Typography>
+            <Typography component='dt' sx={{
+              fontWeight: 'bold'
+            }}>HTTP status</Typography>
             <Typography component='dd' sx={{ margin: 0 }}>
               {details.status ?? 'No response'}
             </Typography>

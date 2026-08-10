@@ -41,7 +41,6 @@ export const TodoListTitleField = ({
       value={text}
       error={!draft && blank}
       helperText={!draft && blank ? 'Todo List name is required' : ' '}
-      inputProps={{ maxLength: TODO_LIST_TITLE_MAX_LENGTH }}
       onChange={(event) => change(event.target.value)}
       onBlur={() => {
         if (blank) reset()
@@ -59,6 +58,9 @@ export const TodoListTitleField = ({
           if (draft && !materializedRef.current) onCancelDraft()
           else reset()
         }
+      }}
+      slotProps={{
+        htmlInput: { maxLength: TODO_LIST_TITLE_MAX_LENGTH }
       }}
     />
   )

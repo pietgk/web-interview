@@ -57,11 +57,13 @@ export const TodoItem = ({ todo, onChange, onRemove, today }) => {
           sx={textSlotSx}
           label='What to do?'
           value={text}
-          inputProps={{ maxLength: TODO_TEXT_MAX_LENGTH }}
           onChange={(event) => change(event.target.value)}
           onBlur={settle}
           onKeyDown={(event) => {
             if (event.key === 'Enter') settle()
+          }}
+          slotProps={{
+            htmlInput: { maxLength: TODO_TEXT_MAX_LENGTH }
           }}
         />
       }

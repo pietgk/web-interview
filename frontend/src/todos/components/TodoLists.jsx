@@ -53,7 +53,9 @@ const ListRecap = ({ summary, today }) => {
       {due && (
         <>
           {' · '}
-          <Box component='span' color={due.kind === 'overdue' ? 'error.main' : 'inherit'}>
+          <Box component='span' sx={{
+            color: due.kind === 'overdue' ? 'error.main' : 'inherit'
+          }}>
             {due.label}
           </Box>
         </>
@@ -156,7 +158,11 @@ export const TodoLists = ({ runtime, sx }) => {
             My Todo Lists
           </Typography>
           {summaries.length === 0 && status.canEdit && (
-            <Typography color='text.secondary' sx={{ marginTop: 1 }}>
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                marginTop: 1
+              }}>
               No Todo Lists yet.
             </Typography>
           )}

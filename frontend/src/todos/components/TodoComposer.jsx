@@ -45,7 +45,9 @@ export const TodoComposer = ({ text, onChange, onSubmit, onCommit, focusRef }) =
               submit()
             }
           }}
-          inputProps={{ 'aria-label': 'Add a todo', maxLength: TODO_TEXT_MAX_LENGTH }}
+          slotProps={{
+            htmlInput: { 'aria-label': 'Add a todo', maxLength: TODO_TEXT_MAX_LENGTH }
+          }}
         />
       }
       action={
