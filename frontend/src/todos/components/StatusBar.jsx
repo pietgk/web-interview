@@ -61,7 +61,12 @@ export const StatusBar = ({ runtime }) => {
                 <Box
                   component='span'
                   aria-hidden
-                  sx={{ opacity: (theme) => theme.todos.emphasis.muted }}
+                  sx={{
+                    opacity: (theme) => theme.todos.emphasis.muted,
+                    '@media (prefers-contrast: more)': {
+                      opacity: (theme) => theme.todos.contrastMore.muted,
+                    },
+                  }}
                 >
                   ·
                 </Box>

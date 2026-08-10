@@ -161,7 +161,10 @@ export const TodoLists = ({ runtime, sx }) => {
             <Typography
               sx={{
                 color: 'text.secondary',
-                marginTop: 1
+                marginTop: 1,
+                '@media (prefers-contrast: more)': {
+                  color: 'text.primary',
+                },
               }}>
               No Todo Lists yet.
             </Typography>

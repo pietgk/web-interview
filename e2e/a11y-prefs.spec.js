@@ -9,6 +9,14 @@ import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
 const ROOT_FONT_SCALE_DOUBLE = '200%'
 
 /**
+ * Floor for a resting outline alpha under `prefers-contrast: more`. Default
+ * MUI / `theme.todos.control.borderOpacity` is 0.23; contrast-more tokens sit
+ * well above this so the smoke fails if the media query never applies.
+ */
+const MIN_MORE_CONTRAST_BORDER_ALPHA = 0.45
+
+
+/**
  * OS media-preference smokes for the A+B prefs program (see
  * docs/plans/a11y-os-prefs-and-mui-platform.md). Thin on purpose — component
  * catalogs stay in Storybook.
@@ -110,4 +118,32 @@ test('primary controls stay usable at double root font size', async ({ page }) =
   await expect(composer).toHaveValue('Zoom rem smoke')
   await composer.fill('')
   await expect(composer).toHaveValue('')
+})
+
+test('completion outline strengthens under prefers-contrast more', async ({
+  page,
+}) => {
+  await page.emulateMedia({ contrast: 'more' })
+  await page.goto('/')
+  await waitForApp(page)
+
+  const done = page.getByLabel(`Mark completed: ${PRIMARY_TODO_TEXT}`)
+  await expect(done).toBeVisible()
+
+  const borderAlpha = await done.evaluate((input) => {
+    const field = input.closest('.MuiFormControl-root')
+    if (!(field instanceof HTMLElement)) {
+      throw new Error('Expected CompletionField FormControl')
+    }
+    const color = getComputedStyle(field).borderColor
+    const match = color.match(
+      /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/
+    )
+    if (!match) {
+      throw new Error(`Unexpected borderColor: ${color}`)
+    }
+    return match[4] === undefined ? 1 : Number(match[4])
+  })
+
+  expect(borderAlpha).toBeGreaterThanOrEqual(MIN_MORE_CONTRAST_BORDER_ALPHA)
 })
