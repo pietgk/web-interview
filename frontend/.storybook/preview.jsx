@@ -1,6 +1,14 @@
 import { withThemeFromJSXProvider } from '@storybook/addon-themes'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import { darkTheme, lightTheme } from '../src/theme'
+import {
+  FORCED_COLORS,
+  OS_MEDIA_FEATURE_VALUES,
+  OS_MEDIA_PREF_SYSTEM,
+  PREFERS_CONTRAST,
+  PREFERS_REDUCED_MOTION,
+} from './osMediaPrefs.js'
+import { withOsMediaPrefs } from './withOsMediaPrefs.jsx'
 
 /**
  * `withThemeFromJSXProvider` renders `GlobalStyles` with no props, so the
@@ -11,10 +19,45 @@ import { darkTheme, lightTheme } from '../src/theme'
  */
 const ColorSchemedBaseline = () => <CssBaseline enableColorScheme />
 
+/**
+ * @param {string} feature
+ * @param {string} title
+ * @param {string} icon
+ */
+const osMediaPrefToolbar = (feature, title, icon) => ({
+  description: `Emulate CSS ${feature} (Storybook ergonomics; gates stay Playwright + preference stories)`,
+  toolbar: {
+    title,
+    icon,
+    items: [
+      { value: OS_MEDIA_PREF_SYSTEM, title: `${title}: system` },
+      ...OS_MEDIA_FEATURE_VALUES[feature].map((value) => ({
+        value,
+        title: `${title}: ${value}`,
+      })),
+    ],
+    dynamicTitle: true,
+  },
+})
+
 /** @type { import('@storybook/react-vite').Preview } */
 const preview = {
   // Generate a Docs page for every story file (same as tags: ['autodocs'] on each meta).
   tags: ['autodocs'],
+  globalTypes: {
+    prefersReducedMotion: osMediaPrefToolbar(
+      PREFERS_REDUCED_MOTION,
+      'Motion',
+      'lightning'
+    ),
+    prefersContrast: osMediaPrefToolbar(PREFERS_CONTRAST, 'Contrast', 'contrast'),
+    forcedColors: osMediaPrefToolbar(FORCED_COLORS, 'Forced colors', 'accessibility'),
+  },
+  initialGlobals: {
+    prefersReducedMotion: OS_MEDIA_PREF_SYSTEM,
+    prefersContrast: OS_MEDIA_PREF_SYSTEM,
+    forcedColors: OS_MEDIA_PREF_SYSTEM,
+  },
   parameters: {
     controls: {
       matchers: {
@@ -49,6 +92,8 @@ const preview = {
       Provider: ThemeProvider,
       GlobalStyles: ColorSchemedBaseline,
     }),
+    // Inside the theme provider so Emotion sheets exist before CSSOM rewrite.
+    withOsMediaPrefs,
   ],
 }
 

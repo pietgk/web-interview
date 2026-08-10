@@ -2,15 +2,11 @@
 
 ## Status
 
-**Slices 1–3 landed** on master (PRs #4, #5, #6): reduced-motion, forced-colors,
-`prefers-contrast: more`, and ~200% zoom / rem smoke.
+**v1 complete** on master (PRs #4, #5, #6 + Storybook prefs toolbar): reduced-motion,
+forced-colors, `prefers-contrast: more`, ~200% zoom / rem smoke, and custom Storybook
+toolbar globals for manual pref review.
 
 This is an engineering / platform plan, not Todo domain language. Do not add it to `CONTEXT.md`.
-
-## Next session handoff
-
-Start a **new chat/context** from updated `master`. Do not re-litigate parked grill decisions
-above unless requirements change.
 
 ### Already done (do not redo)
 
@@ -20,25 +16,17 @@ above unless requirements change.
 | `forced-colors` | `enhanceHighContrast(...)` on light/dark themes | same e2e (selected list `forcedColorAdjust: none`); Foundations story |
 | `prefers-contrast: more` | `theme.todos.contrastMore` + `@media` on outlined inputs / CompletionField / StatusBar muted / empty-list text | Foundations story (`contrastMoreTokens` / `contrastMoreOutline`); e2e `emulateMedia({ contrast: 'more' })` on completion outline |
 | ~200% zoom / rem | Layout already rem-based (`theme.todos` widths/heights); no product CSS change | `e2e/a11y-prefs.spec.js` doubles `documentElement` font-size and keeps Add List / list / composer / todo / Done usable |
+| Storybook prefs toolbar | Custom `globalTypes` + CSSOM/`matchMedia` decorator in `frontend/.storybook/` (not `storybook-addon-css-user-preferences`) | Ergonomics only; defaults `system` so Vitest browser stays clean. Gates remain preference stories + Playwright |
 
-### Remaining v1 work (suggested order)
+### Remaining v1 work
 
-1. **Storybook prefs toolbar spike** — thin **custom globals** for reduced-motion / contrast more /
-   forced-colors (not `storybook-addon-css-user-preferences`). Kill if it fights `addon-themes` or
-   Vitest browser. Ergonomics only; gates stay stories + Playwright.
+None — toolbar spike kept (did not fight `addon-themes` or Vitest browser).
 
 ### Out of this program
 
 - Track **C** (screen reader / keyboard journey expansion)
 - `prefers-reduced-transparency`, in-app OS-override toggles
 - MUI / React upgrades (platform already on 9.3 + React 18)
-
-### Suggested first prompt for the next session
-
-> Continue OS a11y prefs from `docs/plans/a11y-os-prefs-and-mui-platform.md` — time-box the
-> Storybook prefs toolbar spike (custom globals for reduced-motion / contrast more /
-> forced-colors). Kill if it fights `addon-themes` or Vitest browser. Do not reopen landed
-> prefs slices unless broken.
 
 ## Parked grill decisions (prefs program)
 
@@ -69,9 +57,10 @@ Defer: `prefers-reduced-transparency`, in-app OS-override toggles.
 
 - Do **not** adopt `storybook-addon-css-user-preferences` (Storybook 6-era, abandoned, no
   `forced-colors`).
-- **Do** include a time-boxed **custom globals toolbar** spike for the three media prefs; kill if
-  it fights `addon-themes` or the Vitest browser runner.
-- Gates remain preference stories + Playwright either way; the menu is ergonomics.
+- **Done:** custom `globalTypes` toolbar (Motion / Contrast / Forced colors) with a decorator that
+  rewrites CSSOM `@media` rules and shims `matchMedia` for MUI’s JS reduced-motion path. Defaults
+  `system` — did not fight `addon-themes` or Vitest browser (`verify` green).
+- Gates remain preference stories + Playwright; the menu is ergonomics.
 
 ### Product response (blocked on platform)
 
@@ -225,7 +214,7 @@ loosen — explicit recalibration after a failed reclaim.
 
 ## Resume checklist (after platform decision)
 
-1. Confirm go/kill on MUI 9.1+ (ADR if go — technology lock-in + sequencing surprise).
-2. Resume prefs grill only for residual decisions (contrast token strategy, toolbar spike details).
-3. Implement prefs + preference stories + Playwright smokes + optional globals toolbar.
-4. Keep track **C** (SR / keyboard journeys) as a separate later program.
+1. Confirm go/kill on MUI 9.1+ (ADR if go — technology lock-in + sequencing surprise). **Done** (ADR 009).
+2. Resume prefs grill only for residual decisions (contrast token strategy, toolbar spike details). **Done.**
+3. Implement prefs + preference stories + Playwright smokes + optional globals toolbar. **Done.**
+4. Keep track **C** (SR / keyboard journeys) as a separate later program. **Still out of scope.**
