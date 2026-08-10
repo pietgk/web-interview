@@ -19,6 +19,11 @@ Three owners of state, and only three:
 Rendering owns nothing. **After an interaction, classify by what changed** — domain fact →
 **command**; screen offering → **event**; nothing yet (unsettled text) → neither until settle.
 
+**Naming follows CQRS-ES tense.** Commands are imperative: they say what should be done to
+domain facts (`renameList`, `deleteTodo`). Events are past-tense: they say what happened to
+screen state (`LIST_SELECTED`, `DRAFT_STARTED`). Do not name an event like an order, and do not
+name a command like a fact that already occurred.
+
 Only `todoListCommands.js` may know datoms exist (`assert` / `retract` / `ATTRIBUTE`). There is
 exactly one settle-timer mechanism (`useSettledText`); a `setTimeout` elsewhere for text settling
 is an architecture defect.

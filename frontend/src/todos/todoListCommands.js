@@ -6,8 +6,9 @@ import { ATTRIBUTE } from '@web-interview/todos/datom'
 /** @typedef {ReturnType<typeof createTodoListCommands>} TodoListCommands */
 
 /**
- * The only module that knows datoms exist (ADR 007). Every export is named after
- * something a person did, so a component never spells out an attribute.
+ * The only module that knows datoms exist (ADR 007). Every export is an imperative
+ * command — what should be done to domain facts — so a component never spells out
+ * an attribute.
  *
  * Commands return nothing meaningful except `addTodo`, which returns the id it
  * minted because the ghost composer has to link to it. Everything else reaches

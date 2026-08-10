@@ -4,18 +4,21 @@ Companion to [ADR 007](../adr/007-ui-to-model-convention.md). After an interacti
 **what changed** (domain fact → command; screen offering → event; unsettled text → wait for
 settle). Only `todoListCommands.js` knows datoms exist.
 
+**Tense:** commands are imperative (what should be done); events are past-tense (what happened).
+See ADR 007.
+
 ## Interaction checklist
 
 | Interaction | What changed | Reaches the model as |
 | --- | --- | --- |
-| Click a Todo List row | which list is on screen | event `SELECT_LIST` |
-| Click Add | the screen offers a draft | event `ADD_LIST` |
-| Escape a draft | the screen stops offering it | event `ESCAPE_DRAFT` |
-| Delete a list holding Todos | the screen offers a confirmation | event `REQUEST_DELETE` |
-| Cancel the dialog | the screen stops offering it | event `CANCEL_DELETE` |
-| Name a draft list | a Todo List exists, **and** drafting ends | `renameList()` **and** event `MATERIALIZE` |
-| Confirm the dialog | the list stops existing, **and** selection moves | `deleteList()` **and** event `CONFIRM_DELETE` |
-| Delete an empty list | as above, without the confirmation | `deleteList()` **and** event `CONFIRM_DELETE` |
+| Click a Todo List row | which list is on screen | event `LIST_SELECTED` |
+| Click Add | the screen offers a draft | event `DRAFT_STARTED` |
+| Escape a draft | the screen stops offering it | event `DRAFT_ESCAPED` |
+| Delete a list holding Todos | the screen offers a confirmation | event `DELETE_REQUESTED` |
+| Cancel the dialog | the screen stops offering it | event `DELETE_CANCELLED` |
+| Name a draft list | a Todo List exists, **and** drafting ends | `renameList()` **and** event `LIST_MATERIALIZED` |
+| Confirm the dialog | the list stops existing, **and** selection moves | `deleteList()` **and** event `DELETE_CONFIRMED` |
+| Delete an empty list | as above, without the confirmation | `deleteList()` **and** event `DELETE_CONFIRMED` |
 | Rename an existing list | a fact, once the field settles | in-flight, then `renameList()` |
 | Type in a Todo's text | a fact, once the field settles | in-flight, then `retitleTodo()` |
 | Composer settles non-blank, unlinked | a Todo starts existing | in-flight, then `addTodo()` |
@@ -42,7 +45,7 @@ convention.
 A component may import screen-view output, an event dispatcher, and commands. It may not import
 `@web-interview/todos/datom` (ESLint enforces this).
 
-Commands (named after what a person did):
+Commands (imperative — the domain action to perform):
 
 ```text
 reserveListId()                   renameList(listId, title)

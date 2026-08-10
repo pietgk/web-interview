@@ -114,14 +114,14 @@ export const TodoLists = ({ runtime, sx }) => {
   // named a Todo List in the old one means nothing. Keying on the epoch is what
   // lets this run again rather than once per mount.
   useEffect(() => {
-    dispatch({ type: 'RESET' })
+    dispatch({ type: 'UI_RESET' })
   }, [status.epoch])
 
   // The stream sends the compacted set before it sends server time, so a clock
   // means the Todo Lists are here. The reducer ignores this unless it is still
   // waiting, so it cannot override a choice the person already made.
   useEffect(() => {
-    if (status.canEdit) dispatch({ type: 'HYDRATE', listId: summaries[0]?.id ?? null })
+    if (status.canEdit) dispatch({ type: 'LIST_HYDRATED', listId: summaries[0]?.id ?? null })
   }, [status.canEdit, summaries])
 
   useEffect(() => {
@@ -145,7 +145,7 @@ export const TodoLists = ({ runtime, sx }) => {
     )
     focusAddWhenEmpty.current = summaries.length === 1
     commands.deleteList(todoList)
-    dispatch({ type: 'CONFIRM_DELETE', nextListId })
+    dispatch({ type: 'DELETE_CONFIRMED', nextListId })
   }
 
   return (
@@ -170,10 +170,10 @@ export const TodoLists = ({ runtime, sx }) => {
                   summary={summary}
                   today={today}
                   selected={summary.id === uiState.activeListId}
-                  onSelect={() => dispatch({ type: 'SELECT_LIST', listId: summary.id })}
+                  onSelect={() => dispatch({ type: 'LIST_SELECTED', listId: summary.id })}
                   onDelete={() => {
                     if (todoList.todos.length === 0) removeList(todoList)
-                    else dispatch({ type: 'REQUEST_DELETE', targetListId: todoList.id })
+                    else dispatch({ type: 'DELETE_REQUESTED', targetListId: todoList.id })
                   }}
                 />
               )
@@ -192,7 +192,7 @@ export const TodoLists = ({ runtime, sx }) => {
                   titleInputRef.current?.focus()
                   return
                 }
-                dispatch({ type: 'ADD_LIST', reservedListId: commands.reserveListId() })
+                dispatch({ type: 'DRAFT_STARTED', reservedListId: commands.reserveListId() })
               }}
               sx={{ marginLeft: 1 }}
             >
@@ -213,13 +213,13 @@ export const TodoLists = ({ runtime, sx }) => {
           titleFocusRef={titleInputRef}
           onMaterialize={(title) => {
             commands.renameList(activeList.id, title)
-            dispatch({ type: 'MATERIALIZE', listId: activeList.id })
+            dispatch({ type: 'LIST_MATERIALIZED', listId: activeList.id })
           }}
           onTitleChange={(title) => {
             if (!readModel[activeList.id]) return
             commands.renameList(activeList.id, title)
           }}
-          onCancelDraft={() => dispatch({ type: 'ESCAPE_DRAFT' })}
+          onCancelDraft={() => dispatch({ type: 'DRAFT_ESCAPED' })}
         />
       )}
 
@@ -227,7 +227,7 @@ export const TodoLists = ({ runtime, sx }) => {
         <Suspense fallback={null}>
           <DeleteTodoListDialog
             todoList={confirmingList}
-            onCancel={() => dispatch({ type: 'CANCEL_DELETE' })}
+            onCancel={() => dispatch({ type: 'DELETE_CANCELLED' })}
             onConfirm={() => removeList(confirmingList)}
           />
         </Suspense>
