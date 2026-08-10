@@ -18,6 +18,10 @@ const fieldSx = {
   borderColor: fieldBorderColor,
   borderRadius: 1,
   cursor: 'pointer',
+  '@media (prefers-contrast: more)': {
+    borderColor: (/** @type {import('@mui/material/styles').Theme} */ theme) =>
+      alpha(theme.palette.text.primary, theme.todos.contrastMore.borderOpacity),
+  },
   '&:hover': {
     borderColor: 'text.primary',
   },

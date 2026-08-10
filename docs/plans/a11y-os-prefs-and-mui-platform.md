@@ -2,19 +2,19 @@
 
 ## Status
 
-**Slice 1 (motion + forced-colors): ready to land** on
-`feat/os-a11y-prefs-motion-forced-colors` — theme wiring, Foundations story, Playwright smokes;
-`npm run verify` green.
+**Slice 2 (`prefers-contrast: more`): ready to land** on
+`feat/os-a11y-prefs-contrast-more` — hand-rolled `theme.todos.contrastMore` tokens,
+outlined-input + CompletionField / StatusBar / empty-list wiring, Foundations story,
+Playwright smoke; `npm run verify` green.
 
-**Next session:** start a **new chat/context** from updated `master` after this PR merges. Do not
-continue prefs design in the long grill thread. Handoff below.
+**Slice 1 (motion + forced-colors): landed** on master via PR #4.
 
 This is an engineering / platform plan, not Todo domain language. Do not add it to `CONTEXT.md`.
 
 ## Next session handoff
 
-Open a fresh agent session. Read this plan + [ADR 009](../adr/009-material-ui-9-platform.md). Do
-**not** re-litigate parked grill decisions above unless requirements change.
+After Slice 2 lands, start a **new chat/context** from updated `master`. Do not re-litigate
+parked grill decisions above unless requirements change.
 
 ### Already done (do not redo)
 
@@ -22,16 +22,13 @@ Open a fresh agent session. Read this plan + [ADR 009](../adr/009-material-ui-9-
 | --- | --- | --- |
 | `prefers-reduced-motion` | `theme.motion.reducedMotion: 'system'` in `frontend/src/theme.js` | `e2e/a11y-prefs.spec.js` (dialog `transitionDuration` 0s); Foundations story |
 | `forced-colors` | `enhanceHighContrast(...)` on light/dark themes | same e2e (selected list `forcedColorAdjust: none`); Foundations story |
+| `prefers-contrast: more` | `theme.todos.contrastMore` + `@media` on outlined inputs / CompletionField / StatusBar muted / empty-list text | Foundations story (`contrastMoreTokens` / `contrastMoreOutline`); e2e `emulateMedia({ contrast: 'more' })` on completion outline |
 
 ### Remaining v1 work (suggested order)
 
-1. **`prefers-contrast: more`** — still hand-rolled (no MUI first-class API). Strengthen
-   `theme.todos` borders / muted opacity / weak text under `@media (prefers-contrast: more)` for
-   both light and dark. Proof: Storybook preference state + Playwright `emulateMedia({ contrast:
-   'more' })` thin smoke.
-2. **~200% zoom / rem smoke** — composed App/TodoLists still exposes primary controls at large
+1. **~200% zoom / rem smoke** — composed App/TodoLists still exposes primary controls at large
    page zoom (or root font scale). One Storybook or Playwright check.
-3. **Storybook prefs toolbar spike** — thin **custom globals** for reduced-motion / contrast more /
+2. **Storybook prefs toolbar spike** — thin **custom globals** for reduced-motion / contrast more /
    forced-colors (not `storybook-addon-css-user-preferences`). Kill if it fights `addon-themes` or
    Vitest browser. Ergonomics only; gates stay stories + Playwright.
 
@@ -43,9 +40,9 @@ Open a fresh agent session. Read this plan + [ADR 009](../adr/009-material-ui-9-
 
 ### Suggested first prompt for the next session
 
-> Continue OS a11y prefs from `docs/plans/a11y-os-prefs-and-mui-platform.md` — implement
-> `prefers-contrast: more` next (hand-rolled theme tokens), with Storybook + Playwright proof per
-> the parked plan. Do not reopen motion/forced-colors unless broken.
+> Continue OS a11y prefs from `docs/plans/a11y-os-prefs-and-mui-platform.md` — implement the
+> ~200% zoom / rem smoke next (composed App or TodoLists), then the Storybook prefs toolbar spike
+> if time. Do not reopen motion / forced-colors / contrast-more unless broken.
 
 ## Parked grill decisions (prefs program)
 
