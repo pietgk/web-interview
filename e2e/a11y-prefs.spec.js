@@ -2,6 +2,13 @@ import { test, expect } from '@playwright/test'
 import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
 
 /**
+ * Double the root font size to approximate ~200% browser zoom for rem-based
+ * layout. Prefer this over Chromium-only `zoom` so the smoke tracks the rem
+ * path the prefs plan names.
+ */
+const ROOT_FONT_SCALE_DOUBLE = '200%'
+
+/**
  * Floor for a resting outline alpha under `prefers-contrast: more`. Default
  * MUI / `theme.todos.control.borderOpacity` is 0.23; contrast-more tokens sit
  * well above this so the smoke fails if the media query never applies.
@@ -83,6 +90,34 @@ test('selected Todo List stays painted under forced colors', async ({ page }) =>
   expect(paint.forcedColorAdjust).toBe('none')
   expect(paint.color).not.toBe('rgba(0, 0, 0, 0)')
   expect(paint.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+})
+
+test('primary controls stay usable at double root font size', async ({ page }) => {
+  await page.addInitScript((scale) => {
+    document.documentElement.style.fontSize = scale
+  }, ROOT_FONT_SCALE_DOUBLE)
+  await page.goto('/')
+  await waitForApp(page)
+
+  const addList = page.getByRole('button', { name: 'Add Todo List' })
+  const selectedList = page.getByRole('button', {
+    name: new RegExp(`^${PRIMARY_LIST_TITLE} `),
+  })
+  const composer = page.getByLabel('Add a todo')
+  const seededTodo = page.getByLabel('What to do?').first()
+  const done = page.getByLabel(`Mark completed: ${PRIMARY_TODO_TEXT}`)
+
+  for (const control of [addList, selectedList, composer, seededTodo, done]) {
+    await control.scrollIntoViewIfNeeded()
+    await expect(control).toBeVisible()
+  }
+
+  // Prove the composer hit target still accepts input without committing — the
+  // shared e2e journal must stay on the seed fixture for later tests.
+  await composer.fill('Zoom rem smoke')
+  await expect(composer).toHaveValue('Zoom rem smoke')
+  await composer.fill('')
+  await expect(composer).toHaveValue('')
 })
 
 test('completion outline strengthens under prefers-contrast more', async ({
