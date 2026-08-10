@@ -6,7 +6,10 @@ This page is the canonical map of how this repository earns that trust. It answe
 what protects a change, how each protection works, when it runs, and where to look when something
 fails.
 
-TODO this is wip and needs further trimming as its to much. So read it with that in mind and if you have suggestions feel free to share.
+TODO this is wip and needs further trimming as its to much. So read it with that in mind and if you have suggestions feel free to share. this is deferrred until after the ADR and docs rewrite to make it human readable and as simple minimal as possible again.
+
+**See also:** [`docs/verify.md`](./verify.md) for command/stage reference (authoritative stage list:
+`npm run verify help`). Decision record: [ADR 006](./adr/006-test-execution-model.md).
 
 ## The protection model
 

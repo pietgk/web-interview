@@ -58,11 +58,14 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 
 | Question | File |
 | --- | --- |
-| How a component talks to the model (events vs commands) | `docs/adr/007-ui-to-model-convention.md` |
+| How a component talks to the model (events vs commands) | `docs/adr/007-ui-to-model-convention.md` + `docs/conventions/ui-to-model.md` |
 | Why the test setup is shaped this way | `docs/adr/006-test-execution-model.md` |
 | What each layer owns, Storybook authoring rules | `docs/adr/005-testing-and-storybook.md` |
+| Verify commands / stages | `docs/verify.md` (authoritative list: `npm run verify help`) |
 | Domain language (Todo List, Todo, Next Due Date) | `CONTEXT.md` - glossary only, no implementation |
-| Why the implementation makes its choices | `DECISIONS.md` |
+| How the system works | `docs/architecture.md` |
+| Which ADRs are accepted (index) | `docs/adr/README.md` |
+| Entry map (architecture / ADRs / testing / domain) | `DECISIONS.md` |
 | How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
 
 [`docs/testing-and-validation.md`](docs/testing-and-validation.md) is the canonical explanation

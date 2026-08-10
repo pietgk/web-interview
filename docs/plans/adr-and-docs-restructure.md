@@ -1,6 +1,6 @@
 # Implementation plan: ADR and docs restructure
 
-Status: Ready for implementation in a fresh session.
+Status: Implemented (all three phases).
 
 Agreed in a grilling session. This document is the handoff — do not re-litigate the taxonomy
 unless a concrete conflict with the repo appears. Implement in the three phases below; stop after

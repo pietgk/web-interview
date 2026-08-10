@@ -23,20 +23,22 @@ two** of the four additional tasks.
 
 ## What was built
 
-All five. The implementation also deliberately goes beyond the brief to make consistency,
-failure handling, durability, and product trade-offs concrete enough to discuss and challenge:
+All five. Deliberate interview discussion surfaces beyond a brief-sized solution:
 
-- Shared browser/server datom store folding an append-only log by last-write-wins
-- Crash-safe, append-only JSONL persistence across server restarts
-- Real-time convergence across clients and browser tabs over Server-Sent Events
-- In-memory outbox that drains on reconnect within a session (edits do not survive a reload when not connected to the server)
-- Shared Zod runtime contract and deterministic read-model projection
-- Completion-aware due-date status
+- Persist todo lists across server restarts in an append-only JSONL journal
+- Autosave: no Save button; edits mint one datom when a field settles
+- Real-time convergence across multiple clients and browser tabs
+- Completed items (toggle per todo) and completed lists (derived when every item is completed)
+- Todo List lifecycle: create, rename, and delete whole lists in one datom each
+- Due dates: remaining and overdue labels; completed items shown as `Completed`
+- StatusBar: one global connection, delivery, and recovery surface
+- Seam-based tests, Storybook play for components, thin Playwright
 
-A brief-sized implementation could stop at an in-memory server store, ordinary API writes, and
-settle-based autosave. The datom journal, live convergence, session outbox, Todo List lifecycle,
-and urgency-based ordering are deliberate explorations rather than requirements implied by the
-assignment.
+A brief-sized solution could stop at an in-memory server store, ordinary API writes, and
+settle-based autosave. The assignments quality matters remark and the mentioned optional parts triggered 
+the datom journal, live convergence, session outbox, Todo List lifecycle,
+and automatic ordering to make consistency, failure semantics, durability, and UX trade-offs
+observable.  Some of it is more than asked for and created for discussion during the interview.
 
 ![Product architecture: UI to model to datoms](./docs/architecture.svg)
 
@@ -98,23 +100,11 @@ Agents must not start `npm run watch`, because it never exits.
 
 | Document | What it covers |
 | --- | --- |
-| [`DECISIONS.md`](./DECISIONS.md) | Why the implementation makes its key choices, and what was knowingly deferred |
+| [`DECISIONS.md`](./DECISIONS.md) | Entry map to architecture, ADRs, testing, and domain language |
 | [`CONTEXT.md`](./CONTEXT.md) | Domain glossary: what Todo List, Todo and Next Due Date mean here |
-
-Architecture decision records:
-
-- [ADR 001: Superseded error handling across domain, HTTP, and frontend boundaries](./docs/adr/001-error-handling.md)
-- [ADR 004: Single-datom log with last-write-wins projection](./docs/adr/004-single-datom-log.md)
-- [ADR 005: Testing seams and Storybook](./docs/adr/005-testing-and-storybook.md)
-- [ADR 006: How tests are run](./docs/adr/006-test-execution-model.md)
-- [ADR 007: How the UI talks to the model](./docs/adr/007-ui-to-model-convention.md)
-- [ADR 008: Structured failures for datom delivery](./docs/adr/008-structured-datom-delivery-failures.md)
-
-[ADR 002](./docs/adr/002-xstate-actors.md) and [ADR 003](./docs/adr/003-shared-datom-actor.md)
-are superseded and kept only as the record of how the model arrived at one datom log. XState is no
-longer a dependency. ADR 002 also carried the convention for how components reached the model;
-[ADR 007](./docs/adr/007-ui-to-model-convention.md) is its successor, which ADR 004 did not write
-at the time.
+| [`docs/adr/README.md`](./docs/adr/README.md) | Index of accepted and superseded architectural decisions |
+| [`docs/architecture.md`](./docs/architecture.md) | How the system works (datom log, journal, SSE/POST, client, lifecycle) |
+| [`docs/verify.md`](./docs/verify.md) | Verify tiers/stages; authoritative list via `npm run verify help` |
 
 ## Development set-up
 

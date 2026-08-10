@@ -45,3 +45,36 @@ If a decision is easy to reverse, skip it — you'll just reverse it. If it's no
 - **Deliberate deviations from the obvious path.** "We're using manual SQL instead of an ORM because X." Anything where a reasonable reader would assume the opposite. These stop the next engineer from "fixing" something that was deliberate.
 - **Constraints not visible in the code.** "We can't use AWS because of compliance requirements." "Response times must be under 200ms because of the partner API contract."
 - **Rejected alternatives when the rejection is non-obvious.** If you considered GraphQL and picked REST for subtle reasons, record it — otherwise someone will suggest GraphQL again in six months.
+
+## This repository
+
+This repo numbers ADRs as `NNN-slug.md` (three digits), matching the existing files — not
+`0001-slug.md`. Index and local rules: [`docs/adr/README.md`](../../../docs/adr/README.md).
+
+### Required on every accepted ADR
+
+- **Status** — `Accepted`, or superseded with a link to the successor
+- **Date**
+- **Scope** — one line
+- **Supersedes** / **Superseded by** — when applicable
+- **See also** — links to the living docs that hold narrative or reference material moved out of
+  the ADR (`docs/architecture.md`, convention docs, testing docs, etc.)
+
+Keep the 1–3 sentence core from the template above. Optional Considered Options / Consequences
+still apply when they add value.
+
+### What does not belong in an ADR
+
+Narrative “how the system works,” inventories, command encyclopedias, migration plans, and long
+“how we got here” histories live under `docs/` (or archive), not in the ADR body. One short
+paragraph of context is enough. Soft rule: if a reader must scroll to find the decision, the ADR
+is too long.
+
+Do not add an ADR that duplicates `docs/architecture.md`.
+
+### Pragmatic amend
+
+- **Same architectural choice, bad write-up** → edit or thin in place; move prose to docs or
+  `docs/adr/archive/`.
+- **Choice itself changes** → write a new ADR that supersedes; do not silently rewrite history.
+- Typos and link fixes are always OK.
