@@ -1,6 +1,6 @@
 # Design decisions
 
-Entry map only. Prose lives in the linked docs.
+Entry map. Prose lives in the linked docs.
 
 | Topic | Doc |
 | --- | --- |
