@@ -7,7 +7,7 @@ import {
   TODO_TEXT_MAX_LENGTH,
 } from '@web-interview/todos/protocol'
 import { EARLIEST_ULID, listId, todoId, ulid } from '@web-interview/todos/ulid'
-import { E2E_API_BASE } from './environment.js'
+import { E2E_API_BASE } from './environment.mjs'
 import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
 
 const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)

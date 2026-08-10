@@ -11,10 +11,10 @@
     "lint": "node scripts/verify.mjs lint",
     "typecheck": "npm run build:types && node scripts/check-declarations.mjs && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
     "storybook": "npm run storybook --prefix frontend",
-    "e2e:ui": "playwright test --ui",
+    "e2e:ui": "node scripts/e2e-ui.mjs",
     "preview": "node scripts/demo.mjs",
     "whiteboard": "node scripts/whiteboard.mjs",
-    "kill": "lsof -ti tcp:3000 -i tcp:3001 -i tcp:3100 -i tcp:3101 -i tcp:3200 -i tcp:3201 -i tcp:4173 -i tcp:6006 -sTCP:LISTEN | xargs kill",
+    "kill": "node scripts/kill-ports.mjs",
     "build:types": "npm run build:types --prefix shared",
     "postinstall": "npm run build:types"
   },

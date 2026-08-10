@@ -7,7 +7,7 @@ import {
   E2E_API_PORT,
   E2E_WEB_BASE,
   E2E_WEB_PORT,
-} from './e2e/environment.js'
+} from './e2e/environment.mjs'
 import { E2E_SEED_TODO_LISTS } from './e2e/fixture.js'
 
 // Playwright sets FORCE_COLOR=1 for its web servers and workers. Remove the

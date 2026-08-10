@@ -1,8 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "kill": "lsof -ti tcp:3001 -sTCP:LISTEN | xargs kill"
+    "start": "node ../scripts/start-dev-api.mjs"
   },
   "dependencies": {
     "@web-interview/todos": "file:../shared",

@@ -38,6 +38,24 @@
         "total": 27
       }
     },
+    "backend/src/dataPaths.js": {
+      "statements": {
+        "covered": 3,
+        "total": 3
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0
+      },
+      "lines": {
+        "covered": 3,
+        "total": 3
+      }
+    },
     "backend/src/routes/datoms.js": {
       "statements": {
         "covered": 43,
@@ -113,19 +131,19 @@
     "backend/src/todos/datomService.js": {
       "statements": {
         "covered": 24,
-        "total": 25
+        "total": 24
       },
       "branches": {
-        "covered": 13,
-        "total": 15
+        "covered": 15,
+        "total": 16
       },
       "functions": {
         "covered": 6,
         "total": 6
       },
       "lines": {
-        "covered": 21,
-        "total": 21
+        "covered": 20,
+        "total": 20
       }
     },
     "frontend/src/testing/fakeDatomServer.js": {

@@ -140,7 +140,10 @@ export const STAGES = [
       {
         name: 'e2e',
         blurb: 'real server, real journal, multi-tab and reconnect journeys',
-        invocations: [{ command: bin('.', 'playwright'), args: ['test'] }],
+        invocations: [
+          { command: 'node', args: ['scripts/kill-ports.mjs', 'e2e'] },
+          { command: bin('.', 'playwright'), args: ['test'] },
+        ],
       },
     ],
   },

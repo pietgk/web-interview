@@ -1,24 +1,29 @@
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  PREVIEW_API_PORT,
+  PREVIEW_WEB_PORT,
+  freeLanes,
+} from './kill-ports.mjs'
+import { PREVIEW_DATOM_LOG_PATH } from '../backend/src/dataPaths.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const FRONTEND = resolve(ROOT, 'frontend')
 const BACKEND = resolve(ROOT, 'backend')
-const DEV_PORT = 3000
-const BACKEND_PORT = 3001
-const PREVIEW_PORT = 4173
 const START_POLL_INTERVAL_MS = 100
-const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}/`
-const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}/`
+const BACKEND_URL = `http://127.0.0.1:${PREVIEW_API_PORT}/`
+const PREVIEW_URL = `http://localhost:${PREVIEW_WEB_PORT}/`
 /**
  * The demo talks to the backend directly rather than through the preview proxy.
  * The proxy holds a client connection open after the backend dies, so the
  * browser's `EventSource` never fires `onerror` and the app keeps claiming it is
  * connected. Going direct is also the path the end-to-end tests exercise.
+ * Preview API is {@link PREVIEW_API_PORT}, not the `npm start` backend, so local
+ * Vite can stay up alongside this demo.
  */
-const DEMO_API_BASE = `http://localhost:${BACKEND_PORT}`
+const DEMO_API_BASE = `http://localhost:${PREVIEW_API_PORT}`
 const VITE = resolve(FRONTEND, 'node_modules/vite/bin/vite.js')
 
 /** @typedef {import('node:child_process').ChildProcess} ChildProcess */
@@ -74,31 +79,6 @@ const waitForUrl = async (url, attempts = 150) => {
   return false
 }
 
-/**
- * Only listeners, never clients. `lsof -i :3001` also matches anything merely
- * connected to that port, which includes the preview server proxying the datom
- * stream, so an unfiltered kill takes the frontend down with the backend.
- */
-const freePorts = () => {
-  const found = spawnSync('lsof', [
-    '-ti', `tcp:${DEV_PORT}`,
-    '-i', `tcp:${BACKEND_PORT}`,
-    '-i', `tcp:${PREVIEW_PORT}`,
-    '-sTCP:LISTEN',
-  ], { encoding: 'utf8' })
-
-  const pids = (found.stdout ?? '').split('\n').filter(Boolean)
-  if (pids.length === 0) return
-  console.log(`Freeing ports ${DEV_PORT}, ${BACKEND_PORT} and ${PREVIEW_PORT}: killing ${pids.join(', ')}`)
-  for (const pid of pids) {
-    try {
-      process.kill(Number(pid), 'SIGTERM')
-    } catch {
-      // Already gone between the lookup and the signal.
-    }
-  }
-}
-
 const startBackend = async () => {
   if (isAlive(backend)) {
     console.log('Backend is already running.')
@@ -112,8 +92,9 @@ const startBackend = async () => {
     stdio: ['ignore', 'inherit', 'inherit'],
     env: {
       ...process.env,
-      PORT: String(BACKEND_PORT),
+      PORT: String(PREVIEW_API_PORT),
       CORS_ORIGINS: PREVIEW_URL.slice(0, -1),
+      DATOM_LOG_PATH: PREVIEW_DATOM_LOG_PATH,
     },
   })
   backend = child
@@ -155,7 +136,7 @@ const startPreview = async () => {
   const child = spawn(process.execPath, [
     VITE,
     'preview',
-    '--port', String(PREVIEW_PORT),
+    '--port', String(PREVIEW_WEB_PORT),
     '--strictPort',
     '--open',
   ], {
@@ -167,8 +148,6 @@ const startPreview = async () => {
 
   child.once('exit', (code, signal) => {
     if (shuttingDown) return
-    // Usually collateral from an unfiltered `lsof -ti tcp:3001 | xargs kill`,
-    // since the preview server holds a proxy connection to the backend port.
     console.error(`\nPreview server stopped unexpectedly (${signal ?? code}).`)
     void shutdown(1)
   })
@@ -265,7 +244,7 @@ for (const signal of /** @type {const} */ (['SIGINT', 'SIGTERM'])) {
   process.once(signal, () => void shutdown(0))
 }
 
-freePorts()
+freeLanes('preview')
 
 // `vite preview` serves whatever is in dist/ and says nothing when dist/ is
 // missing or stale, so the demo always builds first.

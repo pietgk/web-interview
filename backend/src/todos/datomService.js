@@ -1,14 +1,10 @@
-import { fileURLToPath } from 'node:url'
 import { datomSchema } from '@web-interview/todos/datom'
 import { DatomStore } from '@web-interview/todos/datom-store'
 import { createSeedTodoLists, seedDatoms } from '../seed.js'
+import { DEFAULT_DATOM_LOG_PATH } from '../dataPaths.js'
 import { DatomJournal } from './datomJournal.js'
 
 /** @typedef {import('@web-interview/todos/types').Datom} Datom */
-
-export const DEFAULT_DATOM_LOG_PATH = fileURLToPath(
-  new URL('../../data/datoms.jsonl', import.meta.url)
-)
 
 /**
  * The store plus its durability. Startup replays the journal; every write is
@@ -19,12 +15,14 @@ export const DEFAULT_DATOM_LOG_PATH = fileURLToPath(
  * @param {import('../seed.js').SeedTodoLists} [options.seed]
  * @param {() => number} [options.now]
  * @param {DatomJournal} [options.journal]
+ * @param {(todoLists: import('../seed.js').SeedTodoLists, seededAt: number) => Datom[]} [options.buildSeed]
  */
 export const createDatomService = async ({
   filePath = DEFAULT_DATOM_LOG_PATH,
   seed = createSeedTodoLists(),
   now = () => Date.now(),
   journal = new DatomJournal({ filePath }),
+  buildSeed = seedDatoms,
 } = {}) => {
   const store = new DatomStore()
 
@@ -32,7 +30,7 @@ export const createDatomService = async ({
   for (const datom of replayed) store.apply(datom)
 
   if (replayed.length === 0 && seed.length > 0) {
-    const seeded = seedDatoms(seed, now())
+    const seeded = buildSeed(seed, now())
     for (const datom of seeded) {
       const parsed = datomSchema.safeParse(datom)
       if (!parsed.success) throw new Error('Seed produced an invalid datom')

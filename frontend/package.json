@@ -17,12 +17,11 @@
     "react-is": "^18.3.1"
   },
   "scripts": {
-    "start": "vite",
+    "start": "node ../scripts/kill-ports.mjs dev-web && vite",
     "build": "vite build",
     "preview": "vite preview",
-    "storybook": "LAUNCH_EDITOR=$EDITOR storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "kill": "lsof -ti tcp:3000 -sTCP:LISTEN | xargs kill"
+    "storybook": "node ../scripts/kill-ports.mjs storybook && LAUNCH_EDITOR=$EDITOR storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "browserslist": [
     ">0.2%",

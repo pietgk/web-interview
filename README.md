@@ -69,14 +69,15 @@ read. Regenerate them explicitly with `npm run build:types`.
 ### Start
 
 Run `npm start` in `backend/`, then in `frontend/`. A browser tab opens automatically on the
-frontend.
+frontend. Starters free **only their own port lane** before binding, so a stale process of the
+same command should not cause a port conflict.
 
 | From the repo root | What it does |
 | --- | --- |
 | `npm run storybook` | Components in isolation, with HMR |
-| `npm run e2e:ui` | Playwright UI: pick and watch end-to-end journeys (not the verify gate) |
-| `npm run preview` | Interactive demo: drives the app, and can stop the backend mid-session to show reconnect and outbox drain. click the client links a few times to get multiple sessions. |
-| `npm run kill` | Frees every port this repo binds |
+| `npm run e2e:ui` | Playwright UI (inspect journeys; not the verify gate) |
+| `npm run preview` | Interactive demo: drives the production build, and can stop the backend mid-session to show reconnect and outbox drain. click the client links a few times to get multiple sessions. |
+| `npm run kill` | Live port-lane status and kill prompt (ports come from the scripts) |
 
 Storybook source-file links open in Zed. To use VS Code instead, change `LAUNCH_EDITOR=zed` in
 `frontend/package.json` to `LAUNCH_EDITOR=code` and make sure the `code` CLI is on `PATH`.

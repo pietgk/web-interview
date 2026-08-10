@@ -41,7 +41,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['shared/src/**/*.js', 'scripts/**/*.mjs', 'e2e/**/*.js', '*.js', '*.mjs'],
+    files: ['shared/src/**/*.js', 'scripts/**/*.mjs', 'e2e/**/*.{js,mjs}', '*.js', '*.mjs'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -70,7 +70,7 @@ export default [
   {
     // Callbacks passed to `page.evaluate` are serialised and run in the browser,
     // so they legitimately reach for DOM and Performance globals.
-    files: ['e2e/**/*.js'],
+    files: ['e2e/**/*.{js,mjs}'],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
     },

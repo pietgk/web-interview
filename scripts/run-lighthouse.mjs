@@ -8,11 +8,12 @@ import {
   createLighthouseSummary,
   evaluateLighthouseQuality,
 } from './lighthouse-report.mjs'
+import { freeLanes, LIGHTHOUSE_API_PORT, LIGHTHOUSE_WEB_PORT } from './kill-ports.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REPORT_DIRECTORY = resolve(ROOT, 'lighthouse-reports')
-const WEB_PORT = 3200
-const API_PORT = 3201
+const WEB_PORT = LIGHTHOUSE_WEB_PORT
+const API_PORT = LIGHTHOUSE_API_PORT
 const WEB_URL = `http://127.0.0.1:${WEB_PORT}/`
 const API_URL = `http://127.0.0.1:${API_PORT}/`
 const NUMBER_OF_RUNS = 3
@@ -127,6 +128,7 @@ const readReports = async () => {
 const kibibytes = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`
 
 const main = async () => {
+  freeLanes('lighthouse')
   await rm(REPORT_DIRECTORY, { recursive: true, force: true })
   await mkdir(REPORT_DIRECTORY, { recursive: true })
   const dataDirectory = await mkdtemp(join(tmpdir(), 'web-interview-lighthouse-'))

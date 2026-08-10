@@ -252,8 +252,11 @@ flowchart LR
 
 ### Playwright
 
-The verify gate runs Playwright headless (`npm run verify e2e`). To inspect what those journeys
-do, run `npm run e2e:ui` — Playwright's UI mode, not part of the gate.
+The verify gate runs Playwright headless (`npm run verify e2e`); the e2e step frees that lane
+before starting. To inspect those journeys, run `npm run e2e:ui` on a **separate** port lane so it
+does not block the gate. Dev and preview use their own ports **and** durable journals under
+`backend/data/<lane>/`; e2e / e2e-ui / lighthouse keep temp journals. Live port values:
+`npm run kill`. Neither e2e command substitutes for the other.
 
 ```mermaid
 flowchart LR
