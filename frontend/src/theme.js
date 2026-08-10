@@ -1,4 +1,4 @@
-import { createTheme, enhanceHighContrast } from '@mui/material/styles'
+import { alpha, createTheme, enhanceHighContrast } from '@mui/material/styles'
 
 /**
  * The height MUI gives an outlined input at default density.
@@ -41,6 +41,22 @@ const LIST_ACTION_CLEARANCE = 7
 
 /** Decorative separators should read as texture rather than as content. */
 const MUTED_EMPHASIS_OPACITY = 0.45
+
+/**
+ * Resting outline alpha under `prefers-contrast: more`. Stronger than MUI's
+ * default 0.23 so field edges stay visible without jumping to a full-weight
+ * primary border.
+ */
+const CONTROL_BORDER_OPACITY_MORE_CONTRAST = 0.55
+
+/**
+ * Separator opacity under `prefers-contrast: more` — still slightly softer
+ * than content, but no longer near-invisible texture.
+ */
+const MUTED_EMPHASIS_OPACITY_MORE_CONTRAST = 0.85
+
+/** Media query for the OS / browser "more contrast" preference. */
+const PREFERS_CONTRAST_MORE = '@media (prefers-contrast: more)'
 
 /**
  * A hair of grey behind the cards so their edges read without leaning on the
@@ -110,16 +126,42 @@ const foundations = {
     emphasis: {
       muted: MUTED_EMPHASIS_OPACITY,
     },
+    /**
+     * Values that replace resting border / muted opacities when the OS asks
+     * for `prefers-contrast: more`. Wired through component styleOverrides and
+     * `sx` media queries — MUI has no first-class API for this preference.
+     */
+    contrastMore: {
+      borderOpacity: CONTROL_BORDER_OPACITY_MORE_CONTRAST,
+      muted: MUTED_EMPHASIS_OPACITY_MORE_CONTRAST,
+    },
   },
 }
 
 /**
- * Finish a theme with Windows High Contrast / `forced-colors` overrides so
- * selected rows, inputs, and icons keep system-color affordances.
+ * Finish a theme with OS accessibility overrides: Windows High Contrast /
+ * `forced-colors` via MUI, plus hand-rolled `prefers-contrast: more` for
+ * outlined field borders owned by this app's resting chrome.
  *
  * @param {import('@mui/material/styles').Theme} theme
  */
-const withOsAccessibility = (theme) => enhanceHighContrast(theme)
+const withOsAccessibility = (theme) =>
+  createTheme(enhanceHighContrast(theme), {
+    components: {
+      MuiOutlinedInput: {
+        styleOverrides: {
+          notchedOutline: {
+            [PREFERS_CONTRAST_MORE]: {
+              borderColor: alpha(
+                theme.palette.text.primary,
+                theme.todos.contrastMore.borderOpacity
+              ),
+            },
+          },
+        },
+      },
+    },
+  })
 
 /** Shared MUI themes for the app and Storybook (palette.mode is the light/dark switch). */
 export const lightTheme = withOsAccessibility(

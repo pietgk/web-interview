@@ -39,6 +39,13 @@ export interface TodoTokens {
   emphasis: {
     muted: number
   }
+  /**
+   * Replaces resting border / muted opacities under `prefers-contrast: more`.
+   */
+  contrastMore: {
+    borderOpacity: number
+    muted: number
+  }
 }
 
 declare module '@mui/material/styles' {
