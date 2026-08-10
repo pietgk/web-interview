@@ -20,7 +20,8 @@ Layers do not permanently overlap:
 | Storybook play (browser) | Component states, interaction, a11y; composed UI against `createFakeDatomServer` |
 | Playwright e2e | Process boundaries: real server + journal, multi-tab/reconnect/persistence, thin smoke |
 
-Storybook runs on **React 18** (MUI 5 peer ranges block React 19 as part of this stack). Stories
+Storybook runs on **React 18** (we stay on 18 with Material UI 9.3 — see
+[ADR 009](./009-material-ui-9-platform.md); React 19 is a separate decision). Stories
 use CSF 3; catalog = user-visible domain states; put `play` on the lowest owner of the behavior;
 do not add MSW as a second fake or run the real journal inside Storybook.
 

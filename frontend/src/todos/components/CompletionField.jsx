@@ -58,7 +58,9 @@ export const CompletionField = ({ completed, onChange, todoLabel }) => (
     <Checkbox
       checked={completed}
       onChange={(event) => onChange(event.target.checked)}
-      inputProps={{ 'aria-label': `Mark completed: ${todoLabel}` }}
+      slotProps={{
+        input: { 'aria-label': `Mark completed: ${todoLabel}` }
+      }}
     />
   </FormControl>
 )

@@ -27,9 +27,10 @@ export const DueIn = ({ dueDate, completed, onChange, todoLabel, today }) => {
       type='date'
       value={dueDate || ''}
       onChange={(event) => onChange(event.target.value || null)}
-      InputLabelProps={{ shrink: true }}
-      inputProps={{ 'aria-label': `${label}: ${todoLabel}` }}
       error={dueStatus?.kind === 'overdue'}
-    />
+      slotProps={{
+        htmlInput: { 'aria-label': `${label}: ${todoLabel}` },
+        inputLabel: { shrink: true }
+      }} />
   )
 }

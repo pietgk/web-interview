@@ -20,6 +20,7 @@ Accepted architecture decision records:
 - [ADR 007: How the UI talks to the model](./docs/adr/007-ui-to-model-convention.md)
   ([checklist](./docs/conventions/ui-to-model.md))
 - [ADR 008: Structured failures for datom delivery](./docs/adr/008-structured-datom-delivery-failures.md)
+- [ADR 009: Material UI 9.3 as the frontend UI platform](./docs/adr/009-material-ui-9-platform.md)
 
 Superseded ADRs keep tombstones at the old paths; full text is under
 [`docs/adr/archive/`](./docs/adr/archive/):
