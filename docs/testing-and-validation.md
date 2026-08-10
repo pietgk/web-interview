@@ -252,6 +252,9 @@ flowchart LR
 
 ### Playwright
 
+The verify gate runs Playwright headless (`npm run verify e2e`). To inspect what those journeys
+do, run `npm run e2e:ui` — Playwright's UI mode, not part of the gate.
+
 ```mermaid
 flowchart LR
   U["Journey"] --> F["Real frontend"] --> B["Real backend and journal"] --> N["Network and Chromium"] --> E["Journey result"]
