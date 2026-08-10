@@ -434,6 +434,8 @@ export const createTodoClient = ({
     newTodoId: (listEntity) => mint.todoId(listEntity),
 
     /**
+     * Write dAtom asserting a fact
+     *
      * @param {string} entity
      * @param {Attribute} attribute
      * @param {FactValue} value
