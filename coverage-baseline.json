@@ -220,20 +220,20 @@
     },
     "frontend/src/todos/todoListCommands.js": {
       "statements": {
-        "covered": 14,
-        "total": 14
+        "covered": 22,
+        "total": 22
       },
       "branches": {
-        "covered": 6,
-        "total": 6
+        "covered": 10,
+        "total": 10
       },
       "functions": {
-        "covered": 9,
-        "total": 9
+        "covered": 12,
+        "total": 12
       },
       "lines": {
-        "covered": 11,
-        "total": 11
+        "covered": 16,
+        "total": 16
       }
     },
     "frontend/src/todos/todoListsScreenView.js": {

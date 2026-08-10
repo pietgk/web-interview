@@ -1,15 +1,7 @@
 import { expect, fn, userEvent } from 'storybook/test'
 import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
+import { storyDocs } from '../../testing/storyDocs'
 import { TodoComposer } from './TodoComposer'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 const meta = /** @type {import('@storybook/react-vite').Meta<typeof TodoComposer>} */ ({
   title: 'Todos/TodoComposer',

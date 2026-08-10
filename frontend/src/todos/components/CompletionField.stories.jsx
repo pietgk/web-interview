@@ -1,14 +1,6 @@
 import { expect, fn, userEvent } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import { CompletionField } from './CompletionField'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 const meta = /** @type {import('@storybook/react-vite').Meta<typeof CompletionField>} */ ({
   title: 'Todos/CompletionField',

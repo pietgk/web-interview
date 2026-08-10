@@ -4,31 +4,24 @@ import { ATTRIBUTE } from '@web-interview/todos/datom'
 import {
   API_ERROR_CODE,
   DATOM_API_PATH,
+  TEXT_SETTLE_MS,
   TODO_TEXT_MAX_LENGTH,
 } from '@web-interview/todos/protocol'
 import { EARLIEST_ULID, listId, todoId, ulid } from '@web-interview/todos/ulid'
 import { E2E_API_BASE } from './environment.mjs'
-import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
+import {
+  PRIMARY_LIST_TITLE,
+  PRIMARY_TODO_TEXT,
+  uniqueListTitle,
+  waitForApp,
+} from './fixture.js'
 
 const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)
 const INVALID_NON_LEAP_DAY = '2026-02-29'
 const FAR_FUTURE_DUE_DAY = '2099-01-15'
 const HYDRATION_LAYOUT_SETTLE_MS = 50
 const OFFLINE_SAVE_TIMEOUT_MS = 30_000
-
-/**
- * Every journey works inside a Todo List it created, so the tests never contend
- * over the seeded ones and need no reset between runs.
- *
- * @param {string} prefix
- */
-const uniqueListTitle = (prefix) =>
-  `${prefix} ${Date.now()} ${Math.random().toString(16).slice(2)}`
-
-/** @param {import('@playwright/test').Page} page */
-const waitForApp = async (page) => {
-  await expect(page.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
-}
+const CROSS_CLIENT_PROPAGATION_MS = TEXT_SETTLE_MS * 2
 
 /** @param {import('@playwright/test').Page} page @param {string} title */
 async function startTodoList(page, title) {
@@ -467,6 +460,74 @@ test('converges two tabs without any interaction in the second', async ({ page, 
   await expect(other.getByLabel('What to do?').first()).toHaveValue(
     'Written in the first tab'
   )
+  await other.close()
+})
+
+test('does not recreate a Todo when its unsettled editor observes a deletion', async ({
+  page,
+  context,
+}) => {
+  const title = uniqueListTitle('Deleted while editing Todo')
+  const originalText = 'Delete this while it is being edited'
+  const staleText = 'Stale unsettled Todo text'
+  await page.clock.install({ time: Date.now() })
+  await page.goto('/')
+  await waitForApp(page)
+
+  let saved = waitForWrite(page)
+  await startTodoList(page, title)
+  await saved
+  saved = waitForWrite(page)
+  await addTodo(page, originalText)
+  await saved
+
+  const other = await context.newPage()
+  await other.goto('/')
+  await waitForApp(other)
+  await other.getByText(title, { exact: true }).click()
+  await expect(other.getByLabel('What to do?')).toHaveValue(originalText)
+
+  await page.getByLabel('What to do?').fill(staleText)
+  const deleted = waitForWrite(other)
+  await other.getByLabel(`Delete todo: ${originalText}`).click()
+  await deleted
+  await page.waitForTimeout(CROSS_CLIENT_PROPAGATION_MS)
+
+  await other.reload()
+  await other.getByText(title, { exact: true }).click()
+  await expect(other.getByLabel('What to do?')).toHaveCount(0)
+  await other.close()
+})
+
+test('does not recreate a Todo List when its unsettled title editor observes a deletion', async ({
+  page,
+  context,
+}) => {
+  const originalTitle = uniqueListTitle('Deleted while renaming Todo List')
+  const staleTitle = uniqueListTitle('Stale unsettled Todo List title')
+  await page.clock.install({ time: Date.now() })
+  await page.goto('/')
+  await waitForApp(page)
+
+  const saved = waitForWrite(page)
+  await startTodoList(page, originalTitle)
+  await saved
+
+  const other = await context.newPage()
+  await other.goto('/')
+  await waitForApp(other)
+  await expect(other.getByText(originalTitle, { exact: true })).toBeVisible()
+
+  await page.getByLabel('Todo List name').fill(staleTitle)
+  const deleted = waitForWrite(other)
+  await other.getByRole('button', {
+    name: `Delete Todo List: ${originalTitle}`,
+  }).click()
+  await deleted
+  await page.waitForTimeout(CROSS_CLIENT_PROPAGATION_MS)
+
+  await other.reload()
+  await expect(other.getByText(staleTitle, { exact: true })).toHaveCount(0)
   await other.close()
 })
 

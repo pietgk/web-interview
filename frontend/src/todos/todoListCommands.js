@@ -25,13 +25,22 @@ export const createTodoListCommands = (client) => ({
   reserveListId: () => client.newListId(),
 
   /**
-   * Also the command that brings a reserved Todo List into existence, because
-   * `title` is a Todo List's defining attribute.
+   * Brings a reserved Todo List into existence. Materialization is separate
+   * from rename so only the explicit creation path may assert a missing title.
    *
    * @param {string} listId
    * @param {string} title
    */
+  materializeList: (listId, title) => {
+    client.assert(listId, ATTRIBUTE.TITLE, title)
+  },
+
+  /**
+   * @param {string} listId
+   * @param {string} title
+   */
   renameList: (listId, title) => {
+    if (!client.getReadModel()[listId]) return
     client.assert(listId, ATTRIBUTE.TITLE, title)
   },
 
@@ -57,6 +66,10 @@ export const createTodoListCommands = (client) => ({
 
   /** @param {Todo} todo @param {string} text */
   retitleTodo: (todo, text) => {
+    const todoStillExists = Object.values(client.getReadModel()).some(
+      (todoList) => todoList.todos.some((candidate) => candidate.id === todo.id)
+    )
+    if (!todoStillExists) return
     client.assert(todo.id, ATTRIBUTE.TEXT, text)
   },
 

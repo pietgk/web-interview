@@ -1,15 +1,7 @@
 import { expect, fn, fireEvent, userEvent } from 'storybook/test'
 import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
+import { storyDocs } from '../../testing/storyDocs'
 import { TodoItem } from './TodoItem'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 /** Frozen so DueIn labels stay stable (same clock as DueIn stories). */
 const today = '2026-07-31'

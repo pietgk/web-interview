@@ -7,15 +7,14 @@ import { useTodoLists } from './todos/useTodoLists'
 /** @typedef {NonNullable<Parameters<typeof useTodoLists>[0]>} UseTodoListsOptions */
 
 /** The viewport owns the height; only the main region scrolls. */
-const shellSx = {
+const shellSx = (/** @type {import('@mui/material/styles').Theme} */ theme) => ({
   display: 'flex',
   flexDirection: 'column',
-  height: '100dvh',
+  height: theme.todos.layout.viewportHeight,
   minHeight: 0,
   overflow: 'hidden',
-  backgroundColor: (/** @type {import('@mui/material/styles').Theme} */ theme) =>
-    theme.todos.layout.backdrop ?? theme.palette.background.default,
-}
+  backgroundColor: theme.todos.layout.backdrop ?? theme.palette.background.default,
+})
 
 /**
  * Centres a band on the page's reading measure. Applied to the status bar and

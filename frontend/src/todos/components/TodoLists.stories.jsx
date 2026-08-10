@@ -10,6 +10,7 @@ import {
   createStoryServer,
   waitUntilConnected,
 } from '../../testing/storyHarness'
+import { storyDocs } from '../../testing/storyDocs'
 
 const INITIAL_STORY_TIME_MS = 1_760_000_000_000
 const SETTLE_BUFFER_MS = 50
@@ -19,19 +20,19 @@ const SECOND_LIST_EARLIER_DUE_DAY = '2099-01-01'
 const FIRST_LIST_RESORTED_DUE_DAY = '2098-01-01'
 
 let clock = INITIAL_STORY_TIME_MS
-const at = () => (clock += 1)
+const nextTimestamp = () => (clock += 1)
 
-const FIRST_LIST = listId(at())
-const FIRST_TODO = todoId(FIRST_LIST, at())
-const SECOND_LIST = listId(at())
-const SECOND_TODO = todoId(SECOND_LIST, at())
+const FIRST_LIST = listId(nextTimestamp())
+const FIRST_TODO = todoId(FIRST_LIST, nextTimestamp())
+const SECOND_LIST = listId(nextTimestamp())
+const SECOND_TODO = todoId(SECOND_LIST, nextTimestamp())
 
 /** @returns {import('@web-interview/todos/types').Datom[]} */
 const seedDatoms = () => [
-  [FIRST_LIST, ATTRIBUTE.TITLE, 'First List', ulid(at()), true],
-  [FIRST_TODO, ATTRIBUTE.TEXT, 'First todo of first list!', ulid(at()), true],
-  [SECOND_LIST, ATTRIBUTE.TITLE, 'Second List', ulid(at()), true],
-  [SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), true],
+  [FIRST_LIST, ATTRIBUTE.TITLE, 'First List', ulid(nextTimestamp()), true],
+  [FIRST_TODO, ATTRIBUTE.TEXT, 'First todo of first list!', ulid(nextTimestamp()), true],
+  [SECOND_LIST, ATTRIBUTE.TITLE, 'Second List', ulid(nextTimestamp()), true],
+  [SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), true],
 ]
 
 const settle = () => new Promise((resolve) =>
@@ -44,15 +45,6 @@ const withServer = (seed = seedDatoms()) => ({
   render: (/** @type {unknown} */ _args, /** @type {{loaded: Record<string, any>}} */ { loaded }) => (
     <ComposedTodoApp server={loaded.server} />
   ),
-})
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
 })
 
 const meta = /** @type {import('@storybook/react-vite').Meta} */ ({
@@ -81,7 +73,7 @@ export const SummariesFromProjection = {
     '**See:** After the second list’s only Todo is retracted, First List shows `0 of 1 completed` and Second List shows `No todos yet`.',
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
-    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
+    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
     await waitUntilConnected(canvas, expect)
     const lists = canvas.getByRole('list', { name: 'Todo lists' })
     await expect(within(lists).getByText('0 of 1 completed')).toBeInTheDocument()
@@ -231,7 +223,7 @@ export const RemoteWriteAppears = {
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
     loaded.server.push([
-      [todoId(FIRST_LIST, at()), ATTRIBUTE.TEXT, 'From another tab', ulid(at()), true],
+      [todoId(FIRST_LIST, nextTimestamp()), ATTRIBUTE.TEXT, 'From another tab', ulid(nextTimestamp()), true],
     ])
     const lists = canvas.getByRole('list', { name: 'Todo lists' })
     await expect(await within(lists).findByText('0 of 2 completed')).toBeInTheDocument()
@@ -253,10 +245,10 @@ export const ReplacedLogResetsClient = {
     // A server whose journal was wiped re-seeds with fresh ids minted now, so
     // they sort above the cursor this client already holds. Without the epoch the
     // client would keep the old Todo Lists and show both logs at once.
-    const freshList = listId(at())
+    const freshList = listId(nextTimestamp())
     loaded.server.replaceLog([
-      [freshList, ATTRIBUTE.TITLE, 'Only List', ulid(at()), true],
-      [todoId(freshList, at()), ATTRIBUTE.TEXT, 'Only todo', ulid(at()), true],
+      [freshList, ATTRIBUTE.TITLE, 'Only List', ulid(nextTimestamp()), true],
+      [todoId(freshList, nextTimestamp()), ATTRIBUTE.TEXT, 'Only todo', ulid(nextTimestamp()), true],
     ])
 
     await waitFor(async () => {
@@ -390,7 +382,7 @@ export const DeleteEmptyAndConfirmPopulated = {
     '**See:** Second List (empty) vanishes with no dialog; First List opens Delete First List?, Cancel keeps it, Confirm removes it and focuses Add Todo List.',
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
-    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(at()), false]])
+    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
     await waitUntilConnected(canvas, expect)
     const lists = canvas.getByRole('list', { name: 'Todo lists' })
 
@@ -426,8 +418,8 @@ export const ResortKeepsSelection = {
       const server = createStoryServer({
         seed: [
           ...seedDatoms(),
-          [FIRST_TODO, ATTRIBUTE.DUE_DATE, FIRST_LIST_LATER_DUE_DAY, ulid(at()), true],
-          [SECOND_TODO, ATTRIBUTE.DUE_DATE, SECOND_LIST_EARLIER_DUE_DAY, ulid(at()), true],
+          [FIRST_TODO, ATTRIBUTE.DUE_DATE, FIRST_LIST_LATER_DUE_DAY, ulid(nextTimestamp()), true],
+          [SECOND_TODO, ATTRIBUTE.DUE_DATE, SECOND_LIST_EARLIER_DUE_DAY, ulid(nextTimestamp()), true],
         ],
       })
       return { server }

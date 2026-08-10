@@ -1,15 +1,7 @@
 import { useState } from 'react'
 import { fn, expect, fireEvent } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import { DueIn } from './DueIn'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 /** Frozen so due labels stay stable in Docs and play (not “today” from the wall clock). */
 const today = '2026-07-31'

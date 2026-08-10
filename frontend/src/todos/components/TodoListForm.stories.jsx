@@ -1,16 +1,8 @@
 import { expect, fn, userEvent } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import { TodoListForm } from './TodoListForm'
 
 const FORM_SCENARIO_DAY = '2026-07-31'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 const baseList = {
   id: 'list',
@@ -24,6 +16,7 @@ const baseList = {
  */
 const fakeCommands = () => ({
   reserveListId: fn(() => 'list'),
+  materializeList: fn(),
   renameList: fn(),
   deleteList: fn(),
   addTodo: fn(() => 'new-todo'),

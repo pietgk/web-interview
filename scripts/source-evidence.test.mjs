@@ -24,6 +24,7 @@ test('classifies every production source seam explicitly', () => {
     'frontend/src/todos/components/TodoItem.jsx': 'storybook-ui',
     'frontend/src/index.jsx': 'e2e-bootstrap',
     'frontend/src/testing/storyHarness.jsx': 'test-support',
+    'frontend/src/testing/storyDocs.js': 'test-support',
     'frontend/src/themeTokens.d.ts': 'type-only',
   }
 

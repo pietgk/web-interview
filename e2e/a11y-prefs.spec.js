@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test'
-import { PRIMARY_LIST_TITLE, PRIMARY_TODO_TEXT } from './fixture.js'
+import {
+  PRIMARY_LIST_TITLE,
+  PRIMARY_TODO_TEXT,
+  uniqueListTitle,
+  waitForApp,
+} from './fixture.js'
 
 /**
  * Double the root font size to approximate ~200% browser zoom for rem-based
@@ -21,15 +26,6 @@ const MIN_MORE_CONTRAST_BORDER_ALPHA = 0.45
  * docs/plans/a11y-os-prefs-and-mui-platform.md). Thin on purpose — component
  * catalogs stay in Storybook.
  */
-
-/** @param {string} prefix */
-const uniqueListTitle = (prefix) =>
-  `${prefix} ${Date.now()} ${Math.random().toString(16).slice(2)}`
-
-/** @param {import('@playwright/test').Page} page */
-const waitForApp = async (page) => {
-  await expect(page.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
-}
 
 test('delete confirmation opens without transition delay under reduced motion', async ({
   page,

@@ -1,17 +1,9 @@
 import { expect, fn, screen, userEvent } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import { StatusBar } from './StatusBar'
 
 const STATUS_BAR_SCENARIO_DAY = '2026-07-31'
 const VALIDATION_ERROR_STATUS = 400
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 /**
  * @param {Partial<import('@web-interview/todos/types').TodoClientStatus>} [overrides]

@@ -7,6 +7,7 @@ import {
   PREVIEW_WEB_PORT,
   freeLanes,
 } from './kill-ports.mjs'
+import { resolveCommand } from './commandResolution.mjs'
 import { PREVIEW_DATOM_LOG_PATH } from '../backend/src/dataPaths.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -201,30 +202,10 @@ function printCommands() {
   console.log('')
 }
 
-/**
- * No command is a prefix of another, but an exact match still wins first so that
- * adding one later cannot quietly make an existing command unreachable.
- *
- * @param {string} typed
- * @returns {{command: Command} | {ambiguous: Command[]} | {unknown: true} | null}
- */
-const resolveCommand = (typed) => {
-  if (!typed) return null
-  const exact = COMMANDS.find(
-    (command) => command.name === typed || command.aliases?.includes(typed)
-  )
-  if (exact) return { command: exact }
-
-  const matches = COMMANDS.filter((command) => command.name.startsWith(typed))
-  if (matches.length === 1) return { command: matches[0] }
-  if (matches.length > 1) return { ambiguous: matches }
-  return { unknown: true }
-}
-
 /** @param {string} line */
 const runCommand = async (line) => {
   const typed = line.trim().toLowerCase()
-  const resolved = resolveCommand(typed)
+  const resolved = resolveCommand(COMMANDS, typed)
   if (!resolved) return
 
   if ('command' in resolved) {

@@ -25,6 +25,7 @@ export interface TodoTokens {
    */
   layout: {
     maxWidth: string
+    viewportHeight: string
     gutter: number
     backdrop?: string
   }

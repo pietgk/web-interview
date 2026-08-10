@@ -1,18 +1,10 @@
 import { useState } from 'react'
 import { Button } from '@mui/material'
 import { expect, fn, screen, userEvent, within } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import StatusDetailsDialog from './StatusDetailsDialog'
 
 const VALIDATION_ERROR_STATUS = 400
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 /**
  * Stories start closed so Docs is not covered by a modal backdrop.

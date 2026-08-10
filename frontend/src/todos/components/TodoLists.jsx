@@ -221,11 +221,10 @@ export const TodoLists = ({ runtime, sx }) => {
           autoFocusTitle={drafting}
           titleFocusRef={titleInputRef}
           onMaterialize={(title) => {
-            commands.renameList(activeList.id, title)
+            commands.materializeList(activeList.id, title)
             dispatch({ type: 'LIST_MATERIALIZED', listId: activeList.id })
           }}
           onTitleChange={(title) => {
-            if (!readModel[activeList.id]) return
             commands.renameList(activeList.id, title)
           }}
           onCancelDraft={() => dispatch({ type: 'DRAFT_ESCAPED' })}

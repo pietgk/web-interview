@@ -346,7 +346,7 @@ describe('createTodoClient', () => {
       reachable = false
       const commands = createTodoListCommands(client)
       const id = commands.reserveListId()
-      commands.renameList(id, 'Queued')
+      commands.materializeList(id, 'Queued')
       await vi.waitUntil(() => client.getStatus().failure?.code === BROWSER_ERROR_CODE.NETWORK_ERROR)
       expect(client.getStatus().pendingCount).toBe(1)
 
@@ -376,7 +376,7 @@ describe('createTodoClient', () => {
       client.start()
       await vi.waitUntil(() => client.getStatus().canEdit)
 
-      createTodoListCommands(client).renameList(client.newListId(), 'Fast')
+      createTodoListCommands(client).materializeList(client.newListId(), 'Fast')
       await vi.waitUntil(() => client.getStatus().pendingCount === 0)
       expect(client.getStatus().saving).toBe(false)
 
@@ -401,7 +401,7 @@ describe('createTodoClient', () => {
       // settles leaves that timer pending, and nothing else would ever clear it:
       // it would fire against a client that is no longer running and announce
       // "Saving..." for work that has been abandoned.
-      createTodoListCommands(client).renameList(client.newListId(), 'Interrupted')
+      createTodoListCommands(client).materializeList(client.newListId(), 'Interrupted')
       expect(client.getStatus().pendingCount).toBe(1)
       client.stop()
 
@@ -558,7 +558,7 @@ describe('createTodoClient', () => {
     client.start()
     const commands = createTodoListCommands(client)
     const id = commands.reserveListId()
-    commands.renameList(id, 'Too early')
+    commands.materializeList(id, 'Too early')
     expect(client.getStatus().canEdit).toBe(false)
     expect(client.getReadModel()[id]).toBeUndefined()
     expect(client.getStatus().pendingCount).toBe(0)

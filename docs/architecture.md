@@ -140,8 +140,15 @@ monotonic within a millisecond, so two ids minted in the same millisecond keep t
 
 An entity exists exactly while its defining attribute is currently asserted. Deleting a Todo List
 retracts its `title`, which is one datom no matter how many Todos it holds: those Todos stop
-projecting because the Todo List named by their ids no longer exists. Undelete is re-assertion,
-and it restores the entity's other attributes with it.
+projecting because the Todo List named by their ids no longer exists. At the storage layer,
+re-asserting a defining attribute would restore that identity and its other attributes.
+
+The UI command boundary is stricter than that storage capability. Materializing a Todo List is a
+separate explicit command using a newly reserved identity. Renaming a Todo List or retitling a
+Todo first verifies that the identity still exists in the client's current read model. If a remote
+deletion unmounts an editor with unsettled text, its cleanup settlement is ignored instead of
+recreating what disappeared. This policy needs no datastore tombstone beyond the existing
+retraction, and general datom last-write-wins behavior remains unchanged.
 
 Duplicate titles remain valid, because a Todo List is identified by itself, not by what it is
 called.

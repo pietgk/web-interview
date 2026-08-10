@@ -16,7 +16,7 @@ See ADR 007.
 | Escape a draft | the screen stops offering it | event `DRAFT_ESCAPED` |
 | Delete a list holding Todos | the screen offers a confirmation | event `DELETE_REQUESTED` |
 | Cancel the dialog | the screen stops offering it | event `DELETE_CANCELLED` |
-| Name a draft list | a Todo List exists, **and** drafting ends | `renameList()` **and** event `LIST_MATERIALIZED` |
+| Name a draft list | a Todo List exists, **and** drafting ends | `materializeList()` **and** event `LIST_MATERIALIZED` |
 | Confirm the dialog | the list stops existing, **and** selection moves | `deleteList()` **and** event `DELETE_CONFIRMED` |
 | Delete an empty list | as above, without the confirmation | `deleteList()` **and** event `DELETE_CONFIRMED` |
 | Rename an existing list | a fact, once the field settles | in-flight, then `renameList()` |
@@ -48,11 +48,23 @@ A component may import screen-view output, an event dispatcher, and commands. It
 Commands (imperative — the domain action to perform):
 
 ```text
-reserveListId()                   renameList(listId, title)
-deleteList(todoList)              addTodo(listId, text) -> id
-retitleTodo(todo, text)           setTodoCompleted(todo, completed)
-setTodoDueDate(todo, dueDate)     deleteTodo(todo)
+reserveListId()                   materializeList(listId, title)
+renameList(listId, title)         deleteList(todoList)
+addTodo(listId, text) -> id       retitleTodo(todo, text)
+setTodoCompleted(todo, completed) setTodoDueDate(todo, dueDate)
+deleteTodo(todo)
 ```
+
+## Observed deletion ends an edit
+
+Once the current read model no longer contains a Todo or Todo List, an unsettled edit for that
+identity is stale. `renameList()` and `retitleTodo()` verify existence at the command boundary and
+ignore the settle rather than reasserting the defining attribute. This includes settlement caused
+by the remote deletion unmounting the editor.
+
+Creating a Todo List is a separate explicit path: `reserveListId()` supplies a new identity and
+`materializeList()` asserts its defining title. A deleted identity is never reused by an ordinary
+create interaction.
 
 ## Screen machines (source is authoritative)
 

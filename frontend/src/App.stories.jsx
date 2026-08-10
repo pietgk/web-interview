@@ -7,19 +7,20 @@ import {
   createStoryServer,
   waitUntilConnected,
 } from './testing/storyHarness'
+import { storyDocs } from './testing/storyDocs'
 
 const INITIAL_STORY_TIME_MS = 1_760_000_000_000
 
 let clock = INITIAL_STORY_TIME_MS
-const at = () => (clock += 1)
+const nextTimestamp = () => (clock += 1)
 
-const FIRST_LIST = listId(at())
-const FIRST_TODO = todoId(FIRST_LIST, at())
+const FIRST_LIST = listId(nextTimestamp())
+const FIRST_TODO = todoId(FIRST_LIST, nextTimestamp())
 
 /** @returns {import('@web-interview/todos/types').Datom[]} */
 const seededLists = () => [
-  [FIRST_LIST, ATTRIBUTE.TITLE, 'First List', ulid(at()), true],
-  [FIRST_TODO, ATTRIBUTE.TEXT, 'First todo of first list!', ulid(at()), true],
+  [FIRST_LIST, ATTRIBUTE.TITLE, 'First List', ulid(nextTimestamp()), true],
+  [FIRST_TODO, ATTRIBUTE.TEXT, 'First todo of first list!', ulid(nextTimestamp()), true],
 ]
 
 /** @param {import('@web-interview/todos/types').Datom[]} [seed] */
@@ -30,15 +31,6 @@ const withServer = (seed = []) => ({
   render: (/** @type {unknown} */ _args, /** @type {{loaded: Record<string, any>}} */ { loaded }) => (
     <App createClient={() => createClientForServer(loaded.server)} />
   ),
-})
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
 })
 
 const meta = /** @type {import('@storybook/react-vite').Meta<typeof App>} */ ({

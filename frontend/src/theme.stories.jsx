@@ -1,15 +1,7 @@
 import React from 'react'
 import { useTheme } from '@mui/material/styles'
 import { expect } from 'storybook/test'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
+import { storyDocs } from './testing/storyDocs'
 
 /**
  * Theme platform contracts for OS accessibility prefs (ADR 009 / prefs plan).

@@ -1,16 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@mui/material'
 import { expect, fn, screen, userEvent, within } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import DeleteTodoListDialog from './DeleteTodoListDialog'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 /**
  * App mounts this dialog only while confirming (`<Dialog open>` is fixed).

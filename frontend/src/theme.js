@@ -33,6 +33,9 @@ const TODO_TEXT_MIN_WIDTH = '12rem'
 /** Longest comfortable reading measure before the page stops feeling like a page. */
 const PAGE_MAX_WIDTH = '80rem'
 
+/** The app shell fills the dynamic viewport while its main region owns scrolling. */
+const APP_VIEWPORT_HEIGHT = '100dvh'
+
 /** Spacing units of breathing room between the page edge and its cards. */
 const PAGE_GUTTER = 2
 
@@ -115,6 +118,7 @@ const foundations = {
     },
     layout: {
       maxWidth: PAGE_MAX_WIDTH,
+      viewportHeight: APP_VIEWPORT_HEIGHT,
       gutter: PAGE_GUTTER,
     },
     listRow: {

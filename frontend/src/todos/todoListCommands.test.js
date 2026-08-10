@@ -2,19 +2,38 @@ import { ATTRIBUTE } from '@web-interview/todos/datom'
 import { createTodoListCommands } from './todoListCommands'
 
 const UPDATED_DUE_DAY = '2026-08-09'
+const EXISTING_TODO = {
+  id: 'L1/T1',
+  text: 'Milk',
+  completed: false,
+  dueDate: null,
+}
+
+const existingReadModel = () => ({
+  L1: { id: 'L1', title: 'Groceries', todos: [{ ...EXISTING_TODO }] },
+})
 
 /**
  * Records what reached the client, so a test asserts the datom a command wrote
  * rather than that some method was called.
  *
- * @param {{assertReturns?: unknown}} [options]
+ * @param {{assertReturns?: unknown, readModel?: import('@web-interview/todos/types').TodoLists}} [options]
  */
-const fakeClient = ({ assertReturns = ['a', 'b', 'c', 'tx', true] } = {}) => {
+const fakeClient = ({
+  assertReturns = ['a', 'b', 'c', 'tx', true],
+  readModel = existingReadModel(),
+} = {}) => {
   /** @type {Array<[string, string, string, unknown]>} */
   const writes = []
   let minted = 0
+  let currentReadModel = readModel
   return {
     writes,
+    getReadModel: () => currentReadModel,
+    /** @param {import('@web-interview/todos/types').TodoLists} nextReadModel */
+    replaceReadModel: (nextReadModel) => {
+      currentReadModel = nextReadModel
+    },
     newListId: () => 'L-new',
     /** @param {string} listEntity */
     newTodoId: (listEntity) => `${listEntity}/T-${++minted}`,
@@ -42,10 +61,30 @@ describe('Todo List commands', () => {
     expect(client.writes).toEqual([])
   })
 
-  it('brings a Todo List into existence by asserting its defining attribute', () => {
+  it('materializes a reserved Todo List by asserting its defining attribute', () => {
     const client = fakeClient()
-    commandsFor(client).renameList('L1', 'Groceries')
-    expect(client.writes).toEqual([['assert', 'L1', ATTRIBUTE.TITLE, 'Groceries']])
+    const commands = commandsFor(client)
+    const reservedListId = commands.reserveListId()
+    commands.materializeList(reservedListId, 'Errands')
+    expect(client.writes).toEqual([['assert', 'L-new', ATTRIBUTE.TITLE, 'Errands']])
+  })
+
+  it('renames a Todo List that still exists', () => {
+    const client = fakeClient()
+    commandsFor(client).renameList('L1', 'Weekly groceries')
+    expect(client.writes).toEqual([
+      ['assert', 'L1', ATTRIBUTE.TITLE, 'Weekly groceries'],
+    ])
+  })
+
+  it('ignores a stale Todo List rename after observing its deletion', () => {
+    const client = fakeClient()
+    const commands = commandsFor(client)
+    client.replaceReadModel({})
+
+    commands.renameList('L1', 'Stale title')
+
+    expect(client.writes).toEqual([])
   })
 
   it('deletes a Todo List with one retraction carrying the title it believed was there', () => {
@@ -67,14 +106,25 @@ describe('Todo List commands', () => {
 
   it('retitles and completes a Todo', () => {
     const client = fakeClient()
-    const todo = { id: 'L1/T1', text: 'Milk', completed: false, dueDate: null }
     const commands = commandsFor(client)
-    commands.retitleTodo(todo, 'Oat milk')
-    commands.setTodoCompleted(todo, true)
+    commands.retitleTodo(EXISTING_TODO, 'Oat milk')
+    commands.setTodoCompleted(EXISTING_TODO, true)
     expect(client.writes).toEqual([
       ['assert', 'L1/T1', ATTRIBUTE.TEXT, 'Oat milk'],
       ['assert', 'L1/T1', ATTRIBUTE.COMPLETED, true],
     ])
+  })
+
+  it('ignores a stale Todo retitle after observing its deletion', () => {
+    const client = fakeClient()
+    const commands = commandsFor(client)
+    client.replaceReadModel({
+      L1: { id: 'L1', title: 'Groceries', todos: [] },
+    })
+
+    commands.retitleTodo(EXISTING_TODO, 'Stale text')
+
+    expect(client.writes).toEqual([])
   })
 
   it('asserts a due date, and retracts the one that was there when it is cleared', () => {

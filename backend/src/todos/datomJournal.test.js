@@ -23,7 +23,7 @@ describe('datom journal', () => {
   /** @type {number} */
   let clock
 
-  const at = () => (clock += 1)
+  const nextTimestamp = () => (clock += 1)
 
   beforeEach(async () => {
     // The ULID generator is monotonic for the whole process, so a fake clock that
@@ -38,18 +38,18 @@ describe('datom journal', () => {
   })
 
   it('reproduces the read model exactly when the journal is replayed', async () => {
-    const first = await createDatomService({ filePath, seed: SEED, now: at })
+    const first = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(first.store.readModel())[0]
-    const todo = todoId(list, at())
+    const todo = todoId(list, nextTimestamp())
     await first.record([
-      [todo, ATTRIBUTE.TEXT, 'Written before the restart', ulid(at()), true],
-      [todo, ATTRIBUTE.DUE_DATE, REPLAYED_DUE_DAY, ulid(at()), true],
-      [list, ATTRIBUTE.TITLE, 'Renamed before the restart', ulid(at()), true],
+      [todo, ATTRIBUTE.TEXT, 'Written before the restart', ulid(nextTimestamp()), true],
+      [todo, ATTRIBUTE.DUE_DATE, REPLAYED_DUE_DAY, ulid(nextTimestamp()), true],
+      [list, ATTRIBUTE.TITLE, 'Renamed before the restart', ulid(nextTimestamp()), true],
     ])
     const before = first.store.readModel()
     await first.close()
 
-    const restarted = await createDatomService({ filePath, seed: SEED, now: at })
+    const restarted = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     try {
       assert.deepEqual(restarted.store.readModel(), before)
     } finally {
@@ -58,13 +58,13 @@ describe('datom journal', () => {
   })
 
   it('discards an unterminated final line on recovery', async () => {
-    const service = await createDatomService({ filePath, seed: SEED, now: at })
+    const service = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(service.store.readModel())[0]
-    await service.record([[list, ATTRIBUTE.TITLE, 'Durable', ulid(at()), true]])
+    await service.record([[list, ATTRIBUTE.TITLE, 'Durable', ulid(nextTimestamp()), true]])
     await service.close()
     await appendFile(filePath, `["${list}","${ATTRIBUTE.TITLE}","Torn`, 'utf8')
 
-    const recovered = await createDatomService({ filePath, seed: SEED, now: at })
+    const recovered = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     try {
       assert.equal(recovered.store.readModel()[list].title, 'Durable')
       assert.doesNotMatch(await readFile(filePath, 'utf8'), /Torn/)
@@ -74,13 +74,13 @@ describe('datom journal', () => {
   })
 
   it('discards an unparseable final line on recovery', async () => {
-    const service = await createDatomService({ filePath, seed: SEED, now: at })
+    const service = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(service.store.readModel())[0]
-    await service.record([[list, ATTRIBUTE.TITLE, 'Durable', ulid(at()), true]])
+    await service.record([[list, ATTRIBUTE.TITLE, 'Durable', ulid(nextTimestamp()), true]])
     await service.close()
     await appendFile(filePath, '["not","a","datom"]\n', 'utf8')
 
-    const recovered = await createDatomService({ filePath, seed: SEED, now: at })
+    const recovered = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     try {
       assert.equal(recovered.store.readModel()[list].title, 'Durable')
     } finally {
@@ -89,28 +89,28 @@ describe('datom journal', () => {
   })
 
   it('fails startup on an unparseable earlier line', async () => {
-    const list = listId(at())
+    const list = listId(nextTimestamp())
     await writeFile(
       filePath,
       [
         '{ not json at all',
-        JSON.stringify([list, ATTRIBUTE.TITLE, 'Later', ulid(at()), true]),
+        JSON.stringify([list, ATTRIBUTE.TITLE, 'Later', ulid(nextTimestamp()), true]),
         '',
       ].join('\n'),
       'utf8'
     )
 
     await assert.rejects(
-      createDatomService({ filePath, seed: SEED, now: at }),
+      createDatomService({ filePath, seed: SEED, now: nextTimestamp }),
       /Datom journal is corrupt at line 1/
     )
   })
 
   it('journals the losers too, because the journal is the history', async () => {
-    const service = await createDatomService({ filePath, seed: SEED, now: at })
+    const service = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(service.store.readModel())[0]
-    const loser = ulid(at())
-    const winner = ulid(at())
+    const loser = ulid(nextTimestamp())
+    const winner = ulid(nextTimestamp())
 
     const winners = await service.record([
       /** @type {Datom} */ ([list, ATTRIBUTE.TITLE, 'Winner', winner, true]),
@@ -124,16 +124,16 @@ describe('datom journal', () => {
   })
 
   it('keeps its epoch across a restart, and takes a new one when the journal is wiped', async () => {
-    const first = await createDatomService({ filePath, seed: SEED, now: at })
+    const first = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const original = first.epoch
     await first.close()
 
-    const restarted = await createDatomService({ filePath, seed: SEED, now: at })
+    const restarted = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const afterRestart = restarted.epoch
     await restarted.close()
 
     await rm(filePath)
-    const wiped = await createDatomService({ filePath, seed: SEED, now: at })
+    const wiped = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     try {
       assert.ok(original, 'a seeded journal has an epoch')
       assert.equal(afterRestart, original, 'the same journal is the same log')
@@ -144,16 +144,16 @@ describe('datom journal', () => {
   })
 
   it('has no epoch until an unseeded server is first written to', async () => {
-    const service = await createDatomService({ filePath, seed: [], now: at })
+    const service = await createDatomService({ filePath, seed: [], now: nextTimestamp })
     try {
       assert.equal(service.epoch, null)
 
-      const list = listId(at())
-      const first = ulid(at())
+      const list = listId(nextTimestamp())
+      const first = ulid(nextTimestamp())
       await service.record([[list, ATTRIBUTE.TITLE, 'First ever write', first, true]])
       assert.equal(service.epoch, first)
 
-      await service.record([[list, ATTRIBUTE.TITLE, 'Renamed', ulid(at()), true]])
+      await service.record([[list, ATTRIBUTE.TITLE, 'Renamed', ulid(nextTimestamp()), true]])
       assert.equal(service.epoch, first, 'the epoch is the first datom, not the latest')
     } finally {
       await service.close()
@@ -165,7 +165,7 @@ describe('datom journal', () => {
     assert.deepEqual(await journal.open(), [])
     await journal.close()
 
-    const service = await createDatomService({ filePath, seed: [], now: at })
+    const service = await createDatomService({ filePath, seed: [], now: nextTimestamp })
     try {
       assert.deepEqual(service.store.readModel(), new DatomStore().readModel())
     } finally {

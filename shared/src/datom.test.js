@@ -19,11 +19,11 @@ const INVALID_NON_LEAP_DAY = '2026-02-29'
 const VALID_LEAP_DAY = '2024-02-29'
 
 let clock = INITIAL_DATOM_TIME_MS
-const at = () => (clock += 1)
+const nextTimestamp = () => (clock += 1)
 
-const LIST = listId(at())
-const TODO = todoId(LIST, at())
-const TX = ulid(at())
+const LIST = listId(nextTimestamp())
+const TODO = todoId(LIST, nextTimestamp())
+const TX = ulid(nextTimestamp())
 
 /** @param {unknown} datom */
 const parse = (datom) => datomSchema.safeParse(datom)

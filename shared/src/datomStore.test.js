@@ -8,10 +8,10 @@ const INITIAL_STORE_TIME_MS = 1_770_000_000_000
 const STORED_DUE_DAY = '2026-08-03'
 
 let clock = INITIAL_STORE_TIME_MS
-const at = () => (clock += 1)
+const nextTimestamp = () => (clock += 1)
 
 /** Mints in ascending `tx` order unless a test deliberately reorders. */
-const tx = () => ulid(at())
+const tx = () => ulid(nextTimestamp())
 
 /**
  * @param {string} entity
@@ -31,8 +31,8 @@ const datom = (entity, attribute, value, transaction, op = true) => [
 
 const seededStore = () => {
   const store = new DatomStore()
-  const list = listId(at())
-  const todo = todoId(list, at())
+  const list = listId(nextTimestamp())
+  const todo = todoId(list, nextTimestamp())
   store.apply(datom(list, ATTRIBUTE.TITLE, 'Release', tx()))
   store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx()))
   return { store, list, todo }
@@ -99,18 +99,18 @@ describe('DatomStore', () => {
 
   it('does not project a Todo whose Todo List does not exist', () => {
     const store = new DatomStore()
-    const absentList = listId(at())
-    store.apply(datom(todoId(absentList, at()), ATTRIBUTE.TEXT, 'Orphan', tx()))
+    const absentList = listId(nextTimestamp())
+    store.apply(datom(todoId(absentList, nextTimestamp()), ATTRIBUTE.TEXT, 'Orphan', tx()))
 
     assert.deepEqual(store.readModel(), {})
   })
 
   it('sorts Todos by id descending and Todo Lists by id ascending', () => {
     const store = new DatomStore()
-    const first = listId(at())
-    const second = listId(at())
-    const older = todoId(first, at())
-    const newer = todoId(first, at())
+    const first = listId(nextTimestamp())
+    const second = listId(nextTimestamp())
+    const older = todoId(first, nextTimestamp())
+    const newer = todoId(first, nextTimestamp())
     store.apply(datom(second, ATTRIBUTE.TITLE, 'Second', tx()))
     store.apply(datom(first, ATTRIBUTE.TITLE, 'First', tx()))
     store.apply(datom(older, ATTRIBUTE.TEXT, 'Older', tx()))
@@ -126,9 +126,9 @@ describe('DatomStore', () => {
 
   it('does not move a Todo when it is renamed', () => {
     const store = new DatomStore()
-    const list = listId(at())
-    const older = todoId(list, at())
-    const newer = todoId(list, at())
+    const list = listId(nextTimestamp())
+    const older = todoId(list, nextTimestamp())
+    const newer = todoId(list, nextTimestamp())
     store.apply(datom(list, ATTRIBUTE.TITLE, 'Release', tx()))
     store.apply(datom(older, ATTRIBUTE.TEXT, 'Older', tx()))
     store.apply(datom(newer, ATTRIBUTE.TEXT, 'Newer', tx()))

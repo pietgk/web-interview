@@ -21,6 +21,7 @@ import {
   DEV_DATOM_LOG_PATH,
   PREVIEW_DATOM_LOG_PATH,
 } from '../backend/src/dataPaths.js'
+import { resolveCommand } from './commandResolution.mjs'
 
 export const DEV_WEB_PORT = 3000
 export const DEV_API_PORT = 3001
@@ -223,23 +224,6 @@ const runInteractive = () => {
     console.log('')
   }
 
-  /**
-   * @param {string} typed
-   * @returns {{command: KillCommand} | {ambiguous: KillCommand[]} | {unknown: true} | null}
-   */
-  const resolveCommand = (typed) => {
-    if (!typed) return null
-    const exact = commands.find(
-      (command) => command.name === typed || command.aliases?.includes(typed)
-    )
-    if (exact) return { command: exact }
-
-    const matches = commands.filter((command) => command.name.startsWith(typed))
-    if (matches.length === 1) return { command: matches[0] }
-    if (matches.length > 1) return { ambiguous: matches }
-    return { unknown: true }
-  }
-
   /** @param {string} line */
   const runCommand = (line) => {
     const typed = line.trim().toLowerCase()
@@ -247,7 +231,7 @@ const runInteractive = () => {
       printLaneStatus()
       return
     }
-    const resolved = resolveCommand(typed)
+    const resolved = resolveCommand(commands, typed)
     if (!resolved) return
 
     if ('command' in resolved) {

@@ -77,7 +77,10 @@ export const classifySourcePath = (path) => {
   if (path === 'backend/src/index.js' || path === 'frontend/src/index.jsx') {
     return { category: 'e2e-bootstrap', rationale: 'process or DOM bootstrap exercised by Playwright' }
   }
-  if (path === 'frontend/src/testing/storyHarness.jsx') {
+  if (
+    path === 'frontend/src/testing/storyHarness.jsx' ||
+    path === 'frontend/src/testing/storyDocs.js'
+  ) {
     return { category: 'test-support', rationale: 'Storybook-only composition harness' }
   }
   if (

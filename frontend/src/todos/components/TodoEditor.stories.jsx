@@ -1,18 +1,10 @@
 import { expect, fn, within } from 'storybook/test'
+import { storyDocs } from '../../testing/storyDocs'
 import { TodoComposer } from './TodoComposer'
 import { TodoEditor } from './TodoEditor'
 import { TodoItem } from './TodoItem'
 
 const EDITOR_SCENARIO_DAY = '2026-07-31'
-
-/** @param {string} story */
-const storyDocs = (story) => ({
-  parameters: {
-    docs: {
-      description: { story },
-    },
-  },
-})
 
 const meta = /** @type {import('@storybook/react-vite').Meta<typeof TodoEditor>} */ ({
   title: 'Todos/TodoEditor',
