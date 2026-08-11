@@ -1,10 +1,12 @@
 /**
- * Generates docs/architecture.excalidraw (+ .svg companion) from the grilled overview.
+ * Generates docs/architecture.excalidraw (+ .svg and .html companions) from the grilled
+ * overview.
  * Run: node scripts/generate-architecture-board.mjs
  */
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { writeWhiteboardPage } from './whiteboard-html.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outDir = join(__dirname, '../docs')
@@ -76,6 +78,12 @@ const rect = ({ x, y, w, h, bg = 'transparent', stroke = '#1e1e1e', round = true
     roundness: round ? { type: 3 } : null,
   })
 
+// Excalidraw clips a text element to its stored width rather than remeasuring
+// on load, so an estimate that is too narrow silently eats the last characters
+// ("select a lis"). Comic Shanns advances ~0.58em; this leaves a little slack.
+// A text box has no fill, so being generous costs nothing visually.
+const CHAR_WIDTH_EM = 0.62
+
 /**
  * @param {{
  *   x: number,
@@ -91,7 +99,7 @@ const rect = ({ x, y, w, h, bg = 'transparent', stroke = '#1e1e1e', round = true
 const text = ({ x, y, t, size = 16, align = 'left', color = '#1e1e1e', width, id: eid }) => {
   const lines = t.split('\n')
   const lineHeight = 1.25
-  const w = width ?? Math.max(...lines.map((l) => l.length)) * size * 0.55
+  const w = width ?? Math.max(...lines.map((l) => l.length)) * size * CHAR_WIDTH_EM
   const h = lines.length * size * lineHeight
   return base({
     id: eid || id('t'),
@@ -434,6 +442,9 @@ const scene = {
   source: 'https://excalidraw.com',
   elements,
   appState: {
+    // Excalidraw's own document name, and what the HTML wrapper titles the page
+    // with. Keeping it in the scene means both agree without a second source.
+    name: 'Architecture overview',
     gridSize: null,
     viewBackgroundColor: '#ffffff',
   },
@@ -490,75 +501,5 @@ const svgPath = join(outDir, 'architecture.svg')
 writeFileSync(svgPath, svgMarkup)
 console.log('wrote', svgPath)
 
-const htmlPath = join(outDir, 'architecture.html')
-writeFileSync(
-  htmlPath,
-  `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sellpy todo app — how it’s built</title>
-  <style>
-    :root { color-scheme: light; }
-    body {
-      margin: 0;
-      font-family: ui-sans-serif, system-ui, sans-serif;
-      background: #f1f3f5;
-      color: #212529;
-    }
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: 0.75rem 1.25rem;
-      padding: 0.75rem 1.25rem;
-      background: #fff;
-      border-bottom: 1px solid #dee2e6;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-    header a {
-      color: #1864ab;
-      font-size: 0.875rem;
-    }
-    main {
-      padding: 1.25rem;
-      overflow: auto;
-    }
-    .board {
-      margin: 0 auto;
-      width: fit-content;
-      max-width: 100%;
-      background: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-    }
-    .board svg {
-      display: block;
-      max-width: 100%;
-      height: auto;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Architecture overview</h1>
-    <a href="https://excalidraw.com" target="_blank" rel="noreferrer">Excalidraw</a>
-    <a href="./architecture.excalidraw">architecture.excalidraw</a>
-    <a href="./architecture.svg">SVG</a>
-  </header>
-  <main>
-    <div class="board">
-${svgMarkup}
-    </div>
-  </main>
-</body>
-</html>
-`,
-)
+const htmlPath = writeWhiteboardPage(excalidrawPath)
 console.log('wrote', htmlPath)

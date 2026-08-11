@@ -42,7 +42,8 @@ observable.  Some of it is more than asked for and created for discussion during
 
 ![Product architecture: UI to model to datoms](./docs/architecture.svg)
 
-The same diagram is editable as an Excalidraw scene: `npm run whiteboard` opens Excalidraw.
+The same diagram is a live Excalidraw canvas at [`docs/architecture.html`](./docs/architecture.html) -
+see [whiteboards in docs](./docs/whiteboard.md).
 
 ## Running it
 

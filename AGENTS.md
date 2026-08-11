@@ -67,6 +67,7 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 | Which ADRs are accepted (index) | `docs/adr/README.md` |
 | Entry map (architecture / ADRs / testing / domain) | `DECISIONS.md` |
 | How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
+| How to add or edit a drawing in the docs | `docs/whiteboard.md` |
 
 [`docs/testing-and-validation.md`](docs/testing-and-validation.md) is the canonical explanation
 of the protection model and verification pipeline.
