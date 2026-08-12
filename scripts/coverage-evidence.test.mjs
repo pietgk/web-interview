@@ -453,7 +453,79 @@ test('owner reports label gating producers and informational combined views prec
     ownedPathsByProducer: { node: [nodePath], storybook: [controllerPath] },
     combinedAutomation: {
       status: 'withheld',
-      incompatibleFiles: [{ path: nodePath, reason: 'executable maps differ between producers' }],
+      incompatibleFiles: [{
+        path: nodePath,
+        reason: 'executable maps differ between producers',
+        sourceDigest: { status: 'matches' },
+        executableMaps: {
+          exactMatch: false,
+          maps: {
+            statements: {
+              entryCounts: { node: 233, storybook: 233 },
+              differingEntries: 1,
+              onlyIn: { node: 0, storybook: 0 },
+              samples: [{
+                kind: 'different',
+                counters: { node: '38', storybook: '38' },
+                locations: {
+                  node: { start: { line: 131, column: 14 }, end: { line: 131, column: null } },
+                  storybook: { start: { line: 131, column: 15 }, end: { line: 131, column: null } },
+                },
+              }],
+              omittedSamples: 0,
+            },
+            functions: {
+              entryCounts: { node: 46, storybook: 46 },
+              differingEntries: 0,
+              onlyIn: { node: 0, storybook: 0 },
+              samples: [],
+              omittedSamples: 0,
+            },
+            branches: {
+              entryCounts: { node: 39, storybook: 39 },
+              differingEntries: 0,
+              onlyIn: { node: 0, storybook: 0 },
+              samples: [],
+              omittedSamples: 0,
+            },
+          },
+        },
+      }, {
+        path: controllerPath,
+        reason: 'executable maps differ between producers',
+        sourceDigest: { status: 'matches' },
+        executableMaps: {
+          exactMatch: false,
+          maps: {
+            statements: {
+              entryCounts: { node: 14, storybook: 15 },
+              differingEntries: 0,
+              onlyIn: { node: 0, storybook: 1 },
+              samples: [{
+                kind: 'only',
+                producer: 'storybook',
+                counter: '0',
+                location: { start: { line: 1, column: 62 }, end: { line: 1, column: null } },
+              }],
+              omittedSamples: 0,
+            },
+            functions: {
+              entryCounts: { node: 3, storybook: 3 },
+              differingEntries: 0,
+              onlyIn: { node: 0, storybook: 0 },
+              samples: [],
+              omittedSamples: 0,
+            },
+            branches: {
+              entryCounts: { node: 3, storybook: 3 },
+              differingEntries: 0,
+              onlyIn: { node: 0, storybook: 0 },
+              samples: [],
+              omittedSamples: 0,
+            },
+          },
+        },
+      }],
     },
     provenance: { revision: 'abc', dirty: false, generatedAt: 'now', scope: 'producer-owned coverage evidence' },
   })
@@ -464,6 +536,13 @@ test('owner reports label gating producers and informational combined views prec
   assert.match(markdown, /Combined owned runtime reach \(informational\)/)
   assert.match(markdown, /Combined automation reach \(informational\)/)
   assert.match(markdown, /withheld/i)
+  assert.match(markdown, /Source digest: matches/)
+  assert.match(markdown, /Statements: 233 Node \/ 233 Storybook; 1 location differs/)
+  assert.match(markdown, /Counter 38: Node 131:14-end, Storybook 131:15-end/)
+  assert.match(markdown, /Functions: 46 Node \/ 46 Storybook; exact match/)
+  assert.match(markdown, /Statements: 14 Node \/ 15 Storybook; 1 only in Storybook/)
+  assert.match(markdown, /Counter 0 only in Storybook at 1:62-end/)
+  assert.match(markdown, /Combined counters withheld/)
   assert.doesNotMatch(markdown, /Playwright source coverage/)
 
   const html = renderCoverageHtml(evaluation)
@@ -471,6 +550,8 @@ test('owner reports label gating producers and informational combined views prec
   assert.match(html, /Storybook controller reach/)
   assert.match(html, /Combined owned runtime reach/)
   assert.match(html, /Combined automation reach/)
+  assert.match(html, /Source digest: matches/)
+  assert.match(html, /Counter 38: Node 131:14-end, Storybook 131:15-end/)
   assert.doesNotMatch(html, /href="index\.html"/)
   assert.doesNotMatch(markdown, /\]\(index\.html\)/)
 })

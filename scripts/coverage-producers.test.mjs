@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import {
+  compareExecutableMaps,
   createCombinedAutomationReach,
   createCombinedOwnedRuntimeReach,
   createCoverageStabilitySnapshot,
@@ -35,6 +36,88 @@ const mapFor = (path, { statementHit = 0, branchHits = [0, 0], functionHit = 0, 
   s: { 0: statementHit },
   f: { 0: functionHit },
   b: { 0: branchHits },
+})
+
+/** @param {string} path @param {Array<{start: {line: number, column: number}, end: {line: number, column: number | null}}>} statements */
+const mapWithStatements = (path, statements) => ({
+  ...mapFor(path),
+  statementMap: Object.fromEntries(statements.map((location, index) => [index, location])),
+  s: Object.fromEntries(statements.map((_, index) => [index, 0])),
+})
+
+/** @param {number} line @param {number} column */
+const location = (line, column) => ({
+  start: { line, column },
+  end: { line, column: null },
+})
+
+test('executable-map diagnostics distinguish one changed source location from matching maps', () => {
+  const node = mapWithStatements('frontend/src/a.js', [location(4, 14)])
+  const storybook = mapWithStatements('frontend/src/a.js', [location(4, 15)])
+
+  const result = compareExecutableMaps({ node, storybook })
+
+  assert.equal(result.exactMatch, false)
+  assert.deepEqual(result.maps.statements, {
+    entryCounts: { node: 1, storybook: 1 },
+    differingEntries: 1,
+    onlyIn: { node: 0, storybook: 0 },
+    samples: [{
+      kind: 'different',
+      counters: { node: '0', storybook: '0' },
+      locations: { node: location(4, 14), storybook: location(4, 15) },
+    }],
+    omittedSamples: 0,
+  })
+  assert.equal(result.maps.functions.differingEntries, 0)
+  assert.equal(result.maps.branches.differingEntries, 0)
+})
+
+test('executable-map diagnostics align an extra generated statement without cascading counter mismatches', () => {
+  const node = mapWithStatements('frontend/src/a.js', [location(5, 2), location(6, 2)])
+  const storybook = mapWithStatements('frontend/src/a.js', [
+    location(1, 31),
+    location(5, 2),
+    location(6, 2),
+  ])
+
+  const result = compareExecutableMaps({ node, storybook })
+
+  assert.deepEqual(result.maps.statements, {
+    entryCounts: { node: 2, storybook: 3 },
+    differingEntries: 0,
+    onlyIn: { node: 0, storybook: 1 },
+    samples: [{
+      kind: 'only',
+      producer: 'storybook',
+      counter: '0',
+      location: location(1, 31),
+    }],
+    omittedSamples: 0,
+  })
+})
+
+test('executable-map diagnostic samples are deterministic and bounded', () => {
+  const node = mapWithStatements('frontend/src/a.js', [
+    location(2, 0),
+    location(3, 0),
+    location(4, 0),
+    location(5, 0),
+  ])
+  const storybook = mapWithStatements('frontend/src/a.js', [
+    location(2, 1),
+    location(3, 1),
+    location(4, 1),
+    location(5, 1),
+  ])
+
+  const result = compareExecutableMaps({ node, storybook, sampleLimit: 2 })
+
+  assert.deepEqual(result.maps.statements.samples.map(({ counters }) => counters), [
+    { node: '0', storybook: '0' },
+    { node: '1', storybook: '1' },
+  ])
+  assert.equal(result.maps.statements.omittedSamples, 2)
 })
 
 test('producer manifests expose source or config digest drift and prevent comparison', () => {
@@ -127,10 +210,30 @@ test('different source digests or executable maps withhold only the automation u
   })
 
   assert.equal(result.status, 'withheld')
-  assert.deepEqual(result.incompatibleFiles, [
-    { path: digestPath, reason: 'source digest differs between producers' },
-    { path: mapPath, reason: 'executable maps differ between producers' },
-  ])
+  assert.deepEqual(result.incompatibleFiles[0], {
+    path: digestPath,
+    reason: 'source digest differs between producers',
+    sourceDigest: { status: 'differs' },
+  })
+  assert.equal(result.incompatibleFiles[1].path, mapPath)
+  assert.equal(result.incompatibleFiles[1].reason, 'executable maps differ between producers')
+  assert.deepEqual(result.incompatibleFiles[1].sourceDigest, { status: 'matches' })
+  assert.deepEqual(result.incompatibleFiles[1].executableMaps.maps.statements, {
+    entryCounts: { node: 1, storybook: 1 },
+    differingEntries: 1,
+    onlyIn: { node: 0, storybook: 0 },
+    samples: [{
+      kind: 'different',
+      counters: { node: '0', storybook: '0' },
+      locations: {
+        node: { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } },
+        storybook: { start: { line: 2, column: 0 }, end: { line: 2, column: 1 } },
+      },
+    }],
+    omittedSamples: 0,
+  })
+  assert.equal(result.incompatibleFiles[1].executableMaps.maps.functions.differingEntries, 1)
+  assert.equal(result.incompatibleFiles[1].executableMaps.maps.branches.differingEntries, 1)
 })
 
 test('a missing overlap source digest cannot be treated as compatible', () => {
@@ -147,6 +250,7 @@ test('a missing overlap source digest cannot be treated as compatible', () => {
   assert.deepEqual(result.incompatibleFiles, [{
     path,
     reason: 'source digest is missing from producer evidence',
+    sourceDigest: { status: 'missing' },
   }])
 })
 

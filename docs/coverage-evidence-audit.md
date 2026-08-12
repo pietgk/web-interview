@@ -34,7 +34,8 @@ inventory.
 | `focusLeft.js` | `rendered-ui` | It is a two-line DOM containment predicate with one production consumer. Its meaningful behavior is focus leaving the rendered composer row, already asserted through browser interaction. It does not earn an exact standalone seam. |
 | `legacyReplica.js` | `playwright-bootstrap` | It is a browser-storage startup side effect, not deterministic runtime policy or rendered UI. Repository history shows it was introduced on 2026-08-03 when IndexedDB persistence was removed. No deployment workflow or record establishes use beyond developer browser profiles. |
 | `fakeDatomServer.js` | `node-runtime` | It has a direct injected in-memory transport contract and a Node test. Storybook execution is useful overlap but cannot own or rescue its exact verdict. |
-| `todoClient.js` | `node-runtime` | It exposes injected transport and monotonic-clock boundaries, subscriptions, commands, and lifecycle methods tested directly in Node. Storybook exercises it incidentally through the application. Map compatibility is checked rather than assumed. |
+| `todoClient.js` | `node-runtime` | It coordinates injected transport, optimistic state, outbox delivery, rehydration, and stream lifecycle through an interface tested directly in Node. Storybook exercises it incidentally through the application. Map compatibility is checked rather than assumed. |
+| `trustedClock.js` | `node-runtime` | It localizes trusted server-time adoption, half-round-trip adjustment, calendar scheduling, subscriptions, identifier minting, and cleanup behind an injected-clock interface tested directly in Node. |
 
 ## Separate findings, not coverage classification
 

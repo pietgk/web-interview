@@ -13,7 +13,7 @@ import {
 /** @typedef {{path: string, category?: string, treatment?: string, producer?: string, verdict?: string, rationale?: string}} SourceOwnership */
 /** @typedef {{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage}} UiEvidence */
 /** @typedef {{verdict: 'pass' | 'fail', issues: string[], categoryCounts: Record<string, number>, sources: SourceOwnership[], ui: UiEvidence[], uiTotals: FileCoverage}} SourceEvidence */
-/** @typedef {{status: 'available', incompatibleFiles: Array<{path: string, reason: string}>, coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: Array<{path: string, reason: string}>, coverage?: undefined}} CombinedAutomation */
+/** @typedef {{status: 'available', incompatibleFiles: any[], coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: any[], coverage?: undefined}} CombinedAutomation */
 
 /** @type {readonly CoverageMetric[]} */
 export const COVERAGE_METRICS = Object.freeze([
@@ -284,6 +284,70 @@ const markdownMetricSection = (title, coverage) => [
   '',
 ]
 
+/** @param {{start?: {line?: number, column?: number | null}, end?: {line?: number, column?: number | null}} | undefined} location */
+const formatMapLocation = (location) => {
+  const start = location?.start
+  const end = location?.end
+  if (start?.line === undefined) return 'unknown location'
+  const startText = `${start.line}:${start.column ?? 'end'}`
+  if (end?.line === start.line) return `${startText}-${end.column ?? 'end'}`
+  return `${startText}-${end?.line ?? 'end'}:${end?.column ?? 'end'}`
+}
+
+/** @param {string} label @param {any} diagnostic */
+const executableMapDiagnosticText = (label, diagnostic) => {
+  const details = []
+  if (diagnostic.differingEntries > 0) {
+    details.push(`${diagnostic.differingEntries} location${diagnostic.differingEntries === 1 ? '' : 's'} differ${diagnostic.differingEntries === 1 ? 's' : ''}`)
+  }
+  if (diagnostic.onlyIn.node > 0) details.push(`${diagnostic.onlyIn.node} only in Node`)
+  if (diagnostic.onlyIn.storybook > 0) details.push(`${diagnostic.onlyIn.storybook} only in Storybook`)
+  const summary = `${label}: ${diagnostic.entryCounts.node} Node / ${diagnostic.entryCounts.storybook} Storybook; ${details.join('; ') || 'exact match'}`
+  const samples = diagnostic.samples.map((/** @type {any} */ sample) => {
+    if (sample.kind === 'only') {
+      const producer = sample.producer === 'node' ? 'Node' : 'Storybook'
+      return `Counter ${sample.counter} only in ${producer} at ${formatMapLocation(sample.location)}`
+    }
+    const counter = sample.counters.node === sample.counters.storybook
+      ? `Counter ${sample.counters.node}`
+      : `Counters Node ${sample.counters.node} / Storybook ${sample.counters.storybook}`
+    return `${counter}: Node ${formatMapLocation(sample.locations.node)}, Storybook ${formatMapLocation(sample.locations.storybook)}`
+  })
+  if (diagnostic.omittedSamples > 0) {
+    samples.push(`${diagnostic.omittedSamples} additional mismatch sample${diagnostic.omittedSamples === 1 ? '' : 's'} omitted`)
+  }
+  return { summary, samples }
+}
+
+/** @param {any} file */
+const incompatibleFileDiagnostic = (file) => ({
+  path: file.path,
+  reason: file.reason,
+  sourceDigest: `Source digest: ${file.sourceDigest?.status ?? 'unknown'}`,
+  maps: file.executableMaps
+    ? [
+        ['Statements', file.executableMaps.maps.statements],
+        ['Functions', file.executableMaps.maps.functions],
+        ['Branches', file.executableMaps.maps.branches],
+      ].map(([label, diagnostic]) => executableMapDiagnosticText(label, diagnostic))
+    : [],
+})
+
+/** @param {any} file */
+const markdownIncompatibleFile = (file) => {
+  const diagnostic = incompatibleFileDiagnostic(file)
+  return [
+    `- ${escapeMarkdown(diagnostic.path)}`,
+    `  - ${escapeMarkdown(diagnostic.sourceDigest)}`,
+    `  - ${escapeMarkdown(diagnostic.reason)}`,
+    ...diagnostic.maps.flatMap(({ summary, samples }) => [
+      `  - ${escapeMarkdown(summary)}`,
+      ...samples.map((/** @type {string} */ sample) => `    - ${escapeMarkdown(sample)}`),
+    ]),
+    '  - Combined counters withheld',
+  ]
+}
+
 /** @param {ReturnType<typeof evaluateOwnerCoverage>} evaluation */
 const renderOwnerCoverageMarkdown = (evaluation) => {
   const source = sourceLines(evaluation)
@@ -328,9 +392,7 @@ const renderOwnerCoverageMarkdown = (evaluation) => {
     lines.push(
       'Withheld because overlapping Node and Storybook maps are not compatible. Owner verdicts remain valid.',
       '',
-      ...(evaluation.combinedAutomation?.incompatibleFiles ?? []).map(({ path, reason }) =>
-        `- ${escapeMarkdown(path)}: ${escapeMarkdown(reason)}`
-      ),
+      ...(evaluation.combinedAutomation?.incompatibleFiles ?? []).flatMap(markdownIncompatibleFile),
       ''
     )
   }
@@ -497,9 +559,15 @@ const renderOwnerCoverageHtml = (evaluation) => {
   const registrySection = sourceEvidence ? `<section><h2>Reviewed evidence registry</h2><div class="table-wrap"><table><thead><tr><th>Source file</th><th>Treatment</th><th>Required producer</th><th>Verdict rule</th><th>Rationale</th></tr></thead><tbody>${sourceEvidence.sources.map((entry) => `<tr><td><code>${escapeHtml(entry.path)}</code></td><td>${escapeHtml(entry.treatment ?? 'Unclassified')}</td><td>${escapeHtml(entry.producer ?? 'None')}</td><td>${escapeHtml(entry.verdict ?? 'None')}</td><td>${escapeHtml(entry.rationale ?? 'No reviewed rationale')}</td></tr>`).join('')}</tbody></table></div></section>` : ''
   const uiSection = sourceEvidence ? `${metricSection('Storybook rendered-UI reach (informational)', sourceEvidence.uiTotals, 'Story discovery, execution, play assertions, and axe gate this source set. Percentages do not.')}
 <section><h2>Storybook UI evidence</h2><div class="table-wrap"><table><thead><tr><th>UI source</th><th>Evidence</th><th>Story execution</th><th>Plays</th></tr></thead><tbody>${sourceEvidence.ui.map((item) => `<tr><td><code>${escapeHtml(item.path)}</code></td><td><code>${escapeHtml(item.evidence)}</code></td><td>${item.executedStories}/${item.declaredStories} stories executed</td><td>${item.declaredPlays}</td></tr>`).join('')}</tbody></table></div></section>` : ''
+  /** @param {any} file */
+  const htmlIncompatibleFile = (file) => {
+    const diagnostic = incompatibleFileDiagnostic(file)
+    const mapItems = diagnostic.maps.map(({ summary, samples }) => `<li>${escapeHtml(summary)}${samples.length > 0 ? `<ul>${samples.map((/** @type {string} */ sample) => `<li>${escapeHtml(sample)}</li>`).join('')}</ul>` : ''}</li>`).join('')
+    return `<li><code>${escapeHtml(diagnostic.path)}</code><ul><li>${escapeHtml(diagnostic.sourceDigest)}</li><li>${escapeHtml(diagnostic.reason)}</li>${mapItems}<li>Combined counters withheld</li></ul></li>`
+  }
   const automation = evaluation.combinedAutomation?.status === 'available'
     ? metricSection('Combined automation reach (informational)', evaluation.combinedAutomation.coverage, 'Compatible Node and Storybook Istanbul maps only. Playwright is not included.')
-    : `<section><h2>Combined automation reach (informational)</h2><p>Withheld because overlapping Node and Storybook maps are not compatible. Owner verdicts remain valid.</p><ul>${(evaluation.combinedAutomation?.incompatibleFiles ?? []).map(({ path, reason }) => `<li><code>${escapeHtml(path)}</code>: ${escapeHtml(reason)}</li>`).join('')}</ul></section>`
+    : `<section><h2>Combined automation reach (informational)</h2><p>Withheld because overlapping Node and Storybook maps are not compatible. Owner verdicts remain valid.</p><ul>${(evaluation.combinedAutomation?.incompatibleFiles ?? []).map(htmlIncompatibleFile).join('')}</ul></section>`
   const issues = [
     ...evaluation.producerIssues,
     ...(sourceEvidence?.issues ?? []),

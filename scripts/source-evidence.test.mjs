@@ -25,6 +25,7 @@ test('classifies every production source seam explicitly', () => {
     'backend/src/app.js': 'node-runtime',
     'backend/src/index.js': 'playwright-bootstrap',
     'frontend/src/todos/todoModel.js': 'node-runtime',
+    'frontend/src/todos/trustedClock.js': 'node-runtime',
     'frontend/src/testing/fakeDatomServer.js': 'node-runtime',
     'frontend/src/App.jsx': 'rendered-ui',
     'frontend/src/theme.js': 'rendered-ui',

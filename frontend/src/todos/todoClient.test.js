@@ -136,6 +136,22 @@ describe('createTodoClient', () => {
     client.stop()
   })
 
+  it('replaces state when the server starts serving a different log epoch', async () => {
+    const server = createFakeDatomServer({ startTime: 1_000 })
+    const original = listId(1_000)
+    const replacement = listId(2_000)
+    server.seed([[original, ATTRIBUTE.TITLE, 'Original', ulid(1_000), true]])
+    const client = clientFor(server)
+    client.start()
+    await waitUntil(() => client.getReadModel()[original]?.title === 'Original')
+
+    server.replaceLog([[replacement, ATTRIBUTE.TITLE, 'Replacement', ulid(2_000), true]])
+    await waitUntil(() => client.getReadModel()[replacement]?.title === 'Replacement')
+
+    expect(client.getReadModel()[original]).toBeUndefined()
+    client.stop()
+  })
+
   it('restores authoritative state and preserves structured API rejection details', async () => {
     const server = createFakeDatomServer({ startTime: 1_000 })
     const id = listId(1_000)

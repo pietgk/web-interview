@@ -157,6 +157,169 @@ const executableMap = (file) => stableValue({
   branchMap: file.branchMap,
 })
 
+const EXECUTABLE_MAP_SAMPLE_LIMIT = 3
+const ALIGNMENT_GAP_COST = 2
+const ALIGNMENT_DIFFERENT_LINE_COST = 3
+
+/** @param {string} left @param {string} right */
+const compareCounterIds = (left, right) => {
+  const leftNumber = Number(left)
+  const rightNumber = Number(right)
+  if (Number.isInteger(leftNumber) && Number.isInteger(rightNumber)) return leftNumber - rightNumber
+  return left.localeCompare(right)
+}
+
+/** @param {Record<string, any>} map */
+const orderedMapEntries = (map) => Object.entries(map ?? {})
+  .sort(([left], [right]) => compareCounterIds(left, right))
+
+/** @param {'statements' | 'functions' | 'branches'} kind @param {Record<string, any>} entry */
+const diagnosticLocation = (kind, entry) => kind === 'statements' ? entry : entry.loc
+
+/** @param {unknown} left @param {unknown} right */
+const exactEntryMatch = (left, right) =>
+  JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right))
+
+/**
+ * Alignment is diagnostic only. Exact complete-map equality remains the compatibility rule.
+ * Source-line spans let the report recognize a generated insertion without treating every
+ * subsequent counter-id shift as a separate structural change.
+ *
+ * @param {'statements' | 'functions' | 'branches'} kind
+ * @param {Record<string, any>} left
+ * @param {Record<string, any>} right
+ */
+const alignMapEntries = (kind, left, right) => {
+  const leftEntries = orderedMapEntries(left)
+  const rightEntries = orderedMapEntries(right)
+  const rows = leftEntries.length + 1
+  const columns = rightEntries.length + 1
+  const costs = Array.from({ length: rows }, () => Array(columns).fill(0))
+  for (let leftIndex = 0; leftIndex < rows; leftIndex += 1) {
+    costs[leftIndex][0] = leftIndex * ALIGNMENT_GAP_COST
+  }
+  for (let rightIndex = 0; rightIndex < columns; rightIndex += 1) {
+    costs[0][rightIndex] = rightIndex * ALIGNMENT_GAP_COST
+  }
+
+  /** @param {Record<string, any>} leftEntry @param {Record<string, any>} rightEntry */
+  const replacementCost = (leftEntry, rightEntry) => {
+    if (exactEntryMatch(leftEntry, rightEntry)) return 0
+    const leftLocation = diagnosticLocation(kind, leftEntry)
+    const rightLocation = diagnosticLocation(kind, rightEntry)
+    return leftLocation?.start?.line === rightLocation?.start?.line &&
+      leftLocation?.end?.line === rightLocation?.end?.line
+      ? 1
+      : ALIGNMENT_DIFFERENT_LINE_COST
+  }
+
+  for (let leftIndex = 1; leftIndex < rows; leftIndex += 1) {
+    for (let rightIndex = 1; rightIndex < columns; rightIndex += 1) {
+      costs[leftIndex][rightIndex] = Math.min(
+        costs[leftIndex - 1][rightIndex - 1] + replacementCost(
+          leftEntries[leftIndex - 1][1],
+          rightEntries[rightIndex - 1][1]
+        ),
+        costs[leftIndex - 1][rightIndex] + ALIGNMENT_GAP_COST,
+        costs[leftIndex][rightIndex - 1] + ALIGNMENT_GAP_COST
+      )
+    }
+  }
+
+  const reversed = []
+  let leftIndex = leftEntries.length
+  let rightIndex = rightEntries.length
+  while (leftIndex > 0 || rightIndex > 0) {
+    const replacement = leftIndex > 0 && rightIndex > 0
+      ? costs[leftIndex - 1][rightIndex - 1] + replacementCost(
+        leftEntries[leftIndex - 1][1],
+        rightEntries[rightIndex - 1][1]
+      )
+      : Number.POSITIVE_INFINITY
+    if (replacement === costs[leftIndex][rightIndex]) {
+      reversed.push({ left: leftEntries[leftIndex - 1], right: rightEntries[rightIndex - 1] })
+      leftIndex -= 1
+      rightIndex -= 1
+      continue
+    }
+    if (leftIndex > 0 && costs[leftIndex - 1][rightIndex] + ALIGNMENT_GAP_COST === costs[leftIndex][rightIndex]) {
+      reversed.push({ left: leftEntries[leftIndex - 1] })
+      leftIndex -= 1
+      continue
+    }
+    reversed.push({ right: rightEntries[rightIndex - 1] })
+    rightIndex -= 1
+  }
+  return reversed.reverse()
+}
+
+/**
+ * Produce bounded diagnostics for two complete Istanbul executable maps.
+ * This comparison explains incompatibility but never changes the exact-match verdict.
+ *
+ * @param {{node: Record<string, any>, storybook: Record<string, any>, sampleLimit?: number}} input
+ */
+export const compareExecutableMaps = ({
+  node,
+  storybook,
+  sampleLimit = EXECUTABLE_MAP_SAMPLE_LIMIT,
+}) => {
+  const mapDefinitions = [
+    ['statements', 'statementMap'],
+    ['functions', 'fnMap'],
+    ['branches', 'branchMap'],
+  ]
+  const maps = Object.fromEntries(mapDefinitions.map(([kind, property]) => {
+    const nodeMap = node[property] ?? {}
+    const storybookMap = storybook[property] ?? {}
+    /** @type {any[]} */
+    const differences = []
+    for (const { left, right } of alignMapEntries(
+      /** @type {'statements' | 'functions' | 'branches'} */ (kind),
+      nodeMap,
+      storybookMap
+    )) {
+      if (left && right && exactEntryMatch(left[1], right[1])) continue
+      if (left && right) {
+        differences.push({
+          kind: 'different',
+          counters: { node: left[0], storybook: right[0] },
+          locations: {
+            node: diagnosticLocation(/** @type {any} */ (kind), left[1]),
+            storybook: diagnosticLocation(/** @type {any} */ (kind), right[1]),
+          },
+        })
+        continue
+      }
+      const producer = left ? 'node' : 'storybook'
+      const [counter, entry] = /** @type {[string, Record<string, any>]} */ (left ?? right)
+      differences.push({
+        kind: 'only',
+        producer,
+        counter,
+        location: diagnosticLocation(/** @type {any} */ (kind), entry),
+      })
+    }
+    return [kind, {
+      entryCounts: {
+        node: Object.keys(nodeMap).length,
+        storybook: Object.keys(storybookMap).length,
+      },
+      differingEntries: differences.filter(({ kind: differenceKind }) => differenceKind === 'different').length,
+      onlyIn: {
+        node: differences.filter((difference) => difference.kind === 'only' && difference.producer === 'node').length,
+        storybook: differences.filter((difference) => difference.kind === 'only' && difference.producer === 'storybook').length,
+      },
+      samples: differences.slice(0, sampleLimit),
+      omittedSamples: Math.max(0, differences.length - sampleLimit),
+    }]
+  }))
+  return {
+    exactMatch: JSON.stringify(executableMap(node)) === JSON.stringify(executableMap(storybook)),
+    maps,
+  }
+}
+
 /** @param {Record<string, any>} left @param {Record<string, any>} right */
 const mergeFileCounters = (left, right) => ({
   ...left,
@@ -194,7 +357,7 @@ const coverageFromMap = (file) => {
  * complete view, while owner-specific verdicts remain independent.
  *
  * @param {{repositoryRoot: string, maps: Record<string, Record<string, any>>, sourceDigests: Record<string, Record<string, string>>}} input
- * @returns {{status: 'available', incompatibleFiles: Array<{path: string, reason: string}>, coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: Array<{path: string, reason: string}>, coverage: undefined}}
+ * @returns {{status: 'available', incompatibleFiles: any[], coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: any[], coverage: undefined}}
  */
 export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDigests }) => {
   const normalized = Object.fromEntries(Object.entries(maps).map(([producer, map]) => [
@@ -203,7 +366,7 @@ export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDige
   ]))
   const producers = Object.keys(normalized).sort()
   const paths = [...new Set(producers.flatMap((producer) => Object.keys(normalized[producer])))].sort()
-  /** @type {Array<{path: string, reason: string}>} */
+  /** @type {any[]} */
   const incompatibleFiles = []
   /** @type {FileCoverage[]} */
   const combined = []
@@ -217,16 +380,32 @@ export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDige
     const [first, ...others] = present
     const firstSourceDigest = sourceDigests[first]?.[path]
     if (!firstSourceDigest || others.some((producer) => !sourceDigests[producer]?.[path])) {
-      incompatibleFiles.push({ path, reason: 'source digest is missing from producer evidence' })
+      incompatibleFiles.push({
+        path,
+        reason: 'source digest is missing from producer evidence',
+        sourceDigest: { status: 'missing' },
+      })
       continue
     }
     if (others.some((producer) => sourceDigests[producer][path] !== firstSourceDigest)) {
-      incompatibleFiles.push({ path, reason: 'source digest differs between producers' })
+      incompatibleFiles.push({
+        path,
+        reason: 'source digest differs between producers',
+        sourceDigest: { status: 'differs' },
+      })
       continue
     }
-    const firstExecutableMap = JSON.stringify(executableMap(normalized[first][path]))
-    if (others.some((producer) => JSON.stringify(executableMap(normalized[producer][path])) !== firstExecutableMap)) {
-      incompatibleFiles.push({ path, reason: 'executable maps differ between producers' })
+    const executableMaps = compareExecutableMaps({
+      node: normalized.node[path],
+      storybook: normalized.storybook[path],
+    })
+    if (!executableMaps.exactMatch) {
+      incompatibleFiles.push({
+        path,
+        reason: 'executable maps differ between producers',
+        sourceDigest: { status: 'matches' },
+        executableMaps,
+      })
       continue
     }
     const merged = others.reduce(

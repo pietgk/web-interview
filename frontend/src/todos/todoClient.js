@@ -8,7 +8,7 @@ import {
   EPOCH_EVENT,
   SAVING_INDICATOR_DELAY_MS,
 } from '@web-interview/todos/protocol'
-import { createUlidMinter } from '@web-interview/todos/ulid'
+import { createTrustedClock } from './trustedClock'
 
 /** @typedef {import('@web-interview/todos/types').Attribute} Attribute */
 /** @typedef {import('@web-interview/todos/types').Datom} Datom */
@@ -85,8 +85,7 @@ export const createTodoClient = ({
   const outbox = []
   /** @type {Set<() => void>} */
   const listeners = new Set()
-  /** @type {Set<() => void>} */
-  const todayListeners = new Set()
+  const clock = createTrustedClock({ monotonicNow })
 
   /** @type {EventSource | null} */
   let source = null
@@ -105,37 +104,18 @@ export const createTodoClient = ({
   let retryTimer = null
   /** @type {ReturnType<typeof setTimeout> | null} */
   let savingTimer = null
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let todayTimer
-
   /** @type {import('@web-interview/todos/types').Connection} */
   let connection = CONNECTION.CONNECTING
   /** @type {import('@web-interview/todos/types').DeliveryFailure | null} */
   let failure = null
   let saving = false
 
-  /**
-   * `serverTime - monotonicNow()`. Null until the stream has spoken once, which is
-   * why editing is disabled until then: the client has no trustworthy clock and
-   * must never read the local one.
-   *
-   * @type {number | null}
-   */
-  let clockOffset = null
-  let halfRoundTripMs = 0
-  /** @type {string | null} */
-  let today = null
-
-  const serverNow = () =>
-    Math.round(monotonicNow() + /** @type {number} */ (clockOffset))
-  const mint = createUlidMinter(serverNow)
-
   /** @returns {TodoClientStatus} */
   const readStatus = () => ({
     connection,
     pendingCount: outbox.length,
     saving,
-    canEdit: clockOffset !== null && !rehydrating,
+    canEdit: clock.getSnapshot().trusted && !rehydrating,
     rehydrating,
     failure,
     epoch,
@@ -176,44 +156,6 @@ export const createTodoClient = ({
     if (savingTimer) clearTimeout(savingTimer)
     savingTimer = null
     saving = false
-  }
-
-  /** @param {number} time */
-  const localCalendarDate = (time) => {
-    const date = new Date(time)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-
-  const scheduleToday = () => {
-    clearTimeout(todayTimer)
-    const now = serverNow()
-    const date = new Date(now)
-    const nextMidnight = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate() + 1
-    ).getTime()
-    todayTimer = setTimeout(syncToday, Math.max(1, nextMidnight - now))
-  }
-
-  const syncToday = () => {
-    todayTimer = undefined
-    const next = localCalendarDate(serverNow())
-    if (next !== today) {
-      today = next
-      for (const listener of todayListeners) listener()
-    }
-    scheduleToday()
-  }
-
-  /** @param {number} serverTime */
-  const adoptServerTime = (serverTime) => {
-    // The reading is half a round trip old by the time it lands here.
-    clockOffset = serverTime + halfRoundTripMs - monotonicNow()
-    syncToday()
   }
 
   const scheduleRetry = () => {
@@ -258,14 +200,13 @@ export const createTodoClient = ({
 
         if (response.ok) {
           outbox.splice(0, batch.length)
-          halfRoundTripMs = (monotonicNow() - sentAt) / 2
           const body = await response.json().catch(() => null)
           if (typeof body?.serverTime !== 'number') {
             failure = invalidResponseFailure(response.status)
             beginRehydration()
             return
           }
-          adoptServerTime(body.serverTime)
+          clock.adopt(body.serverTime, monotonicNow() - sentAt)
           failure = null
         } else {
           // The server only refuses datoms it will never accept, so retrying one
@@ -336,7 +277,7 @@ export const createTodoClient = ({
     next.addEventListener(CLOCK_EVENT, (event) => {
       const { serverTime } = JSON.parse(/** @type {MessageEvent} */ (event).data)
       if (typeof serverTime !== 'number') return
-      adoptServerTime(serverTime)
+      clock.adopt(serverTime)
       if (rehydrating) {
         for (const datom of outbox) store.apply(datom)
         rehydrating = false
@@ -370,9 +311,9 @@ export const createTodoClient = ({
    * @returns {Datom | null}
    */
   const write = (entity, attribute, value, op) => {
-    if (clockOffset === null || rehydrating) return null
+    if (!clock.getSnapshot().trusted || rehydrating) return null
     /** @type {Datom} */
-    const datom = [entity, attribute, value, mint.tx(), op]
+    const datom = [entity, attribute, value, clock.mint.tx(), op]
     store.apply(datom)
     outbox.push(datom)
     syncSavingIndicator()
@@ -394,13 +335,12 @@ export const createTodoClient = ({
 
     /** @param {() => void} listener */
     subscribeToday(listener) {
-      todayListeners.add(listener)
-      return () => todayListeners.delete(listener)
+      return clock.subscribeToday(listener)
     },
 
     getReadModel: () => store.readModel(),
     getStatus: () => status,
-    getToday: () => today,
+    getToday: () => clock.getSnapshot().today,
 
     start() {
       if (!stopped) return
@@ -416,8 +356,7 @@ export const createTodoClient = ({
       retryTimer = null
       if (savingTimer) clearTimeout(savingTimer)
       savingTimer = null
-      clearTimeout(todayTimer)
-      todayTimer = undefined
+      clock.stop()
     },
 
     reconnect() {
@@ -429,9 +368,9 @@ export const createTodoClient = ({
       void drain()
     },
 
-    newListId: () => mint.listId(),
+    newListId: () => clock.mint.listId(),
     /** @param {string} listEntity */
-    newTodoId: (listEntity) => mint.todoId(listEntity),
+    newTodoId: (listEntity) => clock.mint.todoId(listEntity),
 
     /**
      * Write dAtom asserting a fact
