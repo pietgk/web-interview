@@ -123,16 +123,16 @@ const printHelp = () => {
   process.stdout.write(lines.join('\n'))
 }
 
-/** The merged percentages, so a green run still reports what it proved. */
+/** The owner-selected percentages, so a green run still reports what it proved. */
 const coverageHeadline = async () => {
   try {
     const summary = JSON.parse(
       await readFile(resolve(ROOT, 'coverage/evidence-summary.json'), 'utf8')
     )
-    const { statements, branches, functions } = summary.gatedLogic
+    const { statements, branches, functions } = summary.combinedOwnedRuntime
     /** @param {{covered: number, total: number}} value */
     const pct = ({ covered, total }) => total === 0 ? 100 : (covered * 100 / total).toFixed(2)
-    return `${pct(statements)}% stmt · ${pct(branches)}% branch · ${pct(functions)}% func`
+    return `owned ${pct(statements)}% stmt · ${pct(branches)}% branch · ${pct(functions)}% func`
   } catch {
     return 'no summary written'
   }
@@ -175,7 +175,7 @@ const main = async () => {
   const stages = selectStages(selectors)
   const names = stages.flatMap((stage) => stage.steps.map((step) => step.name))
 
-  // Coverage is judged on unit + storybook together. Stale blobs from an earlier
+  // Both owner reports must come from this run. Stale artifacts from an earlier
   // partial run would make that judgement a lie, so a run that regenerates them
   // starts clean, and a run that cannot produce both simply does not judge.
   const regenerates = names.includes('unit')
@@ -183,6 +183,7 @@ const main = async () => {
   if (regenerates) {
     await Promise.all([
       rm(resolve(ROOT, '.vitest-reports'), { recursive: true, force: true }),
+      rm(resolve(ROOT, '.coverage-reports'), { recursive: true, force: true }),
       rm(resolve(ROOT, '.test-evidence'), { recursive: true, force: true }),
     ])
   }

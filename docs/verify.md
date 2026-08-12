@@ -26,7 +26,7 @@ needs a full green `verify` before claiming done. See [`AGENTS.md`](../AGENTS.md
 | `static` | nothing executes | typecheck, lint (autofix then judge), diagrams, audit |
 | `unit` | Node | shared, backend, frontend logic, scripts |
 | `browser` | real Chromium | Storybook play/a11y, Playwright e2e |
-| `quality` | production bundle | build, Lighthouse, merged coverage vs baseline |
+| `quality` | production bundle | build, Lighthouse, producer-owned coverage baselines |
 
 Fail fast between stages; collect every failure within a stage. Selective runs:
 `npm run verify browser`, `npm run verify lint e2e`, etc.
@@ -35,8 +35,12 @@ Fail fast between stages; collect every failure within a stage. Selective runs:
 
 - Coverage baseline is a **lockfile** (`coverage-baseline.json`); update only with
   `npm run coverage:update-baseline`.
+- Node-owned runtime files gate only on fresh Node Vitest evidence. Storybook controllers gate
+  only on fresh Storybook Chromium evidence. Non-owner execution cannot rescue either verdict.
 - JSX / Storybook UI coverage is informational; missing ownership, discovery, or UI evidence still
   fails.
+- `npm run coverage:check-storybook-stability` runs the finite ten-collection admission check for
+  exact Storybook controller maps and tuples.
 - Node **22** only (`.nvmrc` / `mise.toml` / `engines`); `verify` and `watch` refuse other majors.
 
 ## See also
@@ -44,3 +48,4 @@ Fail fast between stages; collect every failure within a stage. Selective runs:
 - [ADR 006](./adr/006-test-execution-model.md) — why two tiers and this gating shape
 - [`docs/testing-and-validation.md`](./testing-and-validation.md) — protection model (why/when)
 - [ADR 005](./adr/005-testing-and-storybook.md) — who tests what
+- [ADR 010](./adr/010-producer-owned-coverage-evidence.md) - producer-owned exact coverage

@@ -1,26 +1,26 @@
 import { relative, resolve, sep } from 'node:path'
+import {
+  SOURCE_EVIDENCE_ENTRIES,
+  TREATMENTS,
+  validateSourceEvidenceRegistry,
+} from './source-evidence-registry.mjs'
 
-/** @typedef {'logic-baseline' | 'storybook-ui' | 'e2e-bootstrap' | 'test-support' | 'type-only'} SourceEvidenceCategory */
-/** @typedef {{category: SourceEvidenceCategory, rationale: string}} SourceClassification */
+/** @typedef {keyof typeof TREATMENTS} SourceEvidenceCategory */
+/** @typedef {{treatment: SourceEvidenceCategory, producer: string, verdict: string, rationale: string}} SourceClassification */
 /** @typedef {'statements' | 'branches' | 'functions' | 'lines'} CoverageMetric */
 /** @typedef {Record<CoverageMetric, {covered: number, total: number}>} FileCoverage */
 
 const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
-const DECLARATION_PATTERN = /\.d\.[cm]?ts$/
 /** @type {readonly CoverageMetric[]} */
 const COVERAGE_METRICS = ['statements', 'branches', 'functions', 'lines']
-export const CATEGORIES = /** @type {const} */ ([
-  'logic-baseline',
-  'storybook-ui',
-  'e2e-bootstrap',
-  'test-support',
-  'type-only',
-])
+export const CATEGORIES = Object.freeze(Object.keys(TREATMENTS))
 
 /** @type {Readonly<Record<string, string>>} */
 export const UI_COMPONENT_EXEMPTIONS = Object.freeze({
   'frontend/src/todos/components/TodoRow.jsx':
     'Layout wrapper only; TodoItem and TodoComposer stories exercise it.',
+  'frontend/src/todos/components/focusLeft.js':
+    'DOM focus helper exercised through the TodoComposer story interactions.',
 })
 
 /** @param {string} path @param {string} repositoryRoot */
@@ -64,78 +64,66 @@ const declaredStoryCounts = (source) => ({
  */
 export const classifySourcePath = (path) => {
   if (TEST_SOURCE_PATTERN.test(path)) return undefined
-
-  if (path === 'shared/src/types.js') {
-    return { category: 'type-only', rationale: 'JSDoc declarations with no runtime code' }
+  const entry = SOURCE_EVIDENCE_ENTRIES.find(({ path: registeredPath }) => registeredPath === path)
+  if (!entry) return undefined
+  const definition = TREATMENTS[entry.treatment]
+  return {
+    treatment: entry.treatment,
+    producer: definition.producer,
+    verdict: definition.verdict,
+    rationale: entry.rationale,
   }
-  // A declaration file emits nothing, so there is no execution to evidence. This
-  // is a rule rather than a path list because it holds for any `.d.ts` by
-  // construction, and the alternative is a new exemption per file.
-  if (DECLARATION_PATTERN.test(path)) {
-    return { category: 'type-only', rationale: 'ambient declarations with no runtime code' }
-  }
-  if (path === 'backend/src/index.js' || path === 'frontend/src/index.jsx') {
-    return { category: 'e2e-bootstrap', rationale: 'process or DOM bootstrap exercised by Playwright' }
-  }
-  if (
-    path === 'frontend/src/testing/storyHarness.jsx' ||
-    path === 'frontend/src/testing/storyDocs.js'
-  ) {
-    return { category: 'test-support', rationale: 'Storybook-only composition harness' }
-  }
-  if (
-    path === 'frontend/src/App.jsx' ||
-    path === 'frontend/src/theme.js' ||
-    /^frontend\/src\/todos\/components\/.*\.jsx$/.test(path)
-  ) {
-    return { category: 'storybook-ui', rationale: 'rendered and exercised by Storybook in Chromium' }
-  }
-  if (
-    /^shared\/src\/.*\.js$/.test(path) ||
-    /^backend\/src\/.*\.js$/.test(path) ||
-    /^frontend\/src\/todos\/.*\.js$/.test(path) ||
-    /^frontend\/src\/testing\/[^/]+\.js$/.test(path)
-  ) {
-    return { category: 'logic-baseline', rationale: 'exact per-file unit and Storybook coverage baseline' }
-  }
-  return undefined
 }
 
 /**
  * Account for every production source and join Storybook UI files to their
  * declared stories, executed browser tests, and informational coverage.
  *
- * @param {{sourcePaths: string[], baselinePaths: string[], summary: Record<string, any>, repositoryRoot: string, storySources: Record<string, string>, storyResults: {testResults?: Array<{name: string, assertionResults?: Array<{status?: string}>}>}}} input
- * @returns {{verdict: 'pass' | 'fail', issues: string[], categoryCounts: Record<string, number>, sources: Array<{path: string, category?: SourceEvidenceCategory, rationale?: string}>, ui: Array<{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage}>, uiTotals: FileCoverage}}
+ * @param {{sourcePaths: string[], registryEntries?: typeof SOURCE_EVIDENCE_ENTRIES, baselinePathsByProducer: Record<string, string[]>, summary: Record<string, any>, repositoryRoot: string, storySources: Record<string, string>, storyResults: {testResults?: Array<{name: string, assertionResults?: Array<{status?: string}>}>}}} input
+ * @returns {{verdict: 'pass' | 'fail', issues: string[], categoryCounts: Record<string, number>, sources: Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}>, ui: Array<{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage}>, uiTotals: FileCoverage}}
  */
 export const createSourceEvidence = ({
   sourcePaths,
-  baselinePaths,
+  registryEntries = SOURCE_EVIDENCE_ENTRIES,
+  baselinePathsByProducer,
   summary,
   repositoryRoot,
   storySources,
   storyResults,
 }) => {
-  const issues = []
+  const issues = validateSourceEvidenceRegistry({ entries: registryEntries, sourcePaths })
+  const registry = new Map(registryEntries.map((entry) => [entry.path, entry]))
+  /** @type {Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}>} */
   const sources = sourcePaths.slice().sort().map((path) => {
-    const classification = classifySourcePath(path)
-    if (!classification) issues.push(`${path}: no evidence category`)
-    return { path, ...classification }
+    const entry = registry.get(path)
+    if (!entry) return { path, treatment: undefined, producer: undefined, verdict: undefined, rationale: undefined }
+    const definition = TREATMENTS[entry.treatment]
+    if (!definition) return { path, treatment: entry.treatment, producer: undefined, verdict: undefined, rationale: entry.rationale }
+    return { path, treatment: entry.treatment, ...definition, rationale: entry.rationale }
   })
   const categoryCounts = Object.fromEntries(CATEGORIES.map((category) => [
     category,
-    sources.filter((source) => source.category === category).length,
+    sources.filter((source) => source.treatment === category).length,
   ]))
 
-  const logicPaths = sources
-    .filter(({ category }) => category === 'logic-baseline')
-    .map(({ path }) => path)
-  const baselineSet = new Set(baselinePaths)
-  for (const path of logicPaths) {
-    if (!baselineSet.has(path)) issues.push(`${path}: logic source is absent from the exact baseline`)
-  }
-  for (const path of baselineSet) {
-    if (!logicPaths.includes(path)) issues.push(`${path}: baseline entry is not classified as logic`)
+  for (const producer of ['node', 'storybook']) {
+    const ownedPaths = sources
+      .filter((source) => source.producer === producer && source.verdict === 'exact-coverage')
+      .map(({ path }) => path)
+    const baselineSet = new Set(baselinePathsByProducer[producer] ?? [])
+    for (const path of ownedPaths) {
+      if (!baselineSet.has(path)) {
+        issues.push(`${path}: ${producer}-owned source is absent from the ${producer} exact baseline`)
+      }
+    }
+    for (const path of baselineSet) {
+      const source = sources.find((candidate) => candidate.path === path)
+      if (source?.producer !== producer) {
+        issues.push(`${path}: ${producer} baseline entry is not owned by ${producer}`)
+      } else if (source.verdict !== 'exact-coverage') {
+        issues.push(`${path}: ${producer} baseline entry does not allow exact coverage`)
+      }
+    }
   }
 
   const summaryFiles = Object.fromEntries(Object.entries(summary)
@@ -147,7 +135,7 @@ export const createSourceEvidence = ({
   ]))
 
   const ui = sources
-    .filter(({ category }) => category === 'storybook-ui')
+    .filter(({ treatment }) => treatment === 'rendered-ui')
     .map(({ path }) => {
       const storyPath = componentStoryPath(path)
       const exemption = UI_COMPONENT_EXEMPTIONS[path]

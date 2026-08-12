@@ -105,6 +105,7 @@ export const STAGES = [
             command: bin('.', 'vitest'),
             args: ['run', '--coverage', '--reporter=default', '--reporter=blob'],
           },
+          { command: 'node', args: ['scripts/coverage-producer-cli.mjs', 'node'] },
         ],
       },
     ],
@@ -117,24 +118,8 @@ export const STAGES = [
         name: 'storybook',
         blurb: 'every story play function and axe pass',
         invocations: [
-          {
-            // Launched from `frontend/` so its browser provider and runner
-            // resolve through one install.
-            // Under the root Vitest process this run stalls. See ADR 006.
-            command: bin('frontend', 'vitest'),
-            args: [
-              'run',
-              '--config',
-              'vitest.storybook.config.js',
-              '--coverage',
-              '--reporter=default',
-              '--reporter=blob',
-              '--reporter=json',
-              '--outputFile.blob=../.vitest-reports/storybook.json',
-              '--outputFile.json=../.test-evidence/storybook.json',
-            ],
-            cwd: resolve(ROOT, 'frontend'),
-          },
+          { command: 'node', args: ['scripts/run-storybook-coverage.mjs'] },
+          { command: 'node', args: ['scripts/coverage-producer-cli.mjs', 'storybook'] },
         ],
       },
       {
@@ -166,11 +151,16 @@ export const STAGES = [
       },
       {
         name: 'coverage',
-        blurb: 'merged unit + storybook coverage against the exact per-file baseline',
+        blurb: 'producer-owned exact baselines plus informational combined coverage',
         invocations: [
           {
             command: bin('.', 'vitest'),
-            args: ['--mergeReports=.vitest-reports', '--coverage', '--reporter=dot'],
+            args: [
+              '--mergeReports=.vitest-reports',
+              '--coverage',
+              '--coverage.reportsDirectory=coverage',
+              '--reporter=dot',
+            ],
           },
           { command: 'node', args: ['scripts/coverage-evidence-cli.mjs'] },
         ],

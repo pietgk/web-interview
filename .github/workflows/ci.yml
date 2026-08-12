@@ -38,6 +38,9 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Check Storybook controller coverage stability
+        run: npm run coverage:check-storybook-stability
+
       # One step, one script, one order. CI runs exactly what `npm run verify`
       # runs locally, so a green local run cannot be surprised by a red build.
       - name: Verify

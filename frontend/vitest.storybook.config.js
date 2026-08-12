@@ -21,18 +21,18 @@ export default mergeConfig(
         configDir: path.join(dirname, '.storybook'),
         // Do not spawn Storybook from Vitest - the UI already owns that process.
         // Spawning via storybookScript + watch easily re-triggers runs and hangs Stop.
-        storybookUrl: 'http://localhost:6006',
+        storybookUrl: process.env.STORYBOOK_URL ?? 'http://localhost:6006',
       }),
     ],
     test: {
       name: 'storybook',
-      // Stories exercise the same non-UI seams the root config gates. Collecting
-      // here is what lets `verify quality` judge fakeDatomServer on what the
-      // stories prove, not only on what its unit test proves.
+      // Collect controller, rendered UI, and incidental runtime reach. The
+      // explicit evidence registry decides which controller files Storybook can
+      // gate; overlap with Node-owned files is informational only.
       coverage: {
         provider: 'v8',
-        // Collect both exact-baseline logic and informational UI evidence.
-        // The evidence module keeps those policy categories separate.
+        // The evidence module keeps owner exact coverage and rendered UI
+        // percentages separate.
         include: ['src/**/*.js', 'src/**/*.jsx'],
         // Vitest matches coverage includes as partial paths, so `*.js` also
         // matches the prefix of `*.jsx` unless the suffix is explicit here.
@@ -44,9 +44,10 @@ export default mergeConfig(
           'src/testing/storyHarness.jsx',
         ],
         // Browser bundles remap to their original JSX and test sources only
-        // after collection. Keep the evidence contract on logic seams.
+        // after collection. Reapply collection scope after remapping.
         excludeAfterRemap: true,
-        reporter: ['text-summary'],
+        reporter: ['text-summary', 'json-summary', 'json'],
+        reportsDirectory: '../.coverage-reports/storybook',
       },
       browser: {
         enabled: true,

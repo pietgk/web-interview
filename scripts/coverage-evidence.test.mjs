@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import {
-  createCoverageBaseline,
+  createOwnerCoverageBaseline,
   evaluateCoverage,
+  evaluateOwnerCoverage,
+  ownershipReviewIssues,
   renderCoverageHtml,
   renderCoverageMarkdown,
 } from './coverage-evidence.mjs'
@@ -282,15 +284,17 @@ test('renders escaped Markdown and HTML in the canonical evidence order', () => 
       verdict: 'pass',
       issues: [],
       categoryCounts: {
-        'logic-baseline': 1,
-        'storybook-ui': 1,
-        'e2e-bootstrap': 1,
-        'test-support': 0,
+        'node-runtime': 1,
+        'storybook-controller': 0,
+        'rendered-ui': 1,
+        'playwright-bootstrap': 1,
+        'test-support-node': 0,
+        'test-support-storybook': 0,
         'type-only': 1,
       },
       sources: [
-        { path: hostilePath, category: 'logic-baseline', rationale: 'exact coverage' },
-        { path: 'frontend/src/App.jsx', category: 'storybook-ui', rationale: 'browser stories' },
+        { path: hostilePath, treatment: 'node-runtime', rationale: 'exact coverage' },
+        { path: 'frontend/src/App.jsx', treatment: 'rendered-ui', rationale: 'browser stories' },
       ],
       ui: [{
         path: 'frontend/src/App.jsx',
@@ -341,21 +345,130 @@ test('renders escaped Markdown and HTML in the canonical evidence order', () => 
   }
 })
 
-test('creates a deterministic exact baseline without source revision state', () => {
-  const generated = createCoverageBaseline({
-    summary: summary({
-      'shared/src/z.js': fileCoverage(),
-      'backend/src/a.js': fileCoverage({ functions: tuple(0, 0) }),
-    }),
+test('owner baselines are structurally separated by producer', () => {
+  const generated = createOwnerCoverageBaseline({
+    summaries: {
+      node: summary({ 'shared/src/a.js': fileCoverage() }),
+      storybook: summary({ 'frontend/src/controller.js': fileCoverage() }),
+    },
     repositoryRoot: REPOSITORY_ROOT,
+    ownedPathsByProducer: {
+      node: ['shared/src/a.js'],
+      storybook: ['frontend/src/controller.js'],
+    },
+    registryDigest: 'reviewed-registry',
   })
 
-  assert.equal(generated.schemaVersion, 1)
-  assert.match(generated.notice, /Generated.*coverage:update-baseline.*Do not edit/)
-  assert.deepEqual(Object.keys(generated.files), [
-    'backend/src/a.js',
-    'shared/src/z.js',
+  assert.equal(generated.schemaVersion, 2)
+  assert.equal(generated.registryDigest, 'reviewed-registry')
+  assert.deepEqual(Object.keys(generated.owners.node.files), ['shared/src/a.js'])
+  assert.deepEqual(Object.keys(generated.owners.storybook.files), ['frontend/src/controller.js'])
+})
+
+test('baseline updates cannot hide an unreviewed ownership change', () => {
+  assert.deepEqual(ownershipReviewIssues({
+    baselineRegistryDigest: 'before',
+    currentRegistryDigest: 'after',
+    ownershipReviewed: false,
+  }), ['Evidence ownership changed. Review the registry diff before updating the baseline with COVERAGE_EVIDENCE_REVIEW_OWNERSHIP=1'])
+  assert.deepEqual(ownershipReviewIssues({
+    baselineRegistryDigest: 'before',
+    currentRegistryDigest: 'after',
+    ownershipReviewed: true,
+  }), [])
+})
+
+test('non-owner execution cannot rescue an owner regression', () => {
+  const nodePath = 'shared/src/a.js'
+  const storybookPath = 'frontend/src/controller.js'
+  const exact = fileCoverage()
+  const evaluation = evaluateOwnerCoverage({
+    summaries: {
+      node: summary({
+        [nodePath]: fileCoverage({ statements: tuple(3, 5) }),
+        [storybookPath]: exact,
+      }),
+      storybook: summary({
+        [nodePath]: fileCoverage({ statements: tuple(5, 5) }),
+        [storybookPath]: exact,
+      }),
+    },
+    baseline: {
+      schemaVersion: 2,
+      registryDigest: 'registry',
+      owners: {
+        node: { producer: 'node', files: { [nodePath]: exact } },
+        storybook: { producer: 'storybook', files: { [storybookPath]: exact } },
+      },
+    },
+    repositoryRoot: REPOSITORY_ROOT,
+    ownedPathsByProducer: { node: [nodePath], storybook: [storybookPath] },
+  })
+
+  assert.equal(evaluation.verdict, 'fail')
+  assert.equal(evaluation.owners.node.verdict, 'fail')
+  assert.equal(evaluation.owners.storybook.verdict, 'pass')
+})
+
+test('producer freshness failures block only the authoritative owner comparison', () => {
+  const path = 'shared/src/a.js'
+  const exact = fileCoverage()
+  const evaluation = evaluateOwnerCoverage({
+    summaries: { node: summary({ [path]: exact }), storybook: summary({}) },
+    baseline: {
+      schemaVersion: 2,
+      registryDigest: 'registry',
+      owners: {
+        node: { producer: 'node', files: { [path]: exact } },
+        storybook: { producer: 'storybook', files: {} },
+      },
+    },
+    repositoryRoot: REPOSITORY_ROOT,
+    ownedPathsByProducer: { node: [path], storybook: [] },
+    producerIssues: ['node coverage input digest does not match the current source and configuration'],
+  })
+
+  assert.equal(evaluation.verdict, 'fail')
+  assert.deepEqual(evaluation.producerIssues, [
+    'node coverage input digest does not match the current source and configuration',
   ])
-  assert.deepEqual(generated.files['backend/src/a.js'].functions, tuple(0, 0))
-  assert.equal('revision' in generated, false)
+})
+
+test('owner reports label gating producers and informational combined views precisely', () => {
+  const nodePath = 'shared/src/a.js'
+  const controllerPath = 'frontend/src/controller.js'
+  const exact = fileCoverage()
+  const evaluation = evaluateOwnerCoverage({
+    summaries: {
+      node: summary({ [nodePath]: exact }),
+      storybook: summary({ [controllerPath]: exact }),
+    },
+    baseline: {
+      owners: {
+        node: { producer: 'node', files: { [nodePath]: exact } },
+        storybook: { producer: 'storybook', files: { [controllerPath]: exact } },
+      },
+    },
+    repositoryRoot: REPOSITORY_ROOT,
+    ownedPathsByProducer: { node: [nodePath], storybook: [controllerPath] },
+    combinedAutomation: {
+      status: 'withheld',
+      incompatibleFiles: [{ path: nodePath, reason: 'executable maps differ between producers' }],
+    },
+    provenance: { revision: 'abc', dirty: false, generatedAt: 'now', scope: 'producer-owned coverage evidence' },
+  })
+
+  const markdown = renderCoverageMarkdown(evaluation)
+  assert.match(markdown, /Node-owned runtime reach \(gating - Node Vitest\)/)
+  assert.match(markdown, /Storybook controller reach \(gating - Storybook Chromium\)/)
+  assert.match(markdown, /Combined owned runtime reach \(informational\)/)
+  assert.match(markdown, /Combined automation reach \(informational\)/)
+  assert.match(markdown, /withheld/i)
+  assert.doesNotMatch(markdown, /Playwright source coverage/)
+
+  const html = renderCoverageHtml(evaluation)
+  assert.match(html, /Node-owned runtime reach/)
+  assert.match(html, /Storybook controller reach/)
+  assert.match(html, /Combined owned runtime reach/)
+  assert.match(html, /Combined automation reach/)
 })

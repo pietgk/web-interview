@@ -9,7 +9,8 @@ fails.
 TODO this is wip and needs further trimming as its to much. So read it with that in mind and if you have suggestions feel free to share. this is deferrred until after the ADR and docs rewrite to make it human readable and as simple minimal as possible again.
 
 **See also:** [`docs/verify.md`](./verify.md) for command/stage reference (authoritative stage list:
-`npm run verify help`). Decision record: [ADR 006](./adr/006-test-execution-model.md).
+`npm run verify help`). Decision records: [ADR 006](./adr/006-test-execution-model.md) and
+[ADR 010](./adr/010-producer-owned-coverage-evidence.md).
 
 ## The protection model
 
@@ -51,8 +52,8 @@ flowchart LR
 
 Evidence protection checks that the repository is still proving the source it claims to prove.
 
-- **Coverage baseline comparison** compares the merged V8 result with the recorded per-file
-  baseline.
+- **Coverage baseline comparison** compares each exact-owned file only with fresh evidence from
+  its required Node or Storybook producer.
 - **Source accounting** assigns every production source an evidence treatment. It does not claim
   that only one test type can exercise that source.
 - **UI story discovery, execution, and coverage evidence** make missing stories, unexecuted
@@ -61,21 +62,29 @@ Evidence protection checks that the repository is still proving the source it cl
 
 Source accounting currently uses these evidence categories:
 
-| Evidence category | Treatment |
+| Evidence treatment | Required evidence |
 | --- | --- |
-| `logic-baseline` | Exact per-file unit and Storybook coverage baseline comparison |
-| `storybook-ui` | Rendered and exercised by Storybook in Chromium |
-| `e2e-bootstrap` | Process or DOM bootstrap exercised by Playwright |
-| `test-support` | Storybook-only composition support |
-| `type-only` | JSDoc declarations with no runtime code |
+| `node-runtime` | Exact per-file Node Vitest owner baseline |
+| `storybook-controller` | Exact per-file Storybook Chromium owner baseline |
+| `rendered-ui` | Story discovery, execution, play assertions, axe, and informational browser coverage |
+| `playwright-bootstrap` | Relevant assembled-system journey |
+| `test-support-node` | Explicit accounting in its Node test environment |
+| `test-support-storybook` | Explicit accounting in its Storybook test environment |
+| `type-only` | TypeScript typecheck; no runtime coverage |
 
 ```mermaid
 flowchart LR
-  V["Vitest<br/>logic coverage"] --> M["Merge results"]
-  S["Storybook<br/>UI and logic coverage"] --> M
-  M --> E["Evaluate baseline<br/>and source accounting"]
-  E --> R["coverage/report.html"]
-  P["Playwright journey evidence"] -. separate from merged V8 percentages .-> E
+  V["Node Vitest<br/>coverage"] --> N["Node-owned<br/>exact baseline"]
+  S["Storybook Chromium<br/>coverage"] --> C["Controller-owned<br/>exact baseline"]
+  V --> O["Combined owned runtime reach<br/>informational"]
+  S --> O
+  V -. compatible maps only .-> A["Combined automation reach<br/>optional and informational"]
+  S -. compatible maps only .-> A
+  N --> R["coverage/report.html"]
+  C --> R
+  O --> R
+  A --> R
+  P["Playwright journey evidence"] -. separate from V8 source coverage .-> R
 ```
 
 Tests ask whether behavior works. Coverage asks whether those tests still reach the source we
@@ -109,7 +118,7 @@ are the useful parts to remember.
 | Logic tests - Vitest in Node | Deterministic domain and repository logic can be wrong | Assertions over models, protocols, state transitions, and scripts |
 | Component and UI scenarios - Storybook play and axe in Chromium | A component can work in isolation only for the happy path, or violate accessibility | Discovered stories, play functions, axe checks, and UI plus logic coverage |
 | End-to-end journeys - Playwright | The assembled system can fail across frontend, backend, journal, network, or browser boundaries | Selected user journeys through the real frontend, backend, journal, network, and Chromium |
-| Coverage baseline comparison | A test suite can regress its source reach without an obvious behavior failure | Statements, branches, functions, and lines per baseline-controlled logic file |
+| Coverage baseline comparison | A required producer can regress its source reach without an obvious behavior failure | Statements, branches, functions, and lines per exact-owned file, using only its required producer |
 | Source accounting | Production source can be unowned or assigned to the wrong evidence contract | Exactly one evidence treatment for every production source, with baseline paths aligned |
 | UI story discovery, execution, and coverage evidence | A UI source can have no story, an unrun story, a failed story, or missing coverage | Declared stories versus executed stories, play and axe results, and informational UI coverage |
 | Typecheck | Generated declarations and TypeScript projects can disagree | Declaration generation, declaration checks, and every configured TypeScript project |
@@ -127,7 +136,7 @@ This is the second lens: it explains when checks run. The stages run in this ord
 flowchart LR
   A["static<br/>repository consistency"] --> B["unit<br/>logic behavior and evidence"]
   B --> C["browser<br/>UI and journey behavior and evidence"]
-  C --> D["quality<br/>production output and merged coverage"]
+  C --> D["quality<br/>production output and producer-owned coverage"]
 ```
 
 Verification fails between stages, because later results would no longer mean what they claim.
@@ -144,7 +153,7 @@ Within a stage, every check runs so one failure does not hide its siblings.
 | `browser` | End-to-end journeys | Playwright `e2e` through the assembled system |
 | `quality` | Production bundle | Vite `build` |
 | `quality` | Production quality | Lighthouse `lighthouse` |
-| `quality` | Merged evidence against the baseline | Coverage merge and `coverage` |
+| `quality` | Producer-owned evidence against owner baselines | Coverage evaluation and `coverage`; merged maps remain informational |
 
 The exact current mechanics and selective names are always available through:
 `npm run verify help`.
@@ -165,18 +174,24 @@ or any named step from `npm run verify help`.
 `npm run watch` never ends. Agents must not start it; use a finite verification command instead.
 The watch process is intentionally a development loop, not the complete verdict.
 
-## Coverage: one clean contract
+## Coverage: one producer-owned contract
 
-Vitest produces logic coverage evidence. Storybook produces UI and logic coverage evidence. Those
-results merge, are evaluated, and produce the coverage report. Playwright provides journey
-evidence and is not included in merged V8 percentages.
+Node Vitest and Storybook Chromium retain separate summaries, complete Istanbul maps, source
+state, producer identity, and source/configuration digests. Node-owned runtime files compare only
+with Node evidence. Storybook controller files compare only with Storybook evidence. Rendered UI
+percentages remain informational. Playwright provides journey evidence and does not emit source
+coverage for these views.
 
 ```mermaid
 flowchart TD
-  V["Vitest<br/>logic coverage"] --> M["Merge V8 evidence"]
-  S["Storybook<br/>UI and logic coverage"] --> M
-  M --> C["Compare each baseline-controlled logic file"]
-  C --> R["coverage/summary.md<br/>coverage/report.html"]
+  V["Node Vitest<br/>fresh evidence"] --> N["Node owner baseline"]
+  S["Storybook Chromium<br/>fresh evidence"] --> C["Controller owner baseline"]
+  N --> R["coverage/summary.md<br/>coverage/report.html"]
+  C --> R
+  V --> O["Owned runtime rollup"] --> R
+  S --> O
+  V -. compatible maps .-> A["Optional automation union"] --> R
+  S -. compatible maps .-> A
   R --> X["coverage/index.html<br/>line explorer"]
   P["Playwright<br/>journey evidence"] --> J["e2e result"]
 ```
@@ -197,7 +212,7 @@ reviewed and recorded before the check passes.
 
 Totals can change when source changes. The uncovered count must not increase, and the covered
 proportion must not decrease. The comparison happens separately for statements, branches,
-functions, and lines in every baseline-controlled logic file. A new or deleted baseline-controlled
+functions, and lines in every exact-owned runtime file. A new or deleted exact-owned
 file is also a contract change and appears in the coverage report.
 
 Normal verification never rewrites the baseline. After reviewing a genuine improvement, run
@@ -218,21 +233,23 @@ This is the complete human flow when a change improves coverage:
 6. Run `mise exec node@22 -- npm test` again. The final verdict must be green against the newly
    recorded baseline.
 
-The update command regenerates unit and Storybook evidence together, merges it, refuses regressions,
-updates `coverage-baseline.json`, and rewrites the same coverage reports. A regression still fails
-the update command; baseline updates are only for reviewed improvements or deliberate file-set
-changes that satisfy the coverage contract.
+The update command regenerates Node and Storybook evidence together, refuses owner regressions,
+updates both producer sections in `coverage-baseline.json`, and rewrites the same reports. A
+regression still fails the update command. Ownership or file-set changes require reviewing the
+registry and running the same command with `COVERAGE_EVIDENCE_REVIEW_OWNERSHIP=1`; there is no
+second baseline command.
 
 ### How coverage evidence flows
 
-- **Vitest:** loads shared, backend, frontend logic, and repository-script tests in Node; its V8
-  blob is the logic evidence.
+- **Vitest:** loads shared, backend, frontend logic, and repository-script tests in Node; its
+  summary and Istanbul map are retained under `.coverage-reports/node/`.
 - **Storybook:** discovers every story, runs every play function and axe check in Chromium, and
-  writes UI plus logic coverage evidence.
-- **Merge and evaluate:** combines the two V8 blobs, applies source accounting, compares each
-  logic file with `coverage-baseline.json`, and writes the Markdown and HTML reports.
-- **Playwright:** records assembled-system journey evidence independently from merged V8
-  percentages.
+  retains its summary and map under `.coverage-reports/storybook/`.
+- **Evaluate:** validates both report digests, applies the explicit evidence registry, compares
+  each exact-owned file only with its producer section, and writes Markdown and HTML reports.
+- **Combine:** selects one required producer per exact-owned file for the normal informational
+  rollup. A wider Node plus Storybook union appears only when overlapping maps are compatible.
+- **Playwright:** records assembled-system journey evidence independently from V8 percentages.
 
 ## How the main flows work
 
@@ -277,7 +294,7 @@ flowchart LR
 | Logic test | A tested behavior is wrong or its contract changed | Vitest output and the named test |
 | Storybook play or axe | A component state, interaction, or accessibility rule failed in Chromium | Storybook output and the story |
 | Playwright journey | The assembled frontend, backend, journal, network, or browser journey failed | Playwright trace and test output |
-| Coverage regression | A baseline-controlled file lost evidence, gained uncovered source, or changed its proportion in the wrong direction | `coverage/report.html` and `coverage/summary.md` |
+| Coverage regression | An exact-owned file lost evidence from its required producer, gained uncovered source, or changed its proportion in the wrong direction | `coverage/report.html` and `coverage/summary.md` |
 | Source accounting | A production source lacks exactly one evidence treatment, or UI story discovery/execution/coverage is incomplete | Source ownership and UI sections of the coverage report |
 | Typecheck, lint, audit, or diagrams | The repository is internally inconsistent or carries a declared dependency/documentation risk | The failing static check |
 | Production build | The code cannot assemble into the shipped frontend bundle | Build output |
@@ -299,6 +316,7 @@ make it pass; fix the cause or review the contract change.
 - `npm run verify help` - exact current stages, checks, and selective commands
 - [ADR 005: Testing seams and Storybook](./adr/005-testing-and-storybook.md)
 - [ADR 006: How tests are run](./adr/006-test-execution-model.md)
+- [ADR 010: Producer-owned coverage evidence](./adr/010-producer-owned-coverage-evidence.md)
 
 The existing architecture visual has an incomplete final verification row. Its SVG, HTML, and
 Excalidraw source are intentionally unchanged in this slice; visual cleanup is deferred.
