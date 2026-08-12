@@ -10,7 +10,11 @@ const FAIL = 'FAIL'
 const SKIP = 'SKIP'
 const DIM = '[2m'
 const RESET = '[0m'
-const NAME_COLUMN_WIDTH = 11
+const NAME_COLUMN_GAP = 1
+const NAME_COLUMN_WIDTH = Math.max(...STAGES.flatMap(({ name, steps }) => [
+  name.length,
+  ...steps.map(({ name: stepName }) => stepName.length),
+])) + NAME_COLUMN_GAP
 const STATUS_COLUMN_WIDTH = 6
 const SECONDS_COLUMN_WIDTH = 7
 const CLI_USAGE_EXIT_CODE = 2
@@ -111,9 +115,9 @@ const printHelp = () => {
     '',
   ]
   for (const stage of STAGES) {
-    lines.push(`  ${stage.name.padEnd(11)}${stage.blurb}`)
+    lines.push(`  ${stage.name.padEnd(NAME_COLUMN_WIDTH)}${stage.blurb}`)
     for (const step of stage.steps) {
-      lines.push(`    ${step.name.padEnd(11)}${step.blurb}`)
+      lines.push(`    ${step.name.padEnd(NAME_COLUMN_WIDTH)}${step.blurb}`)
     }
     lines.push('')
   }
@@ -235,7 +239,7 @@ const main = async () => {
         if (!artifact) return null
         const path = resolve(ROOT, artifact)
         if (!existsSync(path)) return null
-        return `  ${row.name.padEnd(11)}${DIM}${pathToFileURL(path).href}${RESET}`
+        return `  ${row.name.padEnd(NAME_COLUMN_WIDTH)}${DIM}${pathToFileURL(path).href}${RESET}`
       })
   )
   const found = links.filter((link) => link !== null)
