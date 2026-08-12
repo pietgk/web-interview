@@ -3,9 +3,11 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import {
+  COVERAGE_PROVIDER,
   createEvidenceDigest,
   normalizeCoveragePath,
   PRODUCER_CONFIG_PATHS,
+  resolveCoverageProviderProvenance,
 } from './coverage-producers.mjs'
 import { ROOT } from './stages.mjs'
 
@@ -18,6 +20,10 @@ if (!Object.hasOwn(PRODUCER_CONFIG_PATHS, producerArg)) {
   throw new Error(`Usage: node scripts/coverage-producer-cli.mjs <${Object.keys(PRODUCER_CONFIG_PATHS).join('|')}>`)
 }
 const producer = /** @type {'node' | 'storybook'} */ (producerArg)
+const providerProvenance = await resolveCoverageProviderProvenance(producer, ROOT)
+if (providerProvenance.issues.length > 0) {
+  throw new Error(providerProvenance.issues.join('\n'))
+}
 
 const directory = resolve(ROOT, '.coverage-reports', producer)
 const mapPath = resolve(directory, 'coverage-final.json')
@@ -44,8 +50,12 @@ const [{ stdout: revision }, { stdout: status }] = await Promise.all([
 ])
 
 const manifest = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   producer,
+  coverageProvider: {
+    ...COVERAGE_PROVIDER,
+    version: providerProvenance.coverageProvider.version,
+  },
   revision: revision.trim(),
   dirty: status.trim().length > 0,
   generatedAt: new Date().toISOString(),

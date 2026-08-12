@@ -1,3 +1,5 @@
 coverage-browser/
+coverage-browser-istanbul/
 coverage-node/
+coverage-node-istanbul/
 node_modules/

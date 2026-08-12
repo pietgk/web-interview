@@ -8,6 +8,10 @@ explicit registry in [`scripts/source-evidence-registry.mjs`](../scripts/source-
 every entry names one treatment and carries the per-file rationale reviewed here. Filesystem rules
 only discover source; they do not assign treatment.
 
+Both exact-coverage producers use the pinned Istanbul provider. Their evidence manifests and the
+generated baseline record provider name, package, and resolved version independently at the root
+and frontend install boundaries.
+
 ## Accepted treatment rules
 
 | Treatment | Required producer | Verdict |

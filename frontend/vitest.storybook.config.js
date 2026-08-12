@@ -4,6 +4,7 @@ import { defineConfig, mergeConfig } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
 import viteConfig from './vite.config.js'
+import { COVERAGE_PROVIDER } from '../scripts/coverage-producers.mjs'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -30,7 +31,7 @@ export default mergeConfig(
       // explicit evidence registry decides which controller files Storybook can
       // gate; overlap with Node-owned files is informational only.
       coverage: {
-        provider: 'v8',
+        provider: COVERAGE_PROVIDER.name,
         // The evidence module keeps owner exact coverage and rendered UI
         // percentages separate.
         include: ['src/**/*.js', 'src/**/*.jsx'],

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config'
+import { COVERAGE_PROVIDER } from './scripts/coverage-producers.mjs'
 
 // One Vitest process for everything that runs in Node. Each project
 // keeps its own config so it resolves its own dependencies from its own
@@ -29,7 +30,7 @@ export default defineConfig({
       './scripts/vitest.config.js',
     ],
     coverage: {
-      provider: 'v8',
+      provider: COVERAGE_PROVIDER.name,
       include: NODE_COVERAGE_COLLECTION,
       exclude: [
         '**/*.test.js',
@@ -42,8 +43,6 @@ export default defineConfig({
       // AST remapping can reveal original test and JSX sources after the first
       // include pass. Reapply collection scope to those source paths.
       excludeAfterRemap: true,
-      // Vitest 4's V8 provider always uses AST-aware remapping, so non-runtime
-      // comments and empty lines are excluded without the removed legacy hack.
       // `html` keeps Istanbul's line-level explorer. The canonical evidence
       // landing page is generated separately at coverage/report.html.
       reporter: ['text', 'json-summary', 'json', 'html'],

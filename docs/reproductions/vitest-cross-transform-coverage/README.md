@@ -1,7 +1,10 @@
 # Vitest cross-transform coverage reproduction
 
-This self-contained fixture reproduces two executable-map differences when the same source and
-package versions run under Vitest Node SSR coverage and Vitest browser coverage.
+This self-contained fixture proves both sides of the repository's coverage-provider decision when
+the same sources and package versions run under Vitest Node SSR and browser coverage:
+
+- V8 produces two incompatible executable maps.
+- Istanbul produces exact statement, function, and branch maps for both cases.
 
 ## Run
 
@@ -13,11 +16,12 @@ npx playwright install chromium
 npm run reproduce
 ```
 
-The final command asserts the stable imported-call locations and the structural browser-only
-React statement, then prints:
+The final command runs explicit Node and browser configurations for both providers. It fails if
+either V8 incompatibility disappears unexpectedly or either Istanbul map becomes incompatible,
+then prints:
 
 ```text
-Reproduced imported-call column shift and browser-only React import statement.
+Reproduced V8 incompatibility and Istanbul compatibility.
 ```
 
 ## Exact versions
@@ -25,13 +29,14 @@ Reproduced imported-call column shift and browser-only React import statement.
 - Node 22
 - Vitest 4.1.10
 - `@vitest/coverage-v8` 4.1.10
+- `@vitest/coverage-istanbul` 4.1.10
 - `ast-v8-to-istanbul` 1.0.5, pinned transitively by `package-lock.json`
 - Vite 6.4.3
 - `@vitest/browser-playwright` 4.1.10
 - Playwright 1.62.1
 - React 18.3.1
 
-Both paths use Vitest's V8 coverage provider. Only the Vite transform environment differs.
+The V8 pair and Istanbul pair each differ only by their Vite transform environment.
 
 ## Imported-call mismatch
 
@@ -97,3 +102,12 @@ executable assertion requires the stable fact that it is an extra statement on l
 the original line-3 statement remains unchanged.
 
 This structural case is why subtracting one column or merging by counter ID would be unsafe.
+
+## Istanbul compatibility
+
+For both `imported-call.js` and `named-react-import.js`, the complete `statementMap`, `fnMap`, and
+`branchMap` are exactly equal between the Node and browser reports. The canonical comparison checks
+all six map pairs after proving the two V8 incompatibilities above.
+
+Generated reports are ignored. The fixture never relies on checked-in experiment output, so
+`npm run reproduce` always proves the current pinned installations and explicit configurations.

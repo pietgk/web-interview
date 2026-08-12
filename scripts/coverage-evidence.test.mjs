@@ -5,12 +5,17 @@ import {
   evaluateCoverage,
   evaluateOwnerCoverage,
   ownershipReviewIssues,
+  providerReviewIssues,
   renderCoverageHtml,
   renderCoverageMarkdown,
 } from './coverage-evidence.mjs'
 
 const REPOSITORY_ROOT = '/repo'
 const METRICS = ['statements', 'branches', 'functions', 'lines']
+const coverageProviders = {
+  node: { name: 'istanbul', package: '@vitest/coverage-istanbul', version: '4.1.10' },
+  storybook: { name: 'istanbul', package: '@vitest/coverage-istanbul', version: '4.1.10' },
+}
 
 /** @param {number} covered @param {number} total */
 const tuple = (covered, total) => ({ covered, total })
@@ -357,12 +362,52 @@ test('owner baselines are structurally separated by producer', () => {
       storybook: ['frontend/src/controller.js'],
     },
     registryDigest: 'reviewed-registry',
+    coverageProviders,
   })
 
-  assert.equal(generated.schemaVersion, 2)
+  assert.equal(generated.schemaVersion, 3)
   assert.equal(generated.registryDigest, 'reviewed-registry')
+  assert.deepEqual(generated.coverageProviders, coverageProviders)
   assert.deepEqual(Object.keys(generated.owners.node.files), ['shared/src/a.js'])
   assert.deepEqual(Object.keys(generated.owners.storybook.files), ['frontend/src/controller.js'])
+})
+
+test('baseline provider migration requires an explicit review signal', () => {
+  const v8Providers = {
+    node: { name: 'v8', package: '@vitest/coverage-v8', version: '4.1.10' },
+    storybook: { name: 'v8', package: '@vitest/coverage-v8', version: '4.1.10' },
+  }
+
+  assert.deepEqual(providerReviewIssues({
+    baselineCoverageProviders: undefined,
+    currentCoverageProviders: coverageProviders,
+    mode: 'check',
+    providerReviewed: false,
+  }), ['Coverage provider provenance differs from the baseline. Review the provider migration before updating with COVERAGE_EVIDENCE_REVIEW_PROVIDER=1'])
+  assert.deepEqual(providerReviewIssues({
+    baselineCoverageProviders: v8Providers,
+    currentCoverageProviders: coverageProviders,
+    mode: 'check',
+    providerReviewed: false,
+  }), ['Coverage provider provenance differs from the baseline. Review the provider migration before updating with COVERAGE_EVIDENCE_REVIEW_PROVIDER=1'])
+  assert.deepEqual(providerReviewIssues({
+    baselineCoverageProviders: v8Providers,
+    currentCoverageProviders: coverageProviders,
+    mode: 'update-baseline',
+    providerReviewed: false,
+  }), ['Coverage provider provenance differs from the baseline. Review the provider migration before updating with COVERAGE_EVIDENCE_REVIEW_PROVIDER=1'])
+  assert.deepEqual(providerReviewIssues({
+    baselineCoverageProviders: v8Providers,
+    currentCoverageProviders: coverageProviders,
+    mode: 'update-baseline',
+    providerReviewed: true,
+  }), [])
+  assert.deepEqual(providerReviewIssues({
+    baselineCoverageProviders: v8Providers,
+    currentCoverageProviders: coverageProviders,
+    mode: 'check',
+    providerReviewed: true,
+  }), ['Coverage provider provenance differs from the baseline. Review the provider migration before updating with COVERAGE_EVIDENCE_REVIEW_PROVIDER=1'])
 })
 
 test('baseline updates cannot hide an unreviewed ownership change', () => {
@@ -432,6 +477,29 @@ test('producer freshness failures block only the authoritative owner comparison'
   assert.deepEqual(evaluation.producerIssues, [
     'node coverage input digest does not match the current source and configuration',
   ])
+})
+
+test('combined automation admission issues fail the evidence verdict', () => {
+  const evaluation = evaluateOwnerCoverage({
+    summaries: { node: summary({}), storybook: summary({}) },
+    baseline: {
+      owners: {
+        node: { producer: 'node', files: {} },
+        storybook: { producer: 'storybook', files: {} },
+      },
+    },
+    repositoryRoot: REPOSITORY_ROOT,
+    ownedPathsByProducer: { node: [], storybook: [] },
+    combinedAutomation: {
+      status: 'withheld',
+      incompatibleFiles: [],
+      providerIssues: ['Node and Storybook coverage providers differ'],
+      admissionIssues: [],
+    },
+  })
+
+  assert.equal(evaluation.verdict, 'fail')
+  assert.match(renderCoverageMarkdown(evaluation), /Node and Storybook coverage providers differ/)
 })
 
 test('owner reports label gating producers and informational combined views precisely', () => {
@@ -527,7 +595,13 @@ test('owner reports label gating producers and informational combined views prec
         },
       }],
     },
-    provenance: { revision: 'abc', dirty: false, generatedAt: 'now', scope: 'producer-owned coverage evidence' },
+    provenance: {
+      revision: 'abc',
+      dirty: false,
+      generatedAt: 'now',
+      scope: 'producer-owned coverage evidence',
+      coverageProviders,
+    },
   })
 
   const markdown = renderCoverageMarkdown(evaluation)
@@ -535,6 +609,9 @@ test('owner reports label gating producers and informational combined views prec
   assert.match(markdown, /Storybook controller reach \(gating - Storybook Chromium\)/)
   assert.match(markdown, /Combined owned runtime reach \(informational\)/)
   assert.match(markdown, /Combined automation reach \(informational\)/)
+  assert.match(markdown, /Coverage providers/)
+  assert.match(markdown, /Node Vitest \| istanbul \| @vitest\/coverage-istanbul \| 4\.1\.10/)
+  assert.match(markdown, /Storybook Chromium \| istanbul \| @vitest\/coverage-istanbul \| 4\.1\.10/)
   assert.match(markdown, /withheld/i)
   assert.match(markdown, /Source digest: matches/)
   assert.match(markdown, /Statements: 233 Node \/ 233 Storybook; 1 location differs/)
@@ -550,6 +627,8 @@ test('owner reports label gating producers and informational combined views prec
   assert.match(html, /Storybook controller reach/)
   assert.match(html, /Combined owned runtime reach/)
   assert.match(html, /Combined automation reach/)
+  assert.match(html, /Coverage providers/)
+  assert.match(html, /@vitest\/coverage-istanbul/)
   assert.match(html, /Source digest: matches/)
   assert.match(html, /Counter 38: Node 131:14-end, Storybook 131:15-end/)
   assert.doesNotMatch(html, /href="index\.html"/)

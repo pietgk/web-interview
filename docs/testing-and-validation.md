@@ -84,7 +84,7 @@ flowchart LR
   C --> R
   O --> R
   A --> R
-  P["Playwright journey evidence"] -. separate from V8 source coverage .-> R
+  P["Playwright journey evidence"] -. separate from Istanbul source coverage .-> R
 ```
 
 Tests ask whether behavior works. Coverage asks whether those tests still reach the source we
@@ -237,8 +237,20 @@ This is the complete human flow when a change improves coverage:
 The update command regenerates Node and Storybook evidence together, refuses owner regressions,
 updates both producer sections in `coverage-baseline.json`, and rewrites the same reports. A
 regression still fails the update command. Ownership or file-set changes require reviewing the
-registry and running the same command with `COVERAGE_EVIDENCE_REVIEW_OWNERSHIP=1`; there is no
-second baseline command.
+registry and running the same command with `COVERAGE_EVIDENCE_REVIEW_OWNERSHIP=1`. A coverage
+provider change starts a fresh tuple contract and requires
+`COVERAGE_EVIDENCE_REVIEW_PROVIDER=1`. Both signals apply only to the same canonical baseline
+command; there is no second baseline command.
+
+Producer manifests and the generated baseline record the provider name, package, and resolved
+version. The Node producer resolves from the root install and Storybook resolves from the frontend
+install. Missing metadata, dependency skew, or a provider mismatch with the baseline fails before
+the optional automation maps can be combined.
+
+Vitest declares both coverage packages as optional peers, so npm currently materializes
+`@vitest/coverage-v8` transitively under Vitest even though neither repository manifest declares or
+selects it. The only direct coverage dependency and active configured provider is the pinned
+Istanbul package; captured producer provenance verifies that selection at runtime.
 
 ### How coverage evidence flows
 
@@ -250,7 +262,7 @@ second baseline command.
   each exact-owned file only with its producer section, and writes Markdown and HTML reports.
 - **Combine:** selects one required producer per exact-owned file for the normal informational
   rollup. A wider Node plus Storybook union appears only when overlapping maps are compatible.
-- **Playwright:** records assembled-system journey evidence independently from V8 percentages.
+- **Playwright:** records assembled-system journey evidence independently from Istanbul percentages.
 
 ## How the main flows work
 

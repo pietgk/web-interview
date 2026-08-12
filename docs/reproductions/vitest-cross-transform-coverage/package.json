@@ -7,12 +7,15 @@
     "node": "22.x"
   },
   "scripts": {
-    "coverage:node": "vitest run --config node.config.js --coverage",
-    "coverage:browser": "vitest run --config browser.config.js --coverage",
-    "reproduce": "npm run coverage:node && npm run coverage:browser && node compare.mjs"
+    "coverage:node:v8": "vitest run --config node-v8.config.js --coverage",
+    "coverage:browser:v8": "vitest run --config browser-v8.config.js --coverage",
+    "coverage:node:istanbul": "vitest run --config node-istanbul.config.js --coverage",
+    "coverage:browser:istanbul": "vitest run --config browser-istanbul.config.js --coverage",
+    "reproduce": "npm run coverage:node:v8 && npm run coverage:browser:v8 && npm run coverage:node:istanbul && npm run coverage:browser:istanbul && node compare.mjs"
   },
   "devDependencies": {
     "@vitest/browser-playwright": "4.1.10",
+    "@vitest/coverage-istanbul": "4.1.10",
     "@vitest/coverage-v8": "4.1.10",
     "playwright": "1.62.1",
     "react": "18.3.1",

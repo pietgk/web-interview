@@ -1,19 +1,23 @@
 import { execFile } from 'node:child_process'
-import { appendFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { appendFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import {
   createOwnerCoverageBaseline,
   evaluateOwnerCoverage,
   ownershipReviewIssues,
+  providerReviewIssues,
   renderCoverageHtml,
   renderCoverageMarkdown,
 } from './coverage-evidence.mjs'
+import { removeWithheldCombinedExplorer } from './coverage-artifacts.mjs'
 import {
   createCombinedAutomationReach,
   createEvidenceDigest,
+  EXPECTED_COMBINED_AUTOMATION_OVERLAP_FILES,
   normalizeCoveragePath,
   PRODUCER_CONFIG_PATHS,
+  resolveCoverageProviderProvenance,
   validateProducerManifest,
 } from './coverage-producers.mjs'
 import {
@@ -73,8 +77,8 @@ const sourceState = async () => {
   return { revision: revision.trim(), dirty: status.trim().length > 0 }
 }
 
-/** @param {'node' | 'storybook'} producer @param {{revision: string, dirty: boolean}} currentState */
-const readProducerEvidence = async (producer, currentState) => {
+/** @param {'node' | 'storybook'} producer @param {{revision: string, dirty: boolean}} currentState @param {Record<string, any>} currentCoverageProvider */
+const readProducerEvidence = async (producer, currentState, currentCoverageProvider) => {
   const directory = resolve(ROOT, '.coverage-reports', producer)
   const [summary, map, manifest] = await Promise.all([
     readJson(resolve(directory, 'coverage-summary.json')),
@@ -95,6 +99,7 @@ const readProducerEvidence = async (producer, currentState) => {
     manifest,
     ...currentState,
     currentInputDigest: createEvidenceDigest(inputContents),
+    currentCoverageProvider,
   })
   if (JSON.stringify(sourcePaths) !== JSON.stringify(manifest.sourcePaths)) {
     issues.push(`${producer} coverage map source set does not match its manifest`)
@@ -115,6 +120,7 @@ const writeReports = async (evaluation) => {
     storybookRenderedUi: evaluation.sourceEvidence?.uiTotals,
     combinedOwnedRuntime: evaluation.combinedOwnedRuntime,
     combinedAutomation: evaluation.combinedAutomation,
+    coverageProviders: evaluation.provenance.coverageProviders,
   }
   await mkdir(resolve(ROOT, 'coverage'), { recursive: true })
   await Promise.all([
@@ -133,6 +139,7 @@ const main = async () => {
   /** @type {'check' | 'update-baseline'} */
   const mode = /** @type {'check' | 'update-baseline'} */ (requestedMode)
   const ownershipReviewed = process.env.COVERAGE_EVIDENCE_REVIEW_OWNERSHIP === '1'
+  const providerReviewed = process.env.COVERAGE_EVIDENCE_REVIEW_PROVIDER === '1'
   const [rawBaselineJson, storyResults, sources, currentState] = await Promise.all([
     readJson(BASELINE_PATH),
     readJson(STORY_RESULTS_PATH),
@@ -140,9 +147,17 @@ const main = async () => {
     sourceState(),
   ])
   const rawBaseline = /** @type {Record<string, any>} */ (rawBaselineJson)
+  const installedProviders = Object.fromEntries(await Promise.all(PRODUCERS.map(async (producer) => [
+    producer,
+    await resolveCoverageProviderProvenance(producer, ROOT),
+  ])))
+  const coverageProviders = Object.fromEntries(PRODUCERS.map((producer) => [
+    producer,
+    installedProviders[producer].coverageProvider,
+  ]))
   const producerEvidence = Object.fromEntries(await Promise.all(PRODUCERS.map(async (producer) => [
     producer,
-    await readProducerEvidence(producer, currentState),
+    await readProducerEvidence(producer, currentState, coverageProviders[producer]),
   ])))
   const summaries = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
@@ -156,7 +171,14 @@ const main = async () => {
     producer,
     producerEvidence[producer].manifest.sourceDigests,
   ]))
-  const producerIssues = PRODUCERS.flatMap((producer) => producerEvidence[producer].issues)
+  const capturedCoverageProviders = Object.fromEntries(PRODUCERS.map((producer) => [
+    producer,
+    producerEvidence[producer].manifest.coverageProvider,
+  ]))
+  const producerIssues = PRODUCERS.flatMap((producer) => [
+    ...installedProviders[producer].issues,
+    ...producerEvidence[producer].issues,
+  ])
   const ownedPathsByProducer = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
     exactCoveragePathsFor(/** @type {'node' | 'storybook'} */ (producer)),
@@ -167,12 +189,14 @@ const main = async () => {
 
   /** @type {any} */
   let baseline = rawBaseline
-  if (baseline.schemaVersion !== 2) {
+  if (baseline.schemaVersion === 1) {
     if (mode !== 'update-baseline' || !ownershipReviewed) {
       throw new Error('The merged baseline must be migrated with reviewed ownership before producer-owned coverage can be checked')
     }
-    baseline = createOwnerCoverageBaseline({ summaries, repositoryRoot: ROOT, ownedPathsByProducer, registryDigest })
-  } else {
+  } else if (![2, 3].includes(baseline.schemaVersion)) {
+    throw new Error(`Unsupported coverage baseline schema: ${baseline.schemaVersion ?? 'missing'}`)
+  }
+  if (baseline.schemaVersion >= 2) {
     const ownershipIssues = ownershipReviewIssues({
       baselineRegistryDigest: baseline.registryDigest,
       currentRegistryDigest: registryDigest,
@@ -180,15 +204,40 @@ const main = async () => {
     })
     if (ownershipIssues.length > 0) throw new Error(ownershipIssues[0])
   }
+  const baselineProviderIssues = providerReviewIssues({
+    baselineCoverageProviders: baseline.coverageProviders,
+    currentCoverageProviders: coverageProviders,
+    mode,
+    providerReviewed,
+  })
+  if (baselineProviderIssues.length > 0) throw new Error(baselineProviderIssues[0])
+  const providerContractChanged = providerReviewIssues({
+    baselineCoverageProviders: baseline.coverageProviders,
+    currentCoverageProviders: coverageProviders,
+    mode: 'check',
+    providerReviewed: false,
+  }).length > 0
+  if (baseline.schemaVersion !== 3 || providerContractChanged) {
+    baseline = createOwnerCoverageBaseline({
+      summaries,
+      repositoryRoot: ROOT,
+      ownedPathsByProducer,
+      registryDigest,
+      coverageProviders,
+    })
+  }
 
   const combinedAutomation = createCombinedAutomationReach({
     repositoryRoot: ROOT,
     maps,
     sourceDigests,
+    coverageProviders: capturedCoverageProviders,
+    expectedOverlapFiles: EXPECTED_COMBINED_AUTOMATION_OVERLAP_FILES,
   })
-  if (combinedAutomation.status === 'withheld') {
-    await rm(resolve(ROOT, 'coverage'), { recursive: true, force: true })
-  }
+  await removeWithheldCombinedExplorer({
+    coverageDirectory: resolve(ROOT, 'coverage'),
+    combinedAutomation,
+  })
   let evaluation = evaluateOwnerCoverage({
     summaries,
     baseline,
@@ -201,7 +250,13 @@ const main = async () => {
   })
   let baselineToWrite
   if (mode === 'update-baseline' && evaluation.verdict === 'pass') {
-    baselineToWrite = createOwnerCoverageBaseline({ summaries, repositoryRoot: ROOT, ownedPathsByProducer, registryDigest })
+    baselineToWrite = createOwnerCoverageBaseline({
+      summaries,
+      repositoryRoot: ROOT,
+      ownedPathsByProducer,
+      registryDigest,
+      coverageProviders,
+    })
     baseline = baselineToWrite
   }
 
@@ -228,6 +283,7 @@ const main = async () => {
       ...currentState,
       generatedAt: new Date().toISOString(),
       scope: 'producer-owned coverage evidence',
+      coverageProviders,
     },
   })
   await writeReports(evaluation)

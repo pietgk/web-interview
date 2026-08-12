@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { relative, resolve, sep } from 'node:path'
 
 /** @typedef {'statements' | 'branches' | 'functions' | 'lines'} CoverageMetric */
@@ -12,8 +13,43 @@ export const COVERAGE_METRICS = Object.freeze([
   'lines',
 ])
 
+export const COVERAGE_PROVIDER = Object.freeze({
+  name: 'istanbul',
+  package: '@vitest/coverage-istanbul',
+  version: '4.1.10',
+})
+
+export const EXPECTED_COMBINED_AUTOMATION_OVERLAP_FILES = 13
+
+/** @param {Record<string, any>} installedPackageManifest */
+export const coverageProviderProvenanceFromPackage = (installedPackageManifest) => ({
+  name: COVERAGE_PROVIDER.name,
+  package: installedPackageManifest.name,
+  version: installedPackageManifest.version,
+})
+
+/**
+ * @param {{producer: string, packageManifest: Record<string, any>, installedPackageManifest: Record<string, any>}} input
+ */
+export const coverageProviderInstallationIssues = ({
+  producer,
+  packageManifest,
+  installedPackageManifest,
+}) => {
+  const issues = []
+  if (packageManifest.devDependencies?.[COVERAGE_PROVIDER.package] !== COVERAGE_PROVIDER.version) {
+    issues.push(`${producer} package manifest must declare ${COVERAGE_PROVIDER.package} at exactly ${COVERAGE_PROVIDER.version}`)
+  }
+  if (installedPackageManifest.name !== COVERAGE_PROVIDER.package || installedPackageManifest.version !== COVERAGE_PROVIDER.version) {
+    issues.push(`${producer} installed coverage provider must resolve ${COVERAGE_PROVIDER.package} at exactly ${COVERAGE_PROVIDER.version}`)
+  }
+  return issues
+}
+
 export const PRODUCER_CONFIG_PATHS = Object.freeze({
   node: Object.freeze([
+    'package.json',
+    'package-lock.json',
     'vitest.config.mjs',
     'shared/vitest.config.js',
     'backend/vitest.config.js',
@@ -21,12 +57,60 @@ export const PRODUCER_CONFIG_PATHS = Object.freeze({
     'scripts/vitest.config.js',
   ]),
   storybook: Object.freeze([
+    'frontend/package.json',
+    'frontend/package-lock.json',
     'frontend/vitest.storybook.config.js',
     'frontend/vite.config.js',
     'frontend/.storybook/main.js',
     'frontend/.storybook/preview.jsx',
   ]),
 })
+
+const PRODUCER_PACKAGE_PATHS = Object.freeze({
+  node: 'package.json',
+  storybook: 'frontend/package.json',
+})
+
+/** @param {'node' | 'storybook'} producer @param {string} repositoryRoot */
+export const resolveCoverageProviderProvenance = async (producer, repositoryRoot) => {
+  const packagePath = resolve(repositoryRoot, PRODUCER_PACKAGE_PATHS[producer])
+  const packageManifest = JSON.parse(await readFile(packagePath, 'utf8'))
+  /** @type {Record<string, any>} */
+  let installedPackageManifest = {}
+  try {
+    const packageRoot = resolve(packagePath, '..')
+    const installedPackagePath = resolve(packageRoot, 'node_modules', COVERAGE_PROVIDER.package, 'package.json')
+    installedPackageManifest = JSON.parse(await readFile(installedPackagePath, 'utf8'))
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== 'ENOENT') throw error
+  }
+  return {
+    coverageProvider: coverageProviderProvenanceFromPackage(installedPackageManifest),
+    issues: coverageProviderInstallationIssues({
+      producer,
+      packageManifest,
+      installedPackageManifest,
+    }),
+  }
+}
+
+/** @param {Record<string, any> | undefined} provider */
+const coverageProviderIdentity = (provider) => provider && {
+  name: provider.name,
+  package: provider.package,
+  version: provider.version,
+}
+
+/** @param {Record<string, Record<string, any> | undefined>} coverageProviders */
+export const coverageProviderCompatibilityIssues = (coverageProviders) => {
+  const node = coverageProviderIdentity(coverageProviders.node)
+  const storybook = coverageProviderIdentity(coverageProviders.storybook)
+  if (!node || !storybook || Object.values(node).some((value) => !value) || Object.values(storybook).some((value) => !value)) {
+    return ['Node and Storybook coverage provider provenance is required before combining automation maps']
+  }
+  if (JSON.stringify(node) === JSON.stringify(storybook)) return []
+  return [`Node and Storybook coverage providers differ: ${node.name} ${node.version} versus ${storybook.name} ${storybook.version}`]
+}
 
 const EMPTY_COVERAGE = Object.freeze(/** @type {FileCoverage} */ (Object.fromEntries(
   COVERAGE_METRICS.map((metric) => [metric, Object.freeze({ covered: 0, total: 0 })])
@@ -52,7 +136,7 @@ export const createEvidenceDigest = (inputs) => createHash('sha256')
   .digest('hex')
 
 /**
- * @param {{producer: string, manifest: Record<string, any>, revision: string, dirty: boolean, currentInputDigest: string}} input
+ * @param {{producer: string, manifest: Record<string, any>, revision: string, dirty: boolean, currentInputDigest: string, currentCoverageProvider: Record<string, any>}} input
  */
 export const validateProducerManifest = ({
   producer,
@@ -60,10 +144,16 @@ export const validateProducerManifest = ({
   revision,
   dirty,
   currentInputDigest,
+  currentCoverageProvider,
 }) => {
   const issues = []
-  if (manifest.schemaVersion !== 1) issues.push(`${producer} coverage manifest has an unsupported schema`)
+  if (manifest.schemaVersion !== 2) issues.push(`${producer} coverage manifest has an unsupported schema`)
   if (manifest.producer !== producer) issues.push(`${producer} coverage manifest identifies ${manifest.producer ?? 'no producer'}`)
+  if (!manifest.coverageProvider) {
+    issues.push(`${producer} coverage manifest is missing coverage provider provenance`)
+  } else if (JSON.stringify(coverageProviderIdentity(manifest.coverageProvider)) !== JSON.stringify(coverageProviderIdentity(currentCoverageProvider))) {
+    issues.push(`${producer} coverage provider does not match the installed provider`)
+  }
   if (manifest.revision !== revision || manifest.dirty !== dirty) {
     issues.push(`${producer} coverage source state does not match the current revision`)
   }
@@ -356,16 +446,30 @@ const coverageFromMap = (file) => {
  * Any overlapping file with different source or executable maps withholds the
  * complete view, while owner-specific verdicts remain independent.
  *
- * @param {{repositoryRoot: string, maps: Record<string, Record<string, any>>, sourceDigests: Record<string, Record<string, string>>}} input
- * @returns {{status: 'available', incompatibleFiles: any[], coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: any[], coverage: undefined}}
+ * @param {{repositoryRoot: string, maps: Record<string, Record<string, any>>, sourceDigests: Record<string, Record<string, string>>, coverageProviders: Record<string, Record<string, any> | undefined>, expectedOverlapFiles?: number}} input
+ * @returns {{status: 'available', incompatibleFiles: any[], providerIssues: string[], admissionIssues: string[], coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: any[], providerIssues: string[], admissionIssues: string[], coverage: undefined}}
  */
-export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDigests }) => {
+export const createCombinedAutomationReach = ({
+  repositoryRoot,
+  maps,
+  sourceDigests,
+  coverageProviders,
+  expectedOverlapFiles,
+}) => {
+  const providerIssues = coverageProviderCompatibilityIssues(coverageProviders)
+  if (providerIssues.length > 0) {
+    return { status: 'withheld', incompatibleFiles: [], providerIssues, admissionIssues: [], coverage: undefined }
+  }
   const normalized = Object.fromEntries(Object.entries(maps).map(([producer, map]) => [
     producer,
     normalizeCoverageMap(map, repositoryRoot),
   ]))
   const producers = Object.keys(normalized).sort()
   const paths = [...new Set(producers.flatMap((producer) => Object.keys(normalized[producer])))].sort()
+  const overlapFiles = paths.filter((path) => producers.every((producer) => normalized[producer][path])).length
+  const admissionIssues = expectedOverlapFiles !== undefined && overlapFiles !== expectedOverlapFiles
+    ? [`Combined automation overlap changed: expected ${expectedOverlapFiles} files, found ${overlapFiles}`]
+    : []
   /** @type {any[]} */
   const incompatibleFiles = []
   /** @type {FileCoverage[]} */
@@ -415,10 +519,10 @@ export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDige
     combined.push(coverageFromMap(merged))
   }
 
-  if (incompatibleFiles.length > 0) {
-    return { status: 'withheld', incompatibleFiles, coverage: undefined }
+  if (incompatibleFiles.length > 0 || admissionIssues.length > 0) {
+    return { status: 'withheld', incompatibleFiles, providerIssues: [], admissionIssues, coverage: undefined }
   }
-  return { status: 'available', incompatibleFiles: [], coverage: sumCoverage(combined) }
+  return { status: 'available', incompatibleFiles: [], providerIssues: [], admissionIssues: [], coverage: sumCoverage(combined) }
 }
 
 /**
