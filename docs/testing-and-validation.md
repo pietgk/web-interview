@@ -150,6 +150,7 @@ Within a stage, every check runs so one failure does not hide its siblings.
 | `static` | Dependency risk | npm `audit` |
 | `unit` | Logic behavior and logic evidence | Vitest `unit` in Node |
 | `browser` | Component scenarios and UI evidence | Storybook `storybook` play and axe in Chromium |
+| `browser` | Controller evidence stability | Ten independent Storybook `storybook-stability` map and exact-tuple collections |
 | `browser` | End-to-end journeys | Playwright `e2e` through the assembled system |
 | `quality` | Production bundle | Vite `build` |
 | `quality` | Production quality | Lighthouse `lighthouse` |

@@ -123,6 +123,20 @@ export const STAGES = [
         ],
       },
       {
+        name: 'storybook-stability',
+        blurb: 'ten independent controller map and tuple collections agree',
+        invocations: [
+          {
+            command: 'node',
+            args: [
+              'scripts/run-storybook-coverage.mjs',
+              '--stability',
+              '--allow-dirty-worktree',
+            ],
+          },
+        ],
+      },
+      {
         name: 'e2e',
         blurb: 'real server, real journal, multi-tab and reconnect journeys',
         invocations: [

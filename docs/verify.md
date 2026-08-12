@@ -13,7 +13,7 @@ It is generated from the same table `scripts/verify.mjs` executes.
 | Tier | Command | When | Cost |
 | --- | --- | --- | --- |
 | Ambient | `npm run watch` | left open while working | ~2s per change |
-| The gate | `npm run verify` | before commit / CI | ~70s |
+| The gate | `npm run verify` | before commit / CI | ~4m |
 
 There is no middle tier. Agents must not start `watch` (it never exits). Docs-only changes may use
 `npm run verify static`; anything under `shared/`, `backend/`, `frontend/`, `scripts/`, or `e2e/`
@@ -25,7 +25,7 @@ needs a full green `verify` before claiming done. See [`AGENTS.md`](../AGENTS.md
 | --- | --- | --- |
 | `static` | nothing executes | typecheck, lint (autofix then judge), diagrams, audit |
 | `unit` | Node | shared, backend, frontend logic, scripts |
-| `browser` | real Chromium | Storybook play/a11y, Playwright e2e |
+| `browser` | real Chromium | Storybook play/a11y, ten-run controller stability, Playwright e2e |
 | `quality` | production bundle | build, Lighthouse, producer-owned coverage baselines |
 
 Fail fast between stages; collect every failure within a stage. Selective runs:
@@ -39,8 +39,9 @@ Fail fast between stages; collect every failure within a stage. Selective runs:
   only on fresh Storybook Chromium evidence. Non-owner execution cannot rescue either verdict.
 - JSX / Storybook UI coverage is informational; missing ownership, discovery, or UI evidence still
   fails.
-- `npm run coverage:check-storybook-stability` runs the finite ten-collection admission check for
-  exact Storybook controller maps and tuples.
+- Full verification runs the finite ten-collection stability check, so CI demonstrates the same
+  exact Storybook controller maps and tuples as local verification. The dedicated strict command
+  `npm run coverage:check-storybook-stability` additionally requires a clean worktree.
 - Node **22** only (`.nvmrc` / `mise.toml` / `engines`); `verify` and `watch` refuse other majors.
 
 ## See also

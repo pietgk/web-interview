@@ -91,7 +91,7 @@ For humans, there are two primary commands:
 | Command | Cost | What it does |
 | --- | --- | --- |
 | `npm run watch` | ~2s per change | Continuous Node test and typecheck feedback |
-| `npm test` | ~70s | The complete authoritative verdict, in the same order as CI |
+| `npm test` | ~4m | The complete authoritative verdict, in the same order as CI |
 
 Selective verification remains available. Use `npm run verify help` for the current stage and step
 names, or select a stage or step such as `npm run verify browser` or `npm run verify lint e2e`.

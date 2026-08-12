@@ -21,6 +21,7 @@ const FRONTEND_ROOT = resolve(ROOT, 'frontend')
 const STORYBOOK_BIN = resolve(FRONTEND_ROOT, 'node_modules/.bin/storybook')
 const VITEST_BIN = resolve(FRONTEND_ROOT, 'node_modules/.bin/vitest')
 const stabilityMode = process.argv.includes('--stability')
+const allowDirtyWorktree = process.argv.includes('--allow-dirty-worktree')
 const runCount = stabilityMode ? STORYBOOK_STABILITY_RUNS : 1
 
 const startStorybook = () => {
@@ -87,7 +88,7 @@ const sourceState = stabilityMode
   ? await readSourceState()
   : undefined
 
-if (sourceState?.dirty) {
+if (sourceState?.dirty && !allowDirtyWorktree) {
   throw new Error(stabilityAdmissionIssues({
     dirty: true,
     runDigests: [],
@@ -162,7 +163,7 @@ try {
     const finalSourceState = await readSourceState()
     const runDigests = snapshots.map(({ digest }) => digest)
     const issues = stabilityAdmissionIssues({
-      dirty: finalSourceState.dirty,
+      dirty: finalSourceState.dirty && !allowDirtyWorktree,
       revisionChanged: finalSourceState.revision !== /** @type {{revision: string}} */ (sourceState).revision,
       runDigests,
       expectedRuns: STORYBOOK_STABILITY_RUNS,
@@ -174,11 +175,13 @@ try {
     await writeFile(resolve(ROOT, '.test-evidence/storybook-stability.json'), `${JSON.stringify({
       schemaVersion: 1,
       revision: /** @type {{revision: string}} */ (sourceState).revision,
+      dirty: finalSourceState.dirty,
       runs: runCount,
       controllerPaths: firstSnapshot.paths,
       snapshotDigest: firstSnapshot.digest,
     }, null, 2)}\n`)
-    process.stdout.write(`Storybook controller coverage was identical across ${runCount} clean collections.\n`)
+    const collectionKind = finalSourceState.dirty ? 'working-tree' : 'clean'
+    process.stdout.write(`Storybook controller coverage was identical across ${runCount} ${collectionKind} collections.\n`)
   }
 } finally {
   if (tempRoot) await rm(tempRoot, { recursive: true, force: true })
