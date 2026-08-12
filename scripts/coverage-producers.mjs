@@ -33,7 +33,7 @@ const EMPTY_COVERAGE = Object.freeze(/** @type {FileCoverage} */ (Object.fromEnt
 )))
 
 /** @param {string} path @param {string} repositoryRoot */
-const normalizePath = (path, repositoryRoot) =>
+export const normalizeCoveragePath = (path, repositoryRoot) =>
   relative(resolve(repositoryRoot), resolve(path)).split(sep).join('/')
 
 /** @param {unknown} value @returns {unknown} */
@@ -74,7 +74,7 @@ export const validateProducerManifest = ({
 }
 
 /** @param {Record<string, any>} raw @returns {FileCoverage} */
-const exactCoverage = (raw) => /** @type {FileCoverage} */ (Object.fromEntries(COVERAGE_METRICS.map((metric) => [
+export const exactCoverage = (raw) => /** @type {FileCoverage} */ (Object.fromEntries(COVERAGE_METRICS.map((metric) => [
   metric,
   { covered: raw[metric].covered, total: raw[metric].total },
 ])))
@@ -92,7 +92,7 @@ export const sumCoverage = (coverages) => /** @type {FileCoverage} */ (Object.fr
 export const normalizeCoverageSummary = (summary, repositoryRoot) => Object.fromEntries(
   Object.entries(summary)
     .filter(([path]) => path !== 'total')
-    .map(([path, coverage]) => /** @type {[string, FileCoverage]} */ ([normalizePath(path, repositoryRoot), exactCoverage(coverage)]))
+    .map(([path, coverage]) => /** @type {[string, FileCoverage]} */ ([normalizeCoveragePath(path, repositoryRoot), exactCoverage(coverage)]))
     .sort(([left], [right]) => left.localeCompare(right))
 )
 
@@ -117,7 +117,7 @@ export const createCombinedOwnedRuntimeReach = ({
 /** @param {Record<string, any>} rawMap @param {string} repositoryRoot */
 const normalizeCoverageMap = (rawMap, repositoryRoot) => Object.fromEntries(
   Object.entries(rawMap).map(([reportedPath, file]) => {
-    const path = normalizePath(file.path ?? reportedPath, repositoryRoot)
+    const path = normalizeCoveragePath(file.path ?? reportedPath, repositoryRoot)
     return [path, { ...file, path }]
   }).sort(([left], [right]) => String(left).localeCompare(String(right)))
 )
@@ -215,7 +215,12 @@ export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDige
       continue
     }
     const [first, ...others] = present
-    if (others.some((producer) => sourceDigests[producer]?.[path] !== sourceDigests[first]?.[path])) {
+    const firstSourceDigest = sourceDigests[first]?.[path]
+    if (!firstSourceDigest || others.some((producer) => !sourceDigests[producer]?.[path])) {
+      incompatibleFiles.push({ path, reason: 'source digest is missing from producer evidence' })
+      continue
+    }
+    if (others.some((producer) => sourceDigests[producer][path] !== firstSourceDigest)) {
       incompatibleFiles.push({ path, reason: 'source digest differs between producers' })
       continue
     }
@@ -235,4 +240,20 @@ export const createCombinedAutomationReach = ({ repositoryRoot, maps, sourceDige
     return { status: 'withheld', incompatibleFiles, coverage: undefined }
   }
   return { status: 'available', incompatibleFiles: [], coverage: sumCoverage(combined) }
+}
+
+/**
+ * @param {{dirty: boolean, revisionChanged?: boolean, runDigests: string[], expectedRuns: number}} input
+ */
+export const stabilityAdmissionIssues = ({ dirty, revisionChanged = false, runDigests, expectedRuns }) => {
+  const issues = []
+  if (dirty) issues.push('Storybook stability admission requires a clean worktree')
+  if (revisionChanged) issues.push('Storybook stability admission requires one unchanged revision')
+  if (runDigests.length !== expectedRuns) {
+    issues.push(`Storybook stability admission collected ${runDigests.length}/${expectedRuns} runs`)
+  }
+  if (new Set(runDigests).size > 1) {
+    issues.push('Storybook controller coverage changed between collections')
+  }
+  return issues
 }

@@ -192,7 +192,7 @@ flowchart TD
   S --> O
   V -. compatible maps .-> A["Optional automation union"] --> R
   S -. compatible maps .-> A
-  R --> X["coverage/index.html<br/>line explorer"]
+  R --> X["coverage/index.html<br/>only for compatible producer maps"]
   P["Playwright<br/>journey evidence"] --> J["e2e result"]
 ```
 
@@ -308,7 +308,7 @@ make it pass; fix the cause or review the contract change.
 | Context | Results |
 | --- | --- |
 | During development | Terminal feedback from `npm run watch`, plus Storybook's browser UI |
-| Local full verification | Verify verdict, `coverage/report.html`, `coverage/index.html` line explorer, and the Lighthouse report |
+| Local full verification | Verify verdict, `coverage/report.html`, the compatible-map `coverage/index.html` line explorer when published, and the Lighthouse report |
 | CI | The same verdict, with downloadable coverage and Lighthouse artifacts |
 
 ## Compact references

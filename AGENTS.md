@@ -77,5 +77,5 @@ suite proves today and can only be updated through `npm run coverage:update-base
 recalibrate it to make a run pass.
 
 Every production source file must have exactly one evidence owner in
-`scripts/source-evidence.mjs`. JSX coverage is informational, but missing ownership, Storybook
+`scripts/source-evidence-registry.mjs`. JSX coverage is informational, but missing ownership, Storybook
 discovery/execution, or UI coverage is a failing gate.

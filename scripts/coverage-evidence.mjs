@@ -1,5 +1,10 @@
-import { relative, resolve, sep } from 'node:path'
-import { createCombinedOwnedRuntimeReach } from './coverage-producers.mjs'
+import {
+  COVERAGE_METRICS as SHARED_COVERAGE_METRICS,
+  createCombinedOwnedRuntimeReach,
+  exactCoverage,
+  normalizeCoveragePath,
+  sumCoverage,
+} from './coverage-producers.mjs'
 
 /** @typedef {'statements' | 'branches' | 'functions' | 'lines'} CoverageMetric */
 /** @typedef {{covered: number, total: number}} CoverageTuple */
@@ -12,23 +17,8 @@ import { createCombinedOwnedRuntimeReach } from './coverage-producers.mjs'
 
 /** @type {readonly CoverageMetric[]} */
 export const COVERAGE_METRICS = Object.freeze([
-  'statements',
-  'branches',
-  'functions',
-  'lines',
+  ...SHARED_COVERAGE_METRICS,
 ])
-
-/** @param {string} path @param {string} repositoryRoot */
-const normalizePath = (path, repositoryRoot) =>
-  relative(resolve(repositoryRoot), resolve(path)).split(sep).join('/')
-
-/** @param {Record<string, any>} coverage @returns {FileCoverage} */
-const exactCoverage = (coverage) => /** @type {FileCoverage} */ (Object.fromEntries(
-  COVERAGE_METRICS.map((metric) => [metric, {
-    covered: coverage[metric].covered,
-    total: coverage[metric].total,
-  }])
-))
 
 /** @param {Record<string, any>} summary @param {string} repositoryRoot @param {string[]} [includedPaths] @returns {Record<string, FileCoverage>} */
 const normalizeSummaryFiles = (summary, repositoryRoot, includedPaths) => {
@@ -36,7 +26,7 @@ const normalizeSummaryFiles = (summary, repositoryRoot, includedPaths) => {
   const entries = Object.entries(summary)
     .filter(([path]) => path !== 'total')
     .map(([path, coverage]) => /** @type {[string, FileCoverage]} */ (
-      [normalizePath(path, repositoryRoot), exactCoverage(coverage)]
+      [normalizeCoveragePath(path, repositoryRoot), exactCoverage(coverage)]
     ))
     .filter(([path]) => !included || included.has(path))
   entries.sort((left, right) => String(left[0]).localeCompare(String(right[0])))
@@ -84,15 +74,6 @@ const EMPTY_COVERAGE = Object.freeze(/** @type {FileCoverage} */ (Object.fromEnt
   COVERAGE_METRICS.map((metric) => [metric, Object.freeze({ covered: 0, total: 0 })])
 )))
 
-/** @param {FileCoverage[]} coverages @returns {FileCoverage} */
-const sumCoverage = (coverages) => /** @type {FileCoverage} */ (Object.fromEntries(COVERAGE_METRICS.map((metric) => [
-  metric,
-  coverages.reduce((sum, coverage) => ({
-    covered: sum.covered + coverage[metric].covered,
-    total: sum.total + coverage[metric].total,
-  }), { covered: 0, total: 0 }),
-])))
-
 /** @param {Record<string, FileCoverage>} files */
 const createRollups = (files) => Object.fromEntries(
   ['shared', 'backend', 'frontend'].map((workspace) => {
@@ -104,8 +85,8 @@ const createRollups = (files) => Object.fromEntries(
       .filter(([path]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/'))
       .map(([, coverage]) => coverage)
     return [workspace, {
-      direct: sumCoverage(direct),
-      recursive: sumCoverage(recursive),
+      direct: /** @type {FileCoverage} */ (sumCoverage(direct)),
+      recursive: /** @type {FileCoverage} */ (sumCoverage(recursive)),
     }]
   })
 )
@@ -190,7 +171,9 @@ export const evaluateCoverage = ({
     verdict: sourceEvidenceFailed || hasRegression || (mode === 'check' && changes.length > 0) ? 'fail' : 'pass',
     changes,
     files,
-    global: gatedPaths ? sumCoverage(Object.values(currentFiles)) : exactCoverage(summary.total),
+    global: gatedPaths
+      ? /** @type {FileCoverage} */ (sumCoverage(Object.values(currentFiles)))
+      : /** @type {FileCoverage} */ (exactCoverage(summary.total)),
     rollups: createRollups(currentFiles),
     provenance,
     sourceEvidence,
@@ -385,13 +368,12 @@ const renderOwnerCoverageMarkdown = (evaluation) => {
   lines.push(...(issues.length > 0
     ? issues.map((issue) => `- ${escapeMarkdown(issue)}`)
     : ['None. Both owner reports exactly match their committed baselines.']))
-  lines.push(
-    '',
-    '## Istanbul explorer',
-    '',
-    '[Open the informational merged Node and Storybook line explorer](index.html).',
-    ''
-  )
+  lines.push('', '## Istanbul explorer', '')
+  if (evaluation.combinedAutomation?.status === 'available') {
+    lines.push('[Open the compatible Node and Storybook line explorer](index.html).', '')
+  } else {
+    lines.push('Withheld with the incompatible combined automation view.', '')
+  }
   return lines.join('\n')
 }
 
@@ -524,6 +506,9 @@ const renderOwnerCoverageHtml = (evaluation) => {
     ...Object.entries(evaluation.owners).flatMap(([producer, owner]) => owner.changes.map((change) => `${producer}: ${change.path}: ${statusLabel(change.status)}`)),
   ]
   const verdictClass = evaluation.verdict === 'pass' ? 'pass' : 'fail'
+  const explorer = evaluation.combinedAutomation?.status === 'available'
+    ? '<section><h2>Istanbul explorer</h2><p>The line explorer contains compatible Node and Storybook maps.</p><a class="explorer" href="index.html">Open line-level explorer</a></section>'
+    : '<section><h2>Istanbul explorer</h2><p>Withheld with the incompatible combined automation view.</p></section>'
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coverage evidence</title><style>:root{font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.5;background:#f5f7fb;color:#172033}*{box-sizing:border-box}body{margin:0}main{width:min(1180px,calc(100% - 32px));margin:32px auto 64px}.hero,section{background:#fff;border:1px solid #dce2ec;border-radius:14px;padding:24px;margin-bottom:18px}.hero{border-top:5px solid #2563eb}.verdict{display:inline-block;border-radius:999px;padding:5px 11px;font-weight:800}.pass{background:#dcfce7;color:#166534}.fail{background:#fee2e2;color:#991b1b}h1{margin:.5rem 0}h2{margin-top:0}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 11px;border-bottom:1px solid #e6eaf0;vertical-align:top}code{overflow-wrap:anywhere}.explorer{display:inline-block;background:#2563eb;color:#fff;padding:10px 15px;border-radius:8px;text-decoration:none}</style></head><body><main>
 <header class="hero"><span class="verdict ${verdictClass}">${evaluation.verdict.toUpperCase()}</span><h1>Coverage evidence</h1><p>Producer-owned exact baseline verdict</p><dl><dt>Revision</dt><dd><code>${escapeHtml(source.revision)}</code></dd><dt>Source state</dt><dd>${source.state}</dd><dt>Generated</dt><dd>${escapeHtml(source.generatedAt)}</dd></dl></header>
 ${metricSection('Node-owned runtime reach (gating - Node Vitest)', evaluation.owners.node.global, `Owner verdict: ${evaluation.owners.node.verdict.toUpperCase()}`)}
@@ -533,7 +518,7 @@ ${metricSection('Combined owned runtime reach (informational)', evaluation.combi
 ${automation}
 ${registrySection}
 <section><h2>Changes requiring action</h2>${issues.length > 0 ? `<ul>${issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join('')}</ul>` : '<p>None. Both owner reports exactly match their committed baselines.</p>'}</section>
-<section><h2>Istanbul explorer</h2><p>The line explorer is an informational merged Node and Storybook view.</p><a class="explorer" href="index.html">Open line-level explorer</a></section>
+${explorer}
 </main></body></html>`
 }
 

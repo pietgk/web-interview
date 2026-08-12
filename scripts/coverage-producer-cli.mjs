@@ -1,13 +1,17 @@
 import { execFile } from 'node:child_process'
 import { readFile, writeFile } from 'node:fs/promises'
-import { relative, resolve, sep } from 'node:path'
+import { resolve } from 'node:path'
 import { promisify } from 'node:util'
-import { createEvidenceDigest, PRODUCER_CONFIG_PATHS } from './coverage-producers.mjs'
+import {
+  createEvidenceDigest,
+  normalizeCoveragePath,
+  PRODUCER_CONFIG_PATHS,
+} from './coverage-producers.mjs'
 import { ROOT } from './stages.mjs'
 
 const execFileAsync = promisify(execFile)
 /** @param {string} path */
-const repoPath = (path) => relative(ROOT, resolve(path)).split(sep).join('/')
+const repoPath = (path) => normalizeCoveragePath(path, ROOT)
 
 const producerArg = process.argv[2]
 if (!Object.hasOwn(PRODUCER_CONFIG_PATHS, producerArg)) {

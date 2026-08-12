@@ -183,3 +183,26 @@ test('rejects exact baseline paths under the wrong producer or non-coverage trea
   assert.ok(evidence.issues.includes('shared/src/datom.js: node-owned source is absent from the node exact baseline'))
   assert.ok(evidence.issues.includes('frontend/src/App.jsx: storybook baseline entry does not allow exact coverage'))
 })
+
+test('theme treatment requires its declared Storybook story and play execution', () => {
+  const themePath = 'frontend/src/theme.js'
+  const storyPath = 'frontend/src/theme.stories.jsx'
+  const evidence = createSourceEvidence({
+    sourcePaths: [themePath],
+    registryEntries: registryEntriesFor([themePath]),
+    baselinePathsByProducer: { node: [], storybook: [] },
+    summary: { [`/repo/${themePath}`]: fileCoverage() },
+    repositoryRoot: '/repo',
+    storySources: {
+      [storyPath]: 'export const SystemPrefsWired = { play: async () => {} }',
+    },
+    storyResults: {
+      testResults: [{ name: `/repo/${storyPath}`, assertionResults: [{ status: 'passed' }] }],
+    },
+  })
+
+  assert.equal(evidence.verdict, 'pass')
+  assert.equal(evidence.ui[0].evidence, storyPath)
+  assert.equal(evidence.ui[0].declaredPlays, 1)
+  assert.equal(evidence.ui[0].executedStories, 1)
+})

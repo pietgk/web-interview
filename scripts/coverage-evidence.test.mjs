@@ -471,4 +471,6 @@ test('owner reports label gating producers and informational combined views prec
   assert.match(html, /Storybook controller reach/)
   assert.match(html, /Combined owned runtime reach/)
   assert.match(html, /Combined automation reach/)
+  assert.doesNotMatch(html, /href="index\.html"/)
+  assert.doesNotMatch(markdown, /\]\(index\.html\)/)
 })

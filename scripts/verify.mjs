@@ -132,7 +132,7 @@ const coverageHeadline = async () => {
     const { statements, branches, functions } = summary.combinedOwnedRuntime
     /** @param {{covered: number, total: number}} value */
     const pct = ({ covered, total }) => total === 0 ? 100 : (covered * 100 / total).toFixed(2)
-    return `owned ${pct(statements)}% stmt · ${pct(branches)}% branch · ${pct(functions)}% func`
+    return `combined owned runtime (Node + Storybook owner-selected): ${pct(statements)}% stmt · ${pct(branches)}% branch · ${pct(functions)}% func`
   } catch {
     return 'no summary written'
   }

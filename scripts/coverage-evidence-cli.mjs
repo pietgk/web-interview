@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
-import { appendFile, readFile, readdir, writeFile } from 'node:fs/promises'
-import { relative, resolve, sep } from 'node:path'
+import { appendFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { promisify } from 'node:util'
 import {
   createOwnerCoverageBaseline,
@@ -12,6 +12,7 @@ import {
 import {
   createCombinedAutomationReach,
   createEvidenceDigest,
+  normalizeCoveragePath,
   PRODUCER_CONFIG_PATHS,
   validateProducerManifest,
 } from './coverage-producers.mjs'
@@ -36,7 +37,7 @@ const PRODUCERS = Object.freeze(['node', 'storybook'])
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
 
 /** @param {string} path */
-const normalizePath = (path) => relative(ROOT, resolve(path)).split(sep).join('/')
+const normalizePath = (path) => normalizeCoveragePath(path, ROOT)
 
 /** @param {string} directory @returns {Promise<string[]>} */
 const filesUnder = async (directory) => (await Promise.all(
@@ -115,6 +116,7 @@ const writeReports = async (evaluation) => {
     combinedOwnedRuntime: evaluation.combinedOwnedRuntime,
     combinedAutomation: evaluation.combinedAutomation,
   }
+  await mkdir(resolve(ROOT, 'coverage'), { recursive: true })
   await Promise.all([
     writeFile(MARKDOWN_PATH, markdown),
     writeFile(HTML_PATH, renderCoverageHtml(evaluation)),
@@ -184,6 +186,9 @@ const main = async () => {
     maps,
     sourceDigests,
   })
+  if (combinedAutomation.status === 'withheld') {
+    await rm(resolve(ROOT, 'coverage'), { recursive: true, force: true })
+  }
   let evaluation = evaluateOwnerCoverage({
     summaries,
     baseline,

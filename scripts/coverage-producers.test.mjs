@@ -5,6 +5,7 @@ import {
   createCombinedOwnedRuntimeReach,
   createCoverageStabilitySnapshot,
   createEvidenceDigest,
+  stabilityAdmissionIssues,
   validateProducerManifest,
 } from './coverage-producers.mjs'
 
@@ -130,6 +131,41 @@ test('different source digests or executable maps withhold only the automation u
     { path: digestPath, reason: 'source digest differs between producers' },
     { path: mapPath, reason: 'executable maps differ between producers' },
   ])
+})
+
+test('a missing overlap source digest cannot be treated as compatible', () => {
+  const path = 'frontend/src/missing-digest.js'
+  const result = createCombinedAutomationReach({
+    repositoryRoot: '/repo',
+    maps: {
+      node: { [`/repo/${path}`]: mapFor(path) },
+      storybook: { [`/repo/${path}`]: mapFor(path) },
+    },
+    sourceDigests: { node: {}, storybook: {} },
+  })
+
+  assert.deepEqual(result.incompatibleFiles, [{
+    path,
+    reason: 'source digest is missing from producer evidence',
+  }])
+})
+
+test('stability admission requires one clean revision and the complete run count', () => {
+  assert.deepEqual(stabilityAdmissionIssues({
+    dirty: true,
+    revisionChanged: true,
+    runDigests: [],
+    expectedRuns: 10,
+  }), [
+    'Storybook stability admission requires a clean worktree',
+    'Storybook stability admission requires one unchanged revision',
+    'Storybook stability admission collected 0/10 runs',
+  ])
+  assert.deepEqual(stabilityAdmissionIssues({
+    dirty: false,
+    runDigests: Array(10).fill('same'),
+    expectedRuns: 10,
+  }), [])
 })
 
 test('controller stability snapshot includes complete maps and exact tuples', () => {

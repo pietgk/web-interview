@@ -1,5 +1,10 @@
-import { relative, resolve, sep } from 'node:path'
 import {
+  exactCoverage,
+  normalizeCoveragePath,
+  sumCoverage,
+} from './coverage-producers.mjs'
+import {
+  evidenceForSourcePath,
   SOURCE_EVIDENCE_ENTRIES,
   TREATMENTS,
   validateSourceEvidenceRegistry,
@@ -11,8 +16,6 @@ import {
 /** @typedef {Record<CoverageMetric, {covered: number, total: number}>} FileCoverage */
 
 const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
-/** @type {readonly CoverageMetric[]} */
-const COVERAGE_METRICS = ['statements', 'branches', 'functions', 'lines']
 export const CATEGORIES = Object.freeze(Object.keys(TREATMENTS))
 
 /** @type {Readonly<Record<string, string>>} */
@@ -23,31 +26,8 @@ export const UI_COMPONENT_EXEMPTIONS = Object.freeze({
     'DOM focus helper exercised through the TodoComposer story interactions.',
 })
 
-/** @param {string} path @param {string} repositoryRoot */
-const normalizePath = (path, repositoryRoot) =>
-  relative(resolve(repositoryRoot), resolve(path)).split(sep).join('/')
-
-/** @param {Record<string, any>} coverage @returns {FileCoverage} */
-const exactCoverage = (coverage) => /** @type {FileCoverage} */ (Object.fromEntries(
-  COVERAGE_METRICS.map((metric) => [metric, {
-    covered: coverage[metric].covered,
-    total: coverage[metric].total,
-  }])
-))
-
-/** @param {FileCoverage[]} coverages @returns {FileCoverage} */
-const sumCoverage = (coverages) => /** @type {FileCoverage} */ (Object.fromEntries(COVERAGE_METRICS.map((metric) => [
-  metric,
-  coverages.reduce((sum, coverage) => ({
-    covered: sum.covered + coverage[metric].covered,
-    total: sum.total + coverage[metric].total,
-  }), { covered: 0, total: 0 }),
-])))
-
 /** @param {string} path */
-const componentStoryPath = (path) => path === 'frontend/src/theme.js'
-  ? undefined
-  : path.replace(/\.jsx$/, '.stories.jsx')
+const componentStoryPath = (path) => path.replace(/\.(?:jsx|js)$/, '.stories.jsx')
 
 /** @param {string} source */
 const declaredStoryCounts = (source) => ({
@@ -64,7 +44,7 @@ const declaredStoryCounts = (source) => ({
  */
 export const classifySourcePath = (path) => {
   if (TEST_SOURCE_PATTERN.test(path)) return undefined
-  const entry = SOURCE_EVIDENCE_ENTRIES.find(({ path: registeredPath }) => registeredPath === path)
+  const entry = evidenceForSourcePath(path)
   if (!entry) return undefined
   const definition = TREATMENTS[entry.treatment]
   return {
@@ -128,9 +108,9 @@ export const createSourceEvidence = ({
 
   const summaryFiles = Object.fromEntries(Object.entries(summary)
     .filter(([path]) => path !== 'total')
-    .map(([path, value]) => [normalizePath(path, repositoryRoot), value]))
+    .map(([path, value]) => [normalizeCoveragePath(path, repositoryRoot), value]))
   const executedByStoryFile = Object.fromEntries((storyResults.testResults ?? []).map((result) => [
-    normalizePath(result.name, repositoryRoot),
+    normalizeCoveragePath(result.name, repositoryRoot),
     result.assertionResults ?? [],
   ]))
 
@@ -158,7 +138,7 @@ export const createSourceEvidence = ({
         declaredStories: counts.stories,
         declaredPlays: counts.plays,
         executedStories: executed.length,
-        coverage: rawCoverage ? exactCoverage(rawCoverage) : undefined,
+        coverage: rawCoverage ? /** @type {FileCoverage} */ (exactCoverage(rawCoverage)) : undefined,
       }
     })
 
@@ -168,6 +148,6 @@ export const createSourceEvidence = ({
     categoryCounts,
     sources,
     ui,
-    uiTotals: sumCoverage(ui.flatMap(({ coverage }) => coverage ? [coverage] : [])),
+    uiTotals: /** @type {FileCoverage} */ (sumCoverage(ui.flatMap(({ coverage }) => coverage ? [coverage] : []))),
   }
 }
