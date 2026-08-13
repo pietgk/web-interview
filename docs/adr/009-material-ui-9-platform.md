@@ -30,5 +30,5 @@ were a MUI 5 baseline.
 - [`docs/plans/a11y-os-prefs-and-mui-platform.md`](../plans/a11y-os-prefs-and-mui-platform.md) —
   parked prefs program and spike findings
 - [ADR 005](./005-testing-and-storybook.md) — Storybook / React testing seam
-- [`scripts/run-lighthouse.js`](../../scripts/run-lighthouse.js) — JS budgets
+- [`scripts/run-lighthouse.ts`](../../scripts/run-lighthouse.ts) — JS budgets
 - [`docs/adr/README.md`](./README.md)

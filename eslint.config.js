@@ -8,7 +8,7 @@ import {
   namedLiteralOptions,
   semanticConstantsPlugin,
   semanticConstantRules,
-} from './scripts/semantic-constants-config.js'
+} from './scripts/semantic-constants-config.ts'
 
 // Every source file in the repo is linted by this one config. It replaced
 // per-workspace configs so that a single typescript-eslint - and therefore a

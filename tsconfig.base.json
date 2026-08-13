@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "checkJs": true,
+    "erasableSyntaxOnly": true,
     "forceConsistentCasingInFileNames": true,
     "maxNodeModuleJsDepth": 0,
     "noEmit": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2022"
+    "target": "ES2022",
+    "verbatimModuleSyntax": true
   }
 }

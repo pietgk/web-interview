@@ -6,7 +6,7 @@ Command and stage reference for this repo. The non-drifting list of what each st
 npm run verify help
 ```
 
-It is generated from the same table `scripts/verify.js` executes.
+It is generated from the same table `scripts/verify.ts` executes.
 
 ## Two tiers
 

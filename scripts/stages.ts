@@ -1,0 +1,191 @@
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
+const bin = (workspace: string, name: string) =>
+  resolve(ROOT, workspace, 'node_modules/.bin', name)
+
+/**
+ * The four stages of `verify`, in the order a failure invalidates what follows.
+ *
+ * Each stage is named for what has to exist before it can run, which is also why
+ * the costs rise the way they do:
+ *
+ *   static   nothing executes
+ *   unit     code executes in Node
+ *   browser  code executes in real Chromium
+ *   quality  a production bundle is measured
+ *
+ * `verify` fails fast BETWEEN stages and collects every failure WITHIN a stage.
+ */
+
+export type Invocation = {
+  command: string
+  args: string[]
+  cwd?: string
+  env?: Record<string, string>
+  tolerateOffline?: boolean
+}
+
+/**
+ * `artifact` is a repo-relative file a step writes that is worth reading even
+ * when the step passed. `verify` links it once the step has run.
+ */
+export type Step = {
+  name: string
+  blurb: string
+  invocations: Invocation[]
+  artifact?: string
+}
+
+export type Stage = { name: string; blurb: string; steps: Step[] }
+
+export const STAGES: Stage[] = [
+  {
+    name: 'static',
+    blurb: 'nothing executes',
+    steps: [
+      {
+        name: 'typecheck',
+        blurb: 'generated declarations plus every tsconfig project',
+        invocations: [{ command: 'npm', args: ['run', 'typecheck'] }],
+      },
+      {
+        name: 'lint',
+        blurb: 'one eslint over every directory typecheck covers, autofixing first',
+        invocations: [
+          {
+            // Linting the whole repo, rather than a list of directories, is what
+            // makes `lint-scope` provable: a source file cannot be missed by
+            // being left off an argument list. Exclusions live in the config's
+            // `ignores`, where they have to be written down and justified.
+            command: bin('.', 'eslint'),
+            args: ['--fix', '.'],
+          },
+        ],
+      },
+      {
+        name: 'lint-scope',
+        blurb: 'every tracked source file is actually covered by an eslint config',
+        invocations: [
+          { command: 'node', args: ['scripts/check-lint-scope.ts'] },
+        ],
+      },
+      {
+        name: 'diagrams',
+        blurb: 'every Mermaid edge in the docs survives rendering',
+        invocations: [
+          { command: 'node', args: ['scripts/check-diagrams.ts'] },
+        ],
+      },
+      {
+        name: 'audit',
+        blurb: 'high and critical advisories in every install root',
+        invocations: ['.', 'shared', 'backend', 'frontend'].map((workspace) => ({
+          command: 'npm',
+          args: ['audit', '--audit-level=high'],
+          cwd: resolve(ROOT, workspace),
+          // An unreachable registry means "unknown", which must never be
+          // reported as "vulnerable". The lockfiles have not moved, so the last
+          // answer still holds and CI re-checks it with a network.
+          tolerateOffline: true,
+        })),
+      },
+    ],
+  },
+  {
+    name: 'unit',
+    blurb: 'code executes in Node',
+    steps: [
+      {
+        name: 'unit',
+        blurb: 'shared, backend, frontend logic, and repo scripts',
+        invocations: [
+          {
+            command: bin('.', 'vitest'),
+            args: ['run', '--coverage', '--reporter=default', '--reporter=blob'],
+          },
+          { command: 'node', args: ['scripts/coverage-producer-cli.ts', 'node'] },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'browser',
+    blurb: 'code executes in real Chromium',
+    steps: [
+      {
+        name: 'storybook',
+        blurb: 'every story play function and axe pass',
+        invocations: [
+          { command: 'node', args: ['scripts/run-storybook-coverage.ts'] },
+          { command: 'node', args: ['scripts/coverage-producer-cli.ts', 'storybook'] },
+        ],
+      },
+      {
+        name: 'storybook-stability',
+        blurb: 'ten independent controller map and tuple collections agree',
+        invocations: [
+          {
+            command: 'node',
+            args: [
+              'scripts/run-storybook-coverage.ts',
+              '--stability',
+              '--allow-dirty-worktree',
+            ],
+          },
+        ],
+      },
+      {
+        name: 'e2e',
+        blurb: 'real server, real journal, multi-tab and reconnect journeys',
+        invocations: [
+          { command: 'node', args: ['scripts/kill-ports.ts', 'e2e'] },
+          { command: bin('.', 'playwright'), args: ['test'] },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'quality',
+    blurb: 'a production bundle is measured',
+    steps: [
+      {
+        name: 'build',
+        blurb: 'production frontend bundle with sourcemaps',
+        invocations: [
+          { command: 'npm', args: ['run', 'build', '--prefix', 'frontend', '--', '--sourcemap'] },
+        ],
+      },
+      {
+        name: 'lighthouse',
+        blurb: 'three desktop runs, score 100 in every category, JS budgets',
+        invocations: [{ command: 'node', args: ['scripts/run-lighthouse.ts'] }],
+        artifact: 'lighthouse-reports/run-1.report.html',
+      },
+      {
+        name: 'coverage',
+        blurb: 'producer-owned exact baselines plus informational combined coverage',
+        invocations: [
+          {
+            command: bin('.', 'vitest'),
+            args: [
+              '--mergeReports=.vitest-reports',
+              '--coverage',
+              '--coverage.reportsDirectory=coverage',
+              '--reporter=dot',
+            ],
+          },
+          { command: 'node', args: ['scripts/coverage-evidence-cli.ts'] },
+        ],
+        artifact: 'coverage/report.html',
+      },
+    ],
+  },
+]
+
+export const findStage = (name: string) => STAGES.find((stage) => stage.name === name)
+
+export const findStep = (name: string) =>
+  STAGES.flatMap((stage) => stage.steps).find((step) => step.name === name)

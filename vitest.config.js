@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { COVERAGE_PROVIDER } from './scripts/coverage-producers.js'
+import { COVERAGE_PROVIDER } from './scripts/coverage-producers.ts'
 
 // One Vitest process for everything that runs in Node. Each project
 // keeps its own config so it resolves its own dependencies from its own
@@ -11,7 +11,7 @@ import { COVERAGE_PROVIDER } from './scripts/coverage-producers.js'
 // resolve through different installs, and the run stalls partway through the
 // story files. See ADR 006.
 // This is collection scope, not semantic ownership. The explicit registry in
-// scripts/source-evidence-registry.js decides which files compare with the
+// scripts/source-evidence-registry.ts decides which files compare with the
 // Node owner baseline. Broad collection retains useful overlap for the optional
 // automation view without letting that overlap rescue an owner verdict.
 const NODE_COVERAGE_COLLECTION = [
@@ -27,7 +27,7 @@ export default defineConfig({
       './shared/vitest.config.js',
       './backend/vitest.config.js',
       './frontend/vitest.logic.config.js',
-      './scripts/vitest.config.js',
+      './scripts/vitest.config.ts',
     ],
     coverage: {
       provider: COVERAGE_PROVIDER.name,

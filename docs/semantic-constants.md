@@ -125,8 +125,8 @@ configured sensitive use.
 
 Central numeric exemptions are intentionally narrow:
 
-- `scripts/generate-architecture-board.js` is primarily drawing coordinates and dimensions.
-- `scripts/eslint-plugin-semantic-constants.js` is primarily AST grammar and rule metadata.
+- `scripts/generate-architecture-board.ts` is primarily drawing coordinates and dimensions.
+- `scripts/eslint-plugin-semantic-constants.ts` is primarily AST grammar and rule metadata.
 
 Exact executable dates and configured contracts remain enforced in exempted files. Do not add
 inline disable comments or baseline suppressions. A new exemption must document why its numeric
@@ -134,8 +134,8 @@ syntax is already the clearest representation.
 
 ## Extending enforcement
 
-Repository knowledge lives in `scripts/semantic-constants-config.js`. The traversal in
-`scripts/eslint-plugin-semantic-constants.js` stays generic.
+Repository knowledge lives in `scripts/semantic-constants-config.ts`. The traversal in
+`scripts/eslint-plugin-semantic-constants.ts` stays generic.
 
 To add a semantic string category, sensitive numeric context, or canonical contract:
 

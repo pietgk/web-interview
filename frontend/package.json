@@ -17,10 +17,10 @@
     "react-is": "^18.3.1"
   },
   "scripts": {
-    "start": "node ../scripts/kill-ports.js dev-web && vite",
+    "start": "node ../scripts/kill-ports.ts dev-web && vite",
     "build": "vite build",
     "preview": "vite preview",
-    "storybook": "node ../scripts/kill-ports.js storybook && LAUNCH_EDITOR=$EDITOR storybook dev -p 6006",
+    "storybook": "node ../scripts/kill-ports.ts storybook && LAUNCH_EDITOR=$EDITOR storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
   "browserslist": [

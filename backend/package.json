@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "start": "node ../scripts/start-dev-api.js"
+    "start": "node ../scripts/start-dev-api.ts"
   },
   "dependencies": {
     "@web-interview/todos": "file:../shared",
