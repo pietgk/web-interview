@@ -24,6 +24,8 @@ const SEEDED_TODO_DUE_DAY = '2026-08-03'
 const TEST_HEARTBEAT_INTERVAL_MS = 40
 const STREAM_SETTLE_MS = 60
 const DURABILITY_HEARTBEAT_INTERVAL_MS = 1_000
+const DURABILITY_HOLD_POLL_MS = 5
+const DURABILITY_HOLD_TIMEOUT_MS = 2_000
 const DURABILITY_OBSERVATION_MS = 100
 
 /**
@@ -342,7 +344,7 @@ describe('datom API durability', () => {
     const serverTime = generatorTime() + 1_000
     const inner = new DatomJournal({ filePath: join(directory, 'datoms.jsonl') })
 
-    let releaseSync: (() => void) | null = null
+    const sync = { release: null as (() => void) | null }
     let appends = 0
     const journal = {
       filePath: inner.filePath,
@@ -351,7 +353,7 @@ describe('datom API durability', () => {
         await inner.append(datoms)
         appends += 1
         if (appends === 1) return // the seed
-        await new Promise((resolve) => { releaseSync = () => resolve(undefined) })
+        await new Promise((resolve) => { sync.release = () => resolve(undefined) })
       },
       close: () => inner.close(),
     } as unknown as DatomJournal
@@ -373,11 +375,17 @@ describe('datom API durability', () => {
         return response
       })
 
+      const holdDeadline = Date.now() + DURABILITY_HOLD_TIMEOUT_MS
+      while (sync.release === null) {
+        if (Date.now() > holdDeadline) {
+          throw new Error('timed out waiting for the journal to hold the write')
+        }
+        await new Promise((resolve) => setTimeout(resolve, DURABILITY_HOLD_POLL_MS))
+      }
       await new Promise((resolve) => setTimeout(resolve, DURABILITY_OBSERVATION_MS))
       assert.equal(answered, false, 'the response must wait for datasync()')
 
-      const release = releaseSync as unknown as () => void
-      release()
+      sync.release()
       assert.equal((await request).status, HTTP.HTTP_STATUS_OK)
     } finally {
       await server.close()
