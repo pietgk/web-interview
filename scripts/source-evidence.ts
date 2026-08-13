@@ -20,13 +20,13 @@ const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
 export const CATEGORIES = Object.freeze(Object.keys(TREATMENTS))
 
 export const UI_COMPONENT_EXEMPTIONS: Readonly<Record<string, string>> = Object.freeze({
-  'frontend/src/todos/components/TodoRow.jsx':
+  'frontend/src/todos/components/TodoRow.tsx':
     'Layout wrapper only; TodoItem and TodoComposer stories exercise it.',
-  'frontend/src/todos/components/focusLeft.js':
+  'frontend/src/todos/components/focusLeft.ts':
     'DOM focus helper exercised through the TodoComposer story interactions.',
 })
 
-const componentStoryPath = (path: string) => path.replace(/\.(?:jsx|js)$/, '.stories.jsx')
+const componentStoryPath = (path: string) => path.replace(/\.(?:tsx|ts|jsx|js)$/, '.stories.tsx')
 
 const declaredStoryCounts = (source: string) => ({
   stories: source.match(/\bexport\s+const\s+[A-Za-z_$][\w$]*\s*=/g)?.length ?? 0,

@@ -1,0 +1,431 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { ATTRIBUTE } from '@web-interview/todos/datom'
+import {
+  SAVING_INDICATOR_DELAY_MS,
+  TEXT_SETTLE_MS,
+} from '@web-interview/todos/protocol'
+import type { Datom } from '@web-interview/todos/types'
+import { listId, todoId, ulid } from '@web-interview/todos/ulid'
+import { expect, screen, userEvent, waitFor, within } from 'storybook/test'
+import {
+  ComposedTodoApp,
+  createStoryServer,
+  waitUntilConnected,
+} from '../../testing/storyHarness.tsx'
+import { storyDocs } from '../../testing/storyDocs.ts'
+
+const INITIAL_STORY_TIME_MS = 1_760_000_000_000
+const SETTLE_BUFFER_MS = 50
+const HTTP_OK_STATUS = 200
+const FIRST_LIST_LATER_DUE_DAY = '2099-02-01'
+const SECOND_LIST_EARLIER_DUE_DAY = '2099-01-01'
+const FIRST_LIST_RESORTED_DUE_DAY = '2098-01-01'
+
+let clock = INITIAL_STORY_TIME_MS
+const nextTimestamp = () => (clock += 1)
+
+const FIRST_LIST = listId(nextTimestamp())
+const FIRST_TODO = todoId(FIRST_LIST, nextTimestamp())
+const SECOND_LIST = listId(nextTimestamp())
+const SECOND_TODO = todoId(SECOND_LIST, nextTimestamp())
+
+const seedDatoms = (): Datom[] => [
+  [FIRST_LIST, ATTRIBUTE.TITLE, 'First List', ulid(nextTimestamp()), true],
+  [FIRST_TODO, ATTRIBUTE.TEXT, 'First todo of first list!', ulid(nextTimestamp()), true],
+  [SECOND_LIST, ATTRIBUTE.TITLE, 'Second List', ulid(nextTimestamp()), true],
+  [SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), true],
+]
+
+const settle = () => new Promise((resolve) =>
+  setTimeout(resolve, TEXT_SETTLE_MS + SETTLE_BUFFER_MS)
+)
+
+const withServer = (seed: Datom[] = seedDatoms()) => ({
+  loaders: [async () => ({ server: createStoryServer({ seed }) })],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
+  render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
+    <ComposedTodoApp server={loaded.server} />
+  ),
+})
+
+const meta = ({
+  title: 'Todos/TodoLists',
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        component: [
+          '**TodoLists** is the composed catalog + active-list editor (and delete confirm). Stories mount the real **App** shell against an in-memory datom server so StatusBar, summaries, and the form stay wired as in production.',
+          'These plays own **composition** outcomes: projection summaries, clock/offline editing gates, settle/POST coalescing, remote/epoch sync, draft lifecycle, delete confirm routing, and selection across resort. Field-level behavior is covered under TodoListForm / TodoItem / StatusBar / dialogs.',
+          '**Docs vs story Canvas:** Docs previews are **before-`play`** (seed/loaders only). Open the story for the **after-`play`** result (Why/See). No Docs autoplay — concurrent plays race focus and typing. **Proof** marks checks that are not visible on the canvas (e.g. POST body).',
+        ].join('\n\n'),
+      },
+    },
+  },
+}) as Meta
+
+export default meta
+
+export const SummariesFromProjection = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** List recaps come from the projected read model, not from ad-hoc UI state.',
+    '**See:** After the second list’s only Todo is retracted, First List shows `0 of 1 completed` and Second List shows `No todos yet`.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
+    await waitUntilConnected(canvas, expect)
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(lists).getByText('0 of 1 completed')).toBeInTheDocument()
+    await expect(within(lists).getByText('No todos yet')).toBeInTheDocument()
+  },
+} as StoryObj
+
+export const EditingDisabledUntilClock = {
+  ...storyDocs([
+    '**Why:** Editing stays off until the client has a server clock — no edits against an unsynced stream.',
+    '**See:** Add Todo List is disabled; Application status alert shows Connection lost. Lists stay empty because the stream never opened.',
+  ].join(' ')),
+  loaders: [
+    async () => {
+      const server = createStoryServer({ seed: seedDatoms() })
+      server.disconnect()
+      return { server }
+    },
+  ],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
+  render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
+    <ComposedTodoApp server={loaded.server} />
+  ),
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole('button', { name: 'Add Todo List' })).toBeDisabled()
+    await expect(canvas.getByRole('alert', { name: 'Application status' })).toHaveTextContent(
+      'Connection lost'
+    )
+    await expect(canvas.queryAllByRole('listitem')).toHaveLength(0)
+  },
+} as StoryObj
+
+export const EditingStaysEnabledOffline = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** Once the client has a clock, losing the connection must not lock the UI — local edits stay allowed.',
+    '**See:** After disconnect, Add stays enabled, the active Todo can be edited to `Written while offline`, and status shows Waiting for connection.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    await waitUntilConnected(canvas, expect)
+    await userEvent.click(canvas.getByText('First List'))
+    loaded.server.disconnect()
+
+    await expect(canvas.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
+    const field = canvas.getByLabelText('What to do?')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Written while offline')
+    await settle()
+
+    await expect(field).toHaveValue('Written while offline')
+    await expect(canvas.getByRole('alert', { name: 'Application status' })).toHaveTextContent(
+      'Waiting for connection'
+    )
+  },
+} as StoryObj
+
+export const OneDatomPerSettledEdit = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** Typing must settle into a single write, not one datom per keystroke.',
+    '**See:** The Todo text becomes `Settled once` after the settle delay.',
+    '**Proof:** `play` asserts exactly one POST with that text — not visible on the canvas.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    const posted: Parameters<typeof fetch>[] = []
+    loaded.server.setFetchImpl(
+      (async (input, init) => {
+        posted.push([input, init])
+        return loaded.server.baseFetchImpl(input, init)
+      }) as typeof fetch
+    )
+
+    await waitUntilConnected(canvas, expect)
+    await userEvent.click(canvas.getByText('First List'))
+
+    const field = canvas.getByLabelText('What to do?')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Settled once')
+    await expect(posted).toHaveLength(0)
+
+    await settle()
+    await waitFor(() => expect(posted).toHaveLength(1))
+    const { datoms } = JSON.parse(String(posted[0][1]?.body))
+    await expect(datoms).toEqual([
+      [FIRST_TODO, ATTRIBUTE.TEXT, 'Settled once', expect.any(String), true],
+    ])
+    await expect(field).toHaveValue('Settled once')
+    await expect(loaded.server.store.readModel()[FIRST_LIST].todos[0].text).toBe('Settled once')
+  },
+} as StoryObj
+
+export const SavingAppearsAfterDelay = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** The Saving… indicator is delayed so fast round-trips do not flicker the status line.',
+    '**See:** Status stays All changes saved through settle, then shows Saving… while the POST is held, then returns to All changes saved when released.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    let releasePost: (() => void) | undefined
+    loaded.server.setFetchImpl(
+      () =>
+        new Promise((resolve) => {
+          releasePost = () =>
+            resolve(
+              {
+                ok: true,
+                status: HTTP_OK_STATUS,
+                json: async () => ({ serverTime: loaded.server.serverTime() }),
+              } as unknown as Response
+            )
+        })
+    )
+
+    await waitUntilConnected(canvas, expect)
+    await userEvent.click(canvas.getByText('First List'))
+    await userEvent.type(canvas.getByLabelText('What to do?'), '!')
+    await settle()
+
+    const status = canvas.getByRole('status', { name: 'Application status' })
+    await expect(status).toHaveTextContent('All changes saved')
+    await new Promise((resolve) =>
+      setTimeout(resolve, SAVING_INDICATOR_DELAY_MS + SETTLE_BUFFER_MS)
+    )
+    await expect(status).toHaveTextContent('Saving…')
+
+    releasePost?.()
+    await waitFor(() => expect(status).toHaveTextContent('All changes saved'))
+  },
+} as StoryObj
+
+export const RemoteWriteAppears = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** Remote stream writes must show up in the summaries without a local edit.',
+    '**See:** After another-tab Todo is pushed onto First List, the recap becomes `0 of 2 completed`.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    await waitUntilConnected(canvas, expect)
+    loaded.server.push([
+      [todoId(FIRST_LIST, nextTimestamp()), ATTRIBUTE.TEXT, 'From another tab', ulid(nextTimestamp()), true],
+    ])
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(await within(lists).findByText('0 of 2 completed')).toBeInTheDocument()
+  },
+} as StoryObj
+
+export const ReplacedLogResetsClient = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** A replaced journal (new epoch) must reset the client so old and new logs never merge on screen, and selection must follow: it named a Todo List in a log this client no longer holds.',
+    '**See:** Two lists become a single `Only List`; First List and Second List are gone, and the editor reopens on `Only List` rather than going blank.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    await waitUntilConnected(canvas, expect)
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(lists).getAllByRole('listitem')).toHaveLength(2)
+
+    // A server whose journal was wiped re-seeds with fresh ids minted now, so
+    // they sort above the cursor this client already holds. Without the epoch the
+    // client would keep the old Todo Lists and show both logs at once.
+    const freshList = listId(nextTimestamp())
+    loaded.server.replaceLog([
+      [freshList, ATTRIBUTE.TITLE, 'Only List', ulid(nextTimestamp()), true],
+      [todoId(freshList, nextTimestamp()), ATTRIBUTE.TEXT, 'Only todo', ulid(nextTimestamp()), true],
+    ])
+
+    await waitFor(async () => {
+      await expect(within(lists).getAllByRole('listitem')).toHaveLength(1)
+    })
+    await expect(within(lists).getByText('Only List')).toBeInTheDocument()
+    await expect(within(lists).queryAllByText('First List')).toHaveLength(0)
+    await expect(within(lists).queryAllByText('Second List')).toHaveLength(0)
+
+    // Selection is scoped to a log. Without the reset the editor stays pointed
+    // at a Todo List from the old one, resolves to nothing, and the pane is
+    // blank until the person clicks something.
+    await expect(canvas.getByRole('region', { name: 'Todo List: Only List' }))
+      .toBeInTheDocument()
+  },
+} as StoryObj
+
+export const LocalCompletionUpdatesSummary = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** Completing a Todo must refresh that list’s summary while keeping selection.',
+    '**See:** Mark the First List Todo done → recap becomes `1 of 1 completed`, and First List stays current.',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    await waitUntilConnected(canvas, expect)
+    await userEvent.click(canvas.getByText('First List'))
+    await userEvent.click(canvas.getByLabelText('Mark completed: First todo of first list!'))
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(lists).getByText('1 of 1 completed')).toBeInTheDocument()
+    await expect(canvas.getByRole('button', { name: /^First List / })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
+  },
+} as StoryObj
+
+export const GhostComposerLifecycle = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** The ghost composer materializes a Todo on settle, retitles that same Todo on every later settle, and dematerializes it when cleared blank.',
+    '**See:** Typing in Add a todo adds no row; the Todo exists after a settle but stays hidden behind the field. Editing again retitles it in place rather than minting a second. Enter commits the row. A ghost cleared blank disappears again.',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    await waitUntilConnected(canvas, expect)
+    await userEvent.click(canvas.getByText('First List'))
+
+    const composer = canvas.getByLabelText('Add a todo')
+    await userEvent.type(composer, 'Ghost born')
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(1)
+    await settle()
+    // The Todo exists now, but the field is standing in for it, so no row yet.
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(1)
+
+    await userEvent.keyboard('{Enter}')
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(2)
+    await expect(canvas.getAllByLabelText('What to do?')[0]).toHaveValue('Ghost born')
+
+    // A second settle on a live ghost retitles it. The row count proves it wrote
+    // to the same Todo instead of minting a second one.
+    await userEvent.type(composer, 'Temporary')
+    await settle()
+    await userEvent.type(composer, ' edit')
+    await settle()
+    await userEvent.keyboard('{Enter}')
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(3)
+    await expect(canvas.getAllByLabelText('What to do?')[0]).toHaveValue('Temporary edit')
+
+    // `text` is a Todo's defining attribute, so clearing a live ghost blank
+    // takes the Todo away with it.
+    await userEvent.type(composer, 'Throwaway')
+    await settle()
+    await userEvent.clear(composer)
+    await settle()
+    await expect(canvas.queryAllByDisplayValue('Throwaway')).toHaveLength(0)
+    await expect(canvas.getAllByLabelText('What to do?')).toHaveLength(3)
+  },
+} as StoryObj
+
+export const NamedRegions = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** Opening a list in the composed app must expose the same editor landmarks as the form stories.',
+    '**See:** With First List open, Todo editor region and New todo group are present (a11y tree).',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    await waitUntilConnected(canvas, expect)
+    await userEvent.click(canvas.getByText('First List'))
+    const editor = canvas.getByRole('region', { name: 'Todo editor' })
+    await expect(within(editor).getByRole('group', { name: 'New todo' })).toBeInTheDocument()
+  },
+} as StoryObj
+
+export const DraftMaterializesOnSettle = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** A new Todo List is a draft until its title settles — no composer, and Add does not spawn a second draft.',
+    '**See:** Add focuses Todo List name with no Add a todo yet; after typing `Release` and settling, the composer appears and Release is selected with `No todos yet`.',
+  ].join(' ')),
+  play: async ({ canvas }) => {
+    await waitUntilConnected(canvas, expect)
+
+    const add = canvas.getByRole('button', { name: 'Add Todo List' })
+    await userEvent.click(add)
+    await expect(canvas.getByLabelText('Todo List name')).toHaveFocus()
+    await expect(canvas.queryAllByLabelText('Add a todo')).toHaveLength(0)
+    await userEvent.click(add)
+    await expect(canvas.getByLabelText('Todo List name')).toHaveFocus()
+    await expect(canvas.getAllByLabelText('Todo List name')).toHaveLength(1)
+
+    await userEvent.type(canvas.getByLabelText('Todo List name'), 'Release')
+    await expect(canvas.queryAllByLabelText('Add a todo')).toHaveLength(0)
+    await settle()
+
+    await expect(canvas.getByLabelText('Add a todo')).toBeInTheDocument()
+    await expect(canvas.getByRole('button', { name: /^Release No todos yet$/ })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
+  },
+} as StoryObj
+
+export const DeleteEmptyAndConfirmPopulated = {
+  ...withServer(),
+  ...storyDocs([
+    '**Why:** Empty Todo Lists delete immediately; populated ones require confirm, cancel must keep the list, and focus returns to Add when none remain.',
+    '**See:** Second List (empty) vanishes with no dialog; First List opens Delete First List?, Cancel keeps it, Confirm removes it and focuses Add Todo List.',
+  ].join(' ')),
+  play: async ({ canvas, loaded }) => {
+    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
+    await waitUntilConnected(canvas, expect)
+    const lists = canvas.getByRole('list', { name: 'Todo lists' })
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete Todo List: Second List' }))
+    await expect(screen.queryAllByRole('dialog')).toHaveLength(0)
+    await expect(within(lists).queryAllByText('Second List')).toHaveLength(0)
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete Todo List: First List' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete First List?' })
+    await expect(dialog).toHaveTextContent('1 Todo will also disappear.')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await expect(screen.queryAllByRole('dialog')).toHaveLength(0)
+    await expect(within(lists).getByText('First List')).toBeInTheDocument()
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete Todo List: First List' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Delete First List?' })
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Delete Todo List' }))
+    await expect(within(lists).queryAllByText('First List')).toHaveLength(0)
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Add Todo List' })).toHaveFocus()
+    )
+  },
+} as StoryObj
+
+export const ResortKeepsSelection = {
+  ...storyDocs([
+    '**Why:** Changing due dates may reorder Todo Lists, but the active selection must follow the same list.',
+    '**See:** Second List starts first (earlier due date); after moving First List’s due date earlier, First List becomes first and stays `aria-current`.',
+  ].join(' ')),
+  loaders: [
+    async () => {
+      const server = createStoryServer({
+        seed: [
+          ...seedDatoms(),
+          [FIRST_TODO, ATTRIBUTE.DUE_DATE, FIRST_LIST_LATER_DUE_DAY, ulid(nextTimestamp()), true],
+          [SECOND_TODO, ATTRIBUTE.DUE_DATE, SECOND_LIST_EARLIER_DUE_DAY, ulid(nextTimestamp()), true],
+        ],
+      })
+      return { server }
+    },
+  ],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
+  render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
+    <ComposedTodoApp server={loaded.server} />
+  ),
+  play: async ({ canvas }) => {
+    await waitUntilConnected(canvas, expect)
+
+    const list = canvas.getByRole('list', { name: 'Todo lists' })
+    await expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Second List')
+    await userEvent.click(canvas.getByText('First List'))
+    const dueDate = canvas.getByDisplayValue(FIRST_LIST_LATER_DUE_DAY)
+    await userEvent.clear(dueDate)
+    await userEvent.type(dueDate, FIRST_LIST_RESORTED_DUE_DAY)
+
+    await expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('First List')
+    await expect(canvas.getByRole('button', { name: /^First List / })).toHaveAttribute(
+      'aria-current',
+      'true'
+    )
+  },
+} as StoryObj

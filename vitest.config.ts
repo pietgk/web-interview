@@ -17,8 +17,8 @@ import { COVERAGE_PROVIDER } from './scripts/coverage-producers.ts'
 const NODE_COVERAGE_COLLECTION = [
   'shared/src/**/*.ts',
   'backend/src/**/*.ts',
-  'frontend/src/todos/**/*.js',
-  'frontend/src/testing/*.js',
+  'frontend/src/todos/**/*.ts',
+  'frontend/src/testing/*.ts',
 ]
 
 export default defineConfig({
@@ -35,6 +35,8 @@ export default defineConfig({
       exclude: [
         '**/*.test.js',
         '**/*.spec.js',
+        '**/*.test.ts',
+        '**/*.spec.ts',
         // Pure JSDoc typedefs - no runtime code exists to execute.
         '**/shared/src/types.ts',
         // Process bootstrap. e2e proves it, in a process v8 cannot see from here.

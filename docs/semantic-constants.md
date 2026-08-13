@@ -30,7 +30,7 @@ design act.
    - Keep it literal when it is an index, a simple count, fixture data, *structural* style geometry
      such as `flexGrow: 1` or `gridColumn`, or a clear non-contract assertion outcome.
    - A **dimension** is not structural. `width: '11rem'` is a design decision nobody named; it
-     belongs in `frontend/src/theme.js` as a token. See [design tokens](#design-tokens).
+     belongs in `frontend/src/theme.ts` as a token. See [design tokens](#design-tokens).
 5. Does the meaning already have a higher-level abstraction?
    - Use that abstraction. Do not reconstruct it from lower-level constants or primitives.
 
@@ -89,7 +89,7 @@ The same standard, one layer down. A duration written as `86400000` hides why it
 written as `'11rem'` hides it in exactly the same way, and for longer, because nothing executes to
 prove it wrong.
 
-Every dimension the frontend chooses lives in `frontend/src/theme.js`, bound to a named `const`
+Every dimension the frontend chooses lives in `frontend/src/theme.ts`, bound to a named `const`
 with the reason, and is reached as `theme.todos.*`. The rule of thumb: **anything under
 `theme.todos` is a decision we made; everything else is a decision MUI made for us.** Storybook's
 *Foundations / Design tokens* page renders the namespace straight from the theme object, so the

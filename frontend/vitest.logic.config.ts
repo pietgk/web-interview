@@ -12,7 +12,7 @@ export default defineConfig({
     name: 'frontend',
     environment: 'node',
     globals: true,
-    include: ['src/**/*.{test,spec}.{js,jsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     server: {
       deps: {
         inline: [/^@web-interview\/todos(?:\/|$)/, 'zod'],

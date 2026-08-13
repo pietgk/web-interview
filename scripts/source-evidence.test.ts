@@ -22,17 +22,17 @@ test('classifies every production source seam explicitly', () => {
     'shared/src/types.ts': 'type-only',
     'backend/src/app.ts': 'node-runtime',
     'backend/src/index.ts': 'playwright-bootstrap',
-    'frontend/src/todos/todoModel.js': 'node-runtime',
-    'frontend/src/todos/trustedClock.js': 'node-runtime',
-    'frontend/src/testing/fakeDatomServer.js': 'node-runtime',
-    'frontend/src/App.jsx': 'rendered-ui',
-    'frontend/src/theme.js': 'rendered-ui',
-    'frontend/src/todos/components/TodoItem.jsx': 'rendered-ui',
-    'frontend/src/todos/useSettledText.js': 'storybook-controller',
-    'frontend/src/todos/components/focusLeft.js': 'rendered-ui',
-    'frontend/src/index.jsx': 'playwright-bootstrap',
-    'frontend/src/testing/storyHarness.jsx': 'test-support-storybook',
-    'frontend/src/testing/storyDocs.js': 'test-support-storybook',
+    'frontend/src/todos/todoModel.ts': 'node-runtime',
+    'frontend/src/todos/trustedClock.ts': 'node-runtime',
+    'frontend/src/testing/fakeDatomServer.ts': 'node-runtime',
+    'frontend/src/App.tsx': 'rendered-ui',
+    'frontend/src/theme.ts': 'rendered-ui',
+    'frontend/src/todos/components/TodoItem.tsx': 'rendered-ui',
+    'frontend/src/todos/useSettledText.ts': 'storybook-controller',
+    'frontend/src/todos/components/focusLeft.ts': 'rendered-ui',
+    'frontend/src/index.tsx': 'playwright-bootstrap',
+    'frontend/src/testing/storyHarness.tsx': 'test-support-storybook',
+    'frontend/src/testing/storyDocs.ts': 'test-support-storybook',
     'frontend/src/themeTokens.d.ts': 'type-only',
   }
 
@@ -42,7 +42,7 @@ test('classifies every production source seam explicitly', () => {
   // Discovery is general, but semantic treatment is always an explicit review.
   assert.equal(classifySourcePath('shared/src/anything.d.ts'), undefined)
   assert.equal(classifySourcePath('frontend/src/unowned.js'), undefined)
-  assert.equal(classifySourcePath('frontend/src/App.stories.jsx'), undefined)
+  assert.equal(classifySourcePath('frontend/src/App.stories.tsx'), undefined)
   assert.equal(classifySourcePath('backend/src/app.test.ts'), undefined)
 })
 
@@ -89,12 +89,12 @@ test('registry validation fails closed for missing, deleted, duplicate, and inva
 })
 
 test('accounts for source ownership and reports UI execution separately from the logic baseline', () => {
-  const appPath = 'frontend/src/App.jsx'
-  const storyPath = 'frontend/src/App.stories.jsx'
+  const appPath = 'frontend/src/App.tsx'
+  const storyPath = 'frontend/src/App.stories.tsx'
   const logicPath = 'shared/src/datom.ts'
   const evidence = createSourceEvidence({
-    sourcePaths: [appPath, 'frontend/src/index.jsx', logicPath, 'shared/src/types.ts'],
-    registryEntries: registryEntriesFor([appPath, 'frontend/src/index.jsx', logicPath, 'shared/src/types.ts']),
+    sourcePaths: [appPath, 'frontend/src/index.tsx', logicPath, 'shared/src/types.ts'],
+    registryEntries: registryEntriesFor([appPath, 'frontend/src/index.tsx', logicPath, 'shared/src/types.ts']),
     baselinePathsByProducer: { node: [logicPath], storybook: [] },
     summary: {
       total: fileCoverage(),
@@ -140,16 +140,16 @@ test('accounts for source ownership and reports UI execution separately from the
 
 test('fails closed on unowned source, baseline drift, or missing Storybook execution', () => {
   const evidence = createSourceEvidence({
-    sourcePaths: ['frontend/src/unowned.js', 'frontend/src/App.jsx'],
-    registryEntries: registryEntriesFor(['frontend/src/App.jsx']),
+    sourcePaths: ['frontend/src/unowned.js', 'frontend/src/App.tsx'],
+    registryEntries: registryEntriesFor(['frontend/src/App.tsx']),
     baselinePathsByProducer: { node: ['shared/src/deleted.js'], storybook: [] },
     summary: {
       total: fileCoverage(),
-      '/repo/frontend/src/App.jsx': fileCoverage(),
+      '/repo/frontend/src/App.tsx': fileCoverage(),
     },
     repositoryRoot: '/repo',
     storySources: {
-      'frontend/src/App.stories.jsx': 'export const Empty = { play: async () => {} }',
+      'frontend/src/App.stories.tsx': 'export const Empty = { play: async () => {} }',
     },
     storyResults: { testResults: [] },
   })
@@ -158,20 +158,20 @@ test('fails closed on unowned source, baseline drift, or missing Storybook execu
   assert.deepEqual(evidence.issues, [
     'frontend/src/unowned.js: no evidence registry entry',
     'shared/src/deleted.js: node baseline entry is not owned by node',
-    'frontend/src/App.stories.jsx: declared 1 stories but executed 0',
+    'frontend/src/App.stories.tsx: declared 1 stories but executed 0',
   ])
 })
 
 test('rejects exact baseline paths under the wrong producer or non-coverage treatment', () => {
   const evidence = createSourceEvidence({
-    sourcePaths: ['shared/src/datom.ts', 'frontend/src/App.jsx'],
-    registryEntries: registryEntriesFor(['shared/src/datom.ts', 'frontend/src/App.jsx']),
+    sourcePaths: ['shared/src/datom.ts', 'frontend/src/App.tsx'],
+    registryEntries: registryEntriesFor(['shared/src/datom.ts', 'frontend/src/App.tsx']),
     baselinePathsByProducer: {
       node: [],
-      storybook: ['shared/src/datom.ts', 'frontend/src/App.jsx'],
+      storybook: ['shared/src/datom.ts', 'frontend/src/App.tsx'],
     },
     summary: {
-      '/repo/frontend/src/App.jsx': fileCoverage(),
+      '/repo/frontend/src/App.tsx': fileCoverage(),
     },
     repositoryRoot: '/repo',
     storySources: {},
@@ -179,12 +179,12 @@ test('rejects exact baseline paths under the wrong producer or non-coverage trea
   })
 
   assert.ok(evidence.issues.includes('shared/src/datom.ts: node-owned source is absent from the node exact baseline'))
-  assert.ok(evidence.issues.includes('frontend/src/App.jsx: storybook baseline entry does not allow exact coverage'))
+  assert.ok(evidence.issues.includes('frontend/src/App.tsx: storybook baseline entry does not allow exact coverage'))
 })
 
 test('theme treatment requires its declared Storybook story and play execution', () => {
-  const themePath = 'frontend/src/theme.js'
-  const storyPath = 'frontend/src/theme.stories.jsx'
+  const themePath = 'frontend/src/theme.ts'
+  const storyPath = 'frontend/src/theme.stories.tsx'
   const evidence = createSourceEvidence({
     sourcePaths: [themePath],
     registryEntries: registryEntriesFor([themePath]),

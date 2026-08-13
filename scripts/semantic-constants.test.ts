@@ -19,7 +19,7 @@ const lint = (
 ) =>
   linter.verify(code, [
     {
-      files: ['**/*.{js,jsx}'],
+      files: ['**/*.{js,jsx,ts,tsx}'],
       plugins: { 'semantic-constants': semanticConstants },
       languageOptions: {
         ecmaVersion: 'latest',
@@ -104,7 +104,7 @@ test('can exempt numeric data without exempting calendar dates', () => {
 })
 
 test('requires the mapped canonical maxLength contract', () => {
-  const filename = 'frontend/src/todos/components/TodoItem.jsx'
+  const filename = 'frontend/src/todos/components/TodoItem.tsx'
   assert.deepEqual(ruleMessages(`
     import { TODO_TEXT_MAX_LENGTH } from '@web-interview/todos/protocol'
     const props = { maxLength: TODO_TEXT_MAX_LENGTH }
@@ -122,7 +122,7 @@ test('requires the mapped canonical maxLength contract', () => {
 })
 
 test('requires string conversion at a mapped DOM boundary', () => {
-  const filename = 'frontend/src/todos/components/TodoComposer.stories.jsx'
+  const filename = 'frontend/src/todos/components/TodoComposer.stories.tsx'
   assert.deepEqual(ruleMessages(`
     import { TODO_TEXT_MAX_LENGTH as textLimit } from '@web-interview/todos/protocol'
     expect(field).toHaveAttribute('maxlength', String(textLimit))

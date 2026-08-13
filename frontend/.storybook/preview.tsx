@@ -1,7 +1,7 @@
 import { withThemeFromJSXProvider } from '@storybook/addon-themes'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 import type { Preview } from '@storybook/react-vite'
-import { darkTheme, lightTheme } from '../src/theme'
+import { darkTheme, lightTheme } from '../src/theme.ts'
 import {
   FORCED_COLORS,
   OS_MEDIA_FEATURE_VALUES,
@@ -13,7 +13,7 @@ import { withOsMediaPrefs } from './withOsMediaPrefs.tsx'
 
 /**
  * `withThemeFromJSXProvider` renders `GlobalStyles` with no props, so the
- * `enableColorScheme` the app passes in `index.jsx` has to come from a wrapper.
+ * `enableColorScheme` the app passes in `index.tsx` has to come from a wrapper.
  * Without it `html` stays at `color-scheme: normal` and the browser paints its
  * own widgets light under the dark theme - the date field's picker icon lands as
  * a near-black glyph on a near-black card.

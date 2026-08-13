@@ -45,12 +45,12 @@ export const canonicalContractOptions = {
   ],
   usageMappings: [
     {
-      filePattern: '/Todo(?:Composer|Item)(?:\\.stories)?\\.jsx$',
+      filePattern: '/Todo(?:Composer|Item)(?:\\.stories)?\\.[jt]sx$',
       usages: ['maxLength property', 'maxlength DOM assertion'],
       contract: 'todoTextMaximumLength',
     },
     {
-      filePattern: '/TodoListTitleField(?:\\.stories)?\\.jsx$',
+      filePattern: '/TodoListTitleField(?:\\.stories)?\\.[jt]sx$',
       usages: ['maxLength property', 'maxlength DOM assertion'],
       contract: 'todoListTitleMaximumLength',
     },

@@ -34,15 +34,15 @@ export default mergeConfig(
         provider: COVERAGE_PROVIDER.name,
         // The evidence module keeps owner exact coverage and rendered UI
         // percentages separate.
-        include: ['src/**/*.js', 'src/**/*.jsx'],
-        // Vitest matches coverage includes as partial paths, so `*.js` also
-        // matches the prefix of `*.jsx` unless the suffix is explicit here.
+        include: ['src/**/*.ts', 'src/**/*.tsx'],
+        // Vitest matches coverage includes as partial paths, so `*.ts` also
+        // matches the prefix of `*.tsx` unless the suffix is explicit here.
         exclude: [
-          '**/*.test.js',
-          '**/*.spec.js',
-          '**/*.stories.jsx',
-          'src/index.jsx',
-          'src/testing/storyHarness.jsx',
+          '**/*.test.ts',
+          '**/*.spec.ts',
+          '**/*.stories.tsx',
+          'src/index.tsx',
+          'src/testing/storyHarness.tsx',
         ],
         // Browser bundles remap to their original JSX and test sources only
         // after collection. Reapply collection scope after remapping.
