@@ -17,6 +17,16 @@ import { ESLint } from 'eslint'
 const SOURCE_EXTENSIONS = ['js', 'jsx', 'mjs', 'cjs', 'ts', 'tsx', 'mts', 'cts']
 
 /**
+ * Extensions that encode a module system in the filename. The root package
+ * declares `"type": "module"`, so module type is configuration, not spelling,
+ * and this repo keeps one extension per language. They are still enumerated
+ * above so that adding one is caught here rather than silently unlinted.
+ */
+const MODULE_SYSTEM_EXTENSIONS = ['mjs', 'cjs', 'mts', 'cts']
+
+const moduleSystemPattern = new RegExp(`\\.(?:${MODULE_SYSTEM_EXTENSIONS.join('|')})$`)
+
+/**
  * Paths allowed to sit outside lint scope, and why. Keep this list short: each
  * entry is a place where the repo's rules are not enforced.
  *
@@ -46,9 +56,12 @@ const eslint = new ESLint()
 const unlinted = []
 /** @type {string[]} */
 const excusedButLinted = []
+/** @type {string[]} */
+const moduleSystemNamed = []
 let linted = 0
 
 for (const path of trackedSources) {
+  if (moduleSystemPattern.test(path) && !excuseFor(path)) moduleSystemNamed.push(path)
   const configured = (await eslint.calculateConfigForFile(path)) !== undefined
   const ignored = await eslint.isPathIgnored(path)
   const covered = configured && !ignored
@@ -63,6 +76,15 @@ for (const path of trackedSources) {
 }
 
 const problems = []
+
+if (moduleSystemNamed.length > 0) {
+  problems.push(
+    `${moduleSystemNamed.length} file(s) encode a module system in their extension:\n` +
+      moduleSystemNamed.map((path) => `  ${path}`).join('\n') +
+      `\nThis repo uses one extension per language (.js, .jsx, .ts, .tsx) and lets ` +
+      `package.json "type" decide the module system. Rename to .js or .ts.`
+  )
+}
 
 if (unlinted.length > 0) {
   problems.push(

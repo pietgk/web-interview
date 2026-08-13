@@ -19,9 +19,12 @@ import {
 // Linting is syntax-only. TypeScript 7 cannot back type-aware rules, and TS 6 is
 // present as a parser rather than as a second opinion about types.
 
-/** Every extension this repo executes, so a rename can never silently drop a file from lint. */
-const SOURCE = '**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'
-const TYPESCRIPT = '**/*.{ts,tsx,mts,cts}'
+// One extension per language, in both module systems' absence: the root package
+// declares `"type": "module"`, so module type is a property of configuration
+// rather than of a filename. `.mjs`, `.cjs`, `.mts` and `.cts` are deliberately
+// absent here, and `check-lint-scope.js` fails if one appears.
+const SOURCE = '**/*.{js,jsx,ts,tsx}'
+const TYPESCRIPT = '**/*.{ts,tsx}'
 
 const todoSubpathImports = {
   paths: [
@@ -128,15 +131,15 @@ export default [
   // suite, the backend, and the root config files.
   {
     files: [
-      'shared/src/**/*.{js,mjs,ts,mts}',
-      'backend/src/**/*.{js,mjs,ts,mts}',
-      'scripts/**/*.{js,mjs,ts,mts}',
-      'e2e/**/*.{js,mjs,ts,mts}',
-      'type-tests/**/*.{ts,mts}',
-      '*.{js,mjs,ts,mts}',
+      'shared/src/**/*.{js,ts}',
+      'backend/src/**/*.{js,ts}',
+      'scripts/**/*.{js,ts}',
+      'e2e/**/*.{js,ts}',
+      'type-tests/**/*.ts',
+      '*.{js,ts}',
       // Build and test configuration for every workspace runs in Node.
-      '{shared,backend,frontend}/*.config.{js,mjs,ts,mts}',
-      'frontend/.storybook/main.{js,mjs,ts,mts}',
+      '{shared,backend,frontend}/*.config.{js,ts}',
+      'frontend/.storybook/main.{js,ts}',
     ],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -164,7 +167,7 @@ export default [
   {
     // Callbacks passed to `page.evaluate` are serialised and run in the browser,
     // so they legitimately reach for DOM and Performance globals.
-    files: ['e2e/**/*.{js,mjs,ts,mts}'],
+    files: ['e2e/**/*.{js,ts}'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 
@@ -172,10 +175,10 @@ export default [
   // Storybook *configuration* runs in Node, so it is excluded here and given
   // Node globals below.
   {
-    files: ['frontend/**/*.{js,jsx,mjs,ts,tsx,mts}'],
+    files: ['frontend/**/*.{js,jsx,ts,tsx}'],
     ignores: [
-      'frontend/*.config.{js,mjs,ts,mts}',
-      'frontend/.storybook/main.{js,mjs,ts,mts}',
+      'frontend/*.config.{js,ts}',
+      'frontend/.storybook/main.{js,ts}',
     ],
     languageOptions: {
       ecmaVersion: 'latest',
@@ -225,7 +228,7 @@ export default [
     rules: { 'no-restricted-syntax': ['error', themedDimension] },
   },
   {
-    files: ['**/*.{test,spec}.{js,jsx,mjs,ts,tsx,mts}'],
+    files: ['**/*.{test,spec}.{js,jsx,ts,tsx}'],
     languageOptions: {
       globals: {
         ...globals.node,
