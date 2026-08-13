@@ -45,7 +45,7 @@ const LIGHTHOUSE_SEED_TODO_LISTS = Object.freeze([
 
 const LIGHTHOUSE_ENV = {
   ...process.env,
-  CHROME_PATH: process.env.CHROME_PATH ?? chromium.executablePath(),
+  CHROME_PATH: process.env['CHROME_PATH'] ?? chromium.executablePath(),
 }
 
 const startChild = (
@@ -195,8 +195,8 @@ const main = async () => {
       '',
     ].join('\n')
     await writeFile(resolve(REPORT_DIRECTORY, 'summary.md'), summary)
-    if (process.env.GITHUB_STEP_SUMMARY) {
-      await appendFile(process.env.GITHUB_STEP_SUMMARY, summary)
+    if (process.env['GITHUB_STEP_SUMMARY']) {
+      await appendFile(process.env['GITHUB_STEP_SUMMARY'], summary)
     }
     process.stdout.write(`${summary}\n`)
 

@@ -24,6 +24,7 @@ import type {
   CoverageProvider,
   IstanbulFile,
   ProducerManifest,
+  ProducerPair,
   RawCoverageSummary,
 } from './coverage-producers.ts'
 import {
@@ -41,6 +42,10 @@ const EVIDENCE_SUMMARY_PATH = resolve(ROOT, 'coverage/evidence-summary.json')
 const STORY_RESULTS_PATH = resolve(ROOT, '.test-evidence/storybook.json')
 const VALID_MODES = new Set(['check', 'update-baseline'])
 const PRODUCERS: readonly ('node' | 'storybook')[] = Object.freeze(['node', 'storybook'])
+const producerPair = <T>(read: (producer: 'node' | 'storybook') => T): ProducerPair<T> => ({
+  node: read('node'),
+  storybook: read('storybook'),
+})
 
 const readJson = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, 'utf8'))
 
@@ -135,17 +140,17 @@ const writeReports = async (evaluation: ReturnType<typeof evaluateOwnerCoverage>
     writeFile(HTML_PATH, renderCoverageHtml(evaluation)),
     writeFile(EVIDENCE_SUMMARY_PATH, `${JSON.stringify(evidenceSummary, null, 2)}\n`),
   ])
-  if (process.env.GITHUB_STEP_SUMMARY) {
-    await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown)
+  if (process.env['GITHUB_STEP_SUMMARY']) {
+    await appendFile(process.env['GITHUB_STEP_SUMMARY'], markdown)
   }
 }
 
 const main = async () => {
-  const requestedMode = process.env.COVERAGE_EVIDENCE_MODE ?? 'check'
+  const requestedMode = process.env['COVERAGE_EVIDENCE_MODE'] ?? 'check'
   if (!VALID_MODES.has(requestedMode)) throw new Error(`Unknown coverage evidence mode: ${requestedMode}`)
   const mode: 'check' | 'update-baseline' = (requestedMode as 'check' | 'update-baseline')
-  const ownershipReviewed = process.env.COVERAGE_EVIDENCE_REVIEW_OWNERSHIP === '1'
-  const providerReviewed = process.env.COVERAGE_EVIDENCE_REVIEW_PROVIDER === '1'
+  const ownershipReviewed = process.env['COVERAGE_EVIDENCE_REVIEW_OWNERSHIP'] === '1'
+  const providerReviewed = process.env['COVERAGE_EVIDENCE_REVIEW_PROVIDER'] === '1'
   const [rawBaselineJson, rawStoryResults, sources, currentState] = await Promise.all([
     readJson(BASELINE_PATH),
     readJson(STORY_RESULTS_PATH),
@@ -163,42 +168,26 @@ const main = async () => {
     testResults?: Array<{name: string, assertionResults?: Array<{status?: string}>}>
   }
   let baseline = rawBaselineJson as CoverageBaseline
-  const installedProviders = Object.fromEntries(await Promise.all(PRODUCERS.map(async (producer) => [
-    producer,
-    await resolveCoverageProviderProvenance(producer, ROOT),
-  ]))) as Record<'node' | 'storybook', Awaited<ReturnType<typeof resolveCoverageProviderProvenance>>>
-  const coverageProviders = Object.fromEntries(PRODUCERS.map((producer) => [
-    producer,
-    installedProviders[producer].coverageProvider,
-  ])) as Record<'node' | 'storybook', CoverageProvider>
-  const producerEvidence = Object.fromEntries(await Promise.all(PRODUCERS.map(async (producer) => [
-    producer,
-    await readProducerEvidence(producer, currentState, coverageProviders[producer]),
-  ]))) as Record<'node' | 'storybook', Awaited<ReturnType<typeof readProducerEvidence>>>
-  const summaries = Object.fromEntries(PRODUCERS.map((producer) => [
-    producer,
-    producerEvidence[producer].summary,
-  ])) as Record<'node' | 'storybook', RawCoverageSummary>
-  const maps = Object.fromEntries(PRODUCERS.map((producer) => [
-    producer,
-    producerEvidence[producer].map,
-  ])) as Record<'node' | 'storybook', Record<string, IstanbulFile>>
-  const sourceDigests = Object.fromEntries(PRODUCERS.map((producer) => [
-    producer,
-    producerEvidence[producer].manifest.sourceDigests ?? {},
-  ])) as Record<'node' | 'storybook', Record<string, string>>
-  const capturedCoverageProviders = Object.fromEntries(PRODUCERS.map((producer) => [
-    producer,
-    producerEvidence[producer].manifest.coverageProvider,
-  ])) as Record<'node' | 'storybook', CoverageProvider | undefined>
+  const [nodeInstalled, storybookInstalled] = await Promise.all([
+    resolveCoverageProviderProvenance('node', ROOT),
+    resolveCoverageProviderProvenance('storybook', ROOT),
+  ])
+  const installedProviders = { node: nodeInstalled, storybook: storybookInstalled }
+  const coverageProviders = producerPair((producer) => installedProviders[producer].coverageProvider)
+  const [nodeEvidence, storybookEvidence] = await Promise.all([
+    readProducerEvidence('node', currentState, coverageProviders.node),
+    readProducerEvidence('storybook', currentState, coverageProviders.storybook),
+  ])
+  const producerEvidence = { node: nodeEvidence, storybook: storybookEvidence }
+  const summaries = producerPair((producer) => producerEvidence[producer].summary)
+  const maps = producerPair((producer) => producerEvidence[producer].map)
+  const sourceDigests = producerPair((producer) => producerEvidence[producer].manifest.sourceDigests ?? {})
+  const capturedCoverageProviders = producerPair((producer) => producerEvidence[producer].manifest.coverageProvider)
   const producerIssues = PRODUCERS.flatMap((producer) => [
     ...installedProviders[producer].issues,
     ...producerEvidence[producer].issues,
   ])
-  const ownedPathsByProducer = Object.fromEntries(PRODUCERS.map((producer) => [
-    producer,
-    exactCoveragePathsFor(producer),
-  ])) as Record<'node' | 'storybook', string[]>
+  const ownedPathsByProducer = producerPair((producer) => exactCoveragePathsFor(producer))
   const registryDigest = createEvidenceDigest({
     registry: JSON.stringify(SOURCE_EVIDENCE_ENTRIES),
   })

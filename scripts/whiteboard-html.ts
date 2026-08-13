@@ -44,7 +44,7 @@ export const renderWhiteboardHtml = ({
   title: string
   scene: unknown
   sourceName: string
-  fallbackSvg?: string
+  fallbackSvg?: string | undefined
 }): string => {
   const fallback =
     fallbackSvg ??

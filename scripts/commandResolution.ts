@@ -14,7 +14,8 @@ export const resolveCommand = <Command extends { name: string; aliases?: string[
   if (exact) return { command: exact }
 
   const matches = commands.filter((command) => command.name.startsWith(typed))
-  if (matches.length === 1) return { command: matches[0] }
+  const [match] = matches
+  if (matches.length === 1 && match) return { command: match }
   if (matches.length > 1) return { ambiguous: matches }
   return { unknown: true }
 }

@@ -146,14 +146,19 @@ const arrow = ({
   points: number[][]
   label?: string
 }) => {
+  const lastPoint = points[points.length - 1]
+  if (lastPoint === undefined) throw new TypeError('arrow requires at least one point')
+  const lastX = lastPoint[0]
+  const lastY = lastPoint[1]
+  if (lastX === undefined || lastY === undefined) throw new TypeError('arrow point is missing a coordinate')
   const els = [
     base({
       id: id('a'),
       type: 'arrow',
       x,
       y,
-      width: points[points.length - 1][0],
-      height: points[points.length - 1][1],
+      width: lastX,
+      height: lastY,
       points,
       startBinding: null,
       endBinding: null,
@@ -166,8 +171,8 @@ const arrow = ({
   if (label) {
     els.push(
       text({
-        x: x + points[points.length - 1][0] / 2 - 20,
-        y: y + points[points.length - 1][1] / 2 - 18,
+        x: x + lastX / 2 - 20,
+        y: y + lastY / 2 - 18,
         t: label,
         size: 14,
         color: '#495057',
@@ -484,25 +489,25 @@ svgParts.push(
 )
 
 for (const el of elements) {
-  if (el.type === 'rectangle') {
-    const r = el.roundness ? 8 : 0
+  if (el['type'] === 'rectangle') {
+    const r = el['roundness'] ? 8 : 0
     svgParts.push(
-      `<rect x="${el.x}" y="${el.y}" width="${el.width}" height="${el.height}" rx="${r}" fill="${el.backgroundColor === 'transparent' ? 'none' : el.backgroundColor}" stroke="${el.strokeColor}" stroke-width="${el.strokeWidth}"/>`,
+      `<rect x="${el['x']}" y="${el['y']}" width="${el['width']}" height="${el['height']}" rx="${r}" fill="${el['backgroundColor'] === 'transparent' ? 'none' : el['backgroundColor']}" stroke="${el['strokeColor']}" stroke-width="${el['strokeWidth']}"/>`,
     )
-  } else if (el.type === 'text') {
-    const lines = String(el.text).split('\n')
-    const lh = el.fontSize * el.lineHeight
+  } else if (el['type'] === 'text') {
+    const lines = String(el['text']).split('\n')
+    const lh = el['fontSize'] * el['lineHeight']
     lines.forEach((line, i) => {
       svgParts.push(
-        `<text x="${el.x}" y="${el.y + el.fontSize + i * lh}" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${el.fontSize}" fill="${el.strokeColor}">${svgEsc(line)}</text>`,
+        `<text x="${el['x']}" y="${el['y'] + el['fontSize'] + i * lh}" font-family="ui-sans-serif, system-ui, sans-serif" font-size="${el['fontSize']}" fill="${el['strokeColor']}">${svgEsc(line)}</text>`,
       )
     })
-  } else if (el.type === 'arrow') {
-    const [x2, y2] = el.points[el.points.length - 1]
-    const endX = el.x + x2
-    const endY = el.y + y2
+  } else if (el['type'] === 'arrow') {
+    const [x2, y2] = el['points'][el['points'].length - 1]
+    const endX = el['x'] + x2
+    const endY = el['y'] + y2
     svgParts.push(
-      `<line x1="${el.x}" y1="${el.y}" x2="${endX}" y2="${endY}" stroke="#1e1e1e" stroke-width="2" marker-end="url(#arrowhead)"/>`,
+      `<line x1="${el['x']}" y1="${el['y']}" x2="${endX}" y2="${endY}" stroke="#1e1e1e" stroke-width="2" marker-end="url(#arrowhead)"/>`,
     )
   }
 }

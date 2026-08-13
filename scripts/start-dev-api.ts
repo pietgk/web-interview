@@ -18,8 +18,8 @@ const child = spawn(process.execPath, ['src/index.ts'], {
   stdio: 'inherit',
   env: {
     ...process.env,
-    PORT: process.env.PORT ?? String(DEV_API_PORT),
-    DATOM_LOG_PATH: process.env.DATOM_LOG_PATH ?? DEV_DATOM_LOG_PATH,
+    PORT: process.env['PORT'] ?? String(DEV_API_PORT),
+    DATOM_LOG_PATH: process.env['DATOM_LOG_PATH'] ?? DEV_DATOM_LOG_PATH,
   },
 })
 

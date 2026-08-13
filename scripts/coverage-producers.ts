@@ -3,7 +3,13 @@ import { readFile } from 'node:fs/promises'
 import { relative, resolve, sep } from 'node:path'
 
 export type CoverageMetric = 'statements' | 'branches' | 'functions' | 'lines'
-export type FileCoverage = Record<CoverageMetric, { covered: number; total: number }>
+export type CoverageCount = { covered: number; total: number }
+export type FileCoverage = {
+  statements: CoverageCount
+  branches: CoverageCount
+  functions: CoverageCount
+  lines: CoverageCount
+}
 
 /** Where a counter sits in the original source, as Istanbul records it. */
 export type SourcePosition = { line: number; column?: number | null }
@@ -45,19 +51,22 @@ export type CounterDifference =
   | { kind: 'only'; producer: string; counter: string; location: SourceSpan | undefined }
 
 /** A coverage summary as the providers emit it, before normalisation. */
-export type RawCoverageSummary = Record<string, Record<string, { covered: number; total: number }>>
+export type RawCoverageSummary = Record<string, FileCoverage>
 
 /** The fields this module reads out of a package.json. */
 export type PackageManifest = {
-  name?: string
-  version?: string
-  devDependencies?: Record<string, string>
+  name?: string | undefined
+  version?: string | undefined
+  devDependencies?: Record<string, string> | undefined
 }
 
+export type CoverageProducer = 'node' | 'storybook'
+export type ProducerPair<T> = { node: T, storybook: T }
+
 export type CoverageProvider = {
-  name?: string
-  package?: string
-  version?: string
+  name?: string | undefined
+  package?: string | undefined
+  version?: string | undefined
 }
 
 export type ProducerManifest = {
@@ -207,7 +216,7 @@ const coverageProviderIdentity = (provider: CoverageProvider | undefined) => pro
   version: provider.version,
 }
 
-export const coverageProviderCompatibilityIssues = (coverageProviders: Record<string, CoverageProvider | undefined>) => {
+export const coverageProviderCompatibilityIssues = (coverageProviders: ProducerPair<CoverageProvider | undefined>) => {
   const node = coverageProviderIdentity(coverageProviders.node)
   const storybook = coverageProviderIdentity(coverageProviders.storybook)
   if (!node || !storybook || Object.values(node).some((value) => !value) || Object.values(storybook).some((value) => !value)) {
@@ -269,11 +278,12 @@ export const validateProducerManifest = ({
   return issues
 }
 
-export const exactCoverage = (raw: Record<string, { covered: number; total: number }>): FileCoverage =>
-  Object.fromEntries(COVERAGE_METRICS.map((metric) => [
-    metric,
-    { covered: raw[metric].covered, total: raw[metric].total },
-  ])) as FileCoverage
+export const exactCoverage = (raw: FileCoverage): FileCoverage => ({
+  statements: { covered: raw.statements.covered, total: raw.statements.total },
+  branches: { covered: raw.branches.covered, total: raw.branches.total },
+  functions: { covered: raw.functions.covered, total: raw.functions.total },
+  lines: { covered: raw.lines.covered, total: raw.lines.total },
+})
 
 export const sumCoverage = (coverages: FileCoverage[]): FileCoverage =>
   Object.fromEntries(COVERAGE_METRICS.map((metric) => [
@@ -285,7 +295,7 @@ export const sumCoverage = (coverages: FileCoverage[]): FileCoverage =>
   ])) as FileCoverage
 
 export const normalizeCoverageSummary = (
-  summary: Record<string, Record<string, { covered: number; total: number }>>,
+  summary: RawCoverageSummary,
   repositoryRoot: string
 ): Record<string, FileCoverage> => Object.fromEntries(
   Object.entries(summary)
@@ -300,8 +310,8 @@ export const createCombinedOwnedRuntimeReach = ({
   ownedPathsByProducer,
 }: {
   repositoryRoot: string
-  summaries: Record<string, RawCoverageSummary>
-  ownedPathsByProducer: Record<string, string[]>
+  summaries: ProducerPair<RawCoverageSummary>
+  ownedPathsByProducer: ProducerPair<string[]>
 }) => {
   const normalized = Object.fromEntries(Object.entries(summaries).map(([producer, producerSummary]) => [
     producer,
@@ -393,11 +403,27 @@ const alignMapEntries = (
   const rows = leftEntries.length + 1
   const columns = rightEntries.length + 1
   const costs = Array.from({ length: rows }, () => Array(columns).fill(0))
+  const costAt = (rowIndex: number, columnIndex: number) => {
+    const row = costs[rowIndex]
+    const value = row?.[columnIndex]
+    if (value === undefined) throw new TypeError('alignment cost matrix is missing a cell')
+    return value
+  }
+  const setCost = (rowIndex: number, columnIndex: number, value: number) => {
+    const row = costs[rowIndex]
+    if (row === undefined) throw new TypeError('alignment cost matrix is missing a row')
+    row[columnIndex] = value
+  }
+  const requiredPair = (entries: ReturnType<typeof orderedMapEntries>, index: number) => {
+    const entry = entries[index]
+    if (entry === undefined) throw new TypeError('alignment map entry is missing')
+    return entry
+  }
   for (let leftIndex = 0; leftIndex < rows; leftIndex += 1) {
-    costs[leftIndex][0] = leftIndex * ALIGNMENT_GAP_COST
+    setCost(leftIndex, 0, leftIndex * ALIGNMENT_GAP_COST)
   }
   for (let rightIndex = 0; rightIndex < columns; rightIndex += 1) {
-    costs[0][rightIndex] = rightIndex * ALIGNMENT_GAP_COST
+    setCost(0, rightIndex, rightIndex * ALIGNMENT_GAP_COST)
   }
 
   const replacementCost = (leftEntry: CounterMapEntry, rightEntry: CounterMapEntry) => {
@@ -412,39 +438,40 @@ const alignMapEntries = (
 
   for (let leftIndex = 1; leftIndex < rows; leftIndex += 1) {
     for (let rightIndex = 1; rightIndex < columns; rightIndex += 1) {
-      costs[leftIndex][rightIndex] = Math.min(
-        costs[leftIndex - 1][rightIndex - 1] + replacementCost(
-          leftEntries[leftIndex - 1][1],
-          rightEntries[rightIndex - 1][1]
+      setCost(leftIndex, rightIndex, Math.min(
+        costAt(leftIndex - 1, rightIndex - 1) + replacementCost(
+          requiredPair(leftEntries, leftIndex - 1)[1],
+          requiredPair(rightEntries, rightIndex - 1)[1]
         ),
-        costs[leftIndex - 1][rightIndex] + ALIGNMENT_GAP_COST,
-        costs[leftIndex][rightIndex - 1] + ALIGNMENT_GAP_COST
-      )
+        costAt(leftIndex - 1, rightIndex) + ALIGNMENT_GAP_COST,
+        costAt(leftIndex, rightIndex - 1) + ALIGNMENT_GAP_COST
+      ))
     }
   }
 
-  const reversed = []
+  const reversed: { left?: [string, CounterMapEntry], right?: [string, CounterMapEntry] }[] = []
   let leftIndex = leftEntries.length
   let rightIndex = rightEntries.length
   while (leftIndex > 0 || rightIndex > 0) {
     const replacement = leftIndex > 0 && rightIndex > 0
-      ? costs[leftIndex - 1][rightIndex - 1] + replacementCost(
-        leftEntries[leftIndex - 1][1],
-        rightEntries[rightIndex - 1][1]
+      ? costAt(leftIndex - 1, rightIndex - 1) + replacementCost(
+        requiredPair(leftEntries, leftIndex - 1)[1],
+        requiredPair(rightEntries, rightIndex - 1)[1]
       )
       : Number.POSITIVE_INFINITY
-    if (replacement === costs[leftIndex][rightIndex]) {
-      reversed.push({ left: leftEntries[leftIndex - 1], right: rightEntries[rightIndex - 1] })
+    if (replacement === costAt(leftIndex, rightIndex)) {
+      reversed.push({ left: requiredPair(leftEntries, leftIndex - 1), right: requiredPair(rightEntries, rightIndex - 1) })
       leftIndex -= 1
       rightIndex -= 1
       continue
     }
-    if (leftIndex > 0 && costs[leftIndex - 1][rightIndex] + ALIGNMENT_GAP_COST === costs[leftIndex][rightIndex]) {
-      reversed.push({ left: leftEntries[leftIndex - 1] })
+    if (leftIndex > 0 && costAt(leftIndex - 1, rightIndex) + ALIGNMENT_GAP_COST === costAt(leftIndex, rightIndex)) {
+      reversed.push({ left: requiredPair(leftEntries, leftIndex - 1) })
       leftIndex -= 1
       continue
     }
-    reversed.push({ right: rightEntries[rightIndex - 1] })
+    const rightEntry = rightEntries[rightIndex - 1]
+    reversed.push(rightEntry === undefined ? {} : { right: rightEntry })
     rightIndex -= 1
   }
   return reversed.reverse()
@@ -515,14 +542,28 @@ export const compareExecutableMaps = ({
   }
 }
 
-const mergeFileCounters = (left: IstanbulFile, right: IstanbulFile): IstanbulFile => ({
-  ...left,
-  s: Object.fromEntries(Object.keys(left.s ?? {}).map((key) => [key, Math.max((left.s ?? {})[key], (right.s ?? {})[key])])),
-  f: Object.fromEntries(Object.keys(left.f ?? {}).map((key) => [key, Math.max((left.f ?? {})[key], (right.f ?? {})[key])])),
-  b: Object.fromEntries(Object.keys(left.b ?? {}).map((key) => [key,
-    (left.b ?? {})[key].map((hit, index) => Math.max(hit, (right.b ?? {})[key][index])),
-  ])),
-})
+const mergeFileCounters = (left: IstanbulFile, right: IstanbulFile): IstanbulFile => {
+  const maxHit = (leftHit: number | undefined, rightHit: number | undefined) =>
+    Math.max(leftHit ?? Number.NaN, rightHit ?? Number.NaN)
+  return {
+    ...left,
+    s: Object.fromEntries(Object.keys(left.s ?? {}).map((key) => [
+      key,
+      maxHit((left.s ?? {})[key], (right.s ?? {})[key]),
+    ])),
+    f: Object.fromEntries(Object.keys(left.f ?? {}).map((key) => [
+      key,
+      maxHit((left.f ?? {})[key], (right.f ?? {})[key]),
+    ])),
+    b: Object.fromEntries(Object.keys(left.b ?? {}).map((key) => {
+      const leftHits = (left.b ?? {})[key]
+      const rightHits = (right.b ?? {})[key]
+      if (leftHits === undefined) throw new TypeError(`Missing left branch counters for ${key}`)
+      if (rightHits === undefined) throw new TypeError(`Missing right branch counters for ${key}`)
+      return [key, leftHits.map((hit, index) => maxHit(hit, rightHits[index]))]
+    })),
+  }
+}
 
 const coverageFromMap = (file: IstanbulFile): FileCoverage => {
   const statementHits = Object.values(file.s ?? {})
@@ -555,22 +596,23 @@ export const createCombinedAutomationReach = ({
   expectedOverlapFiles,
 }: {
   repositoryRoot: string
-  maps: Record<string, Record<string, IstanbulFile>>
-  sourceDigests: Record<string, Record<string, string>>
-  coverageProviders: Record<string, CoverageProvider | undefined>
+  maps: ProducerPair<Record<string, IstanbulFile>>
+  sourceDigests: ProducerPair<Record<string, string>>
+  coverageProviders: ProducerPair<CoverageProvider | undefined>
   expectedOverlapFiles?: number
 }): CombinedAutomationReach => {
   const providerIssues = coverageProviderCompatibilityIssues(coverageProviders)
   if (providerIssues.length > 0) {
     return { status: 'withheld', incompatibleFiles: [], providerIssues, admissionIssues: [], coverage: undefined }
   }
-  const normalized = Object.fromEntries(Object.entries(maps).map(([producer, map]) => [
-    producer,
-    normalizeCoverageMap(map, repositoryRoot),
-  ]))
-  const producers = Object.keys(normalized).sort()
+  const normalized: ProducerPair<Record<string, IstanbulFile>> = {
+    node: normalizeCoverageMap(maps.node, repositoryRoot),
+    storybook: normalizeCoverageMap(maps.storybook, repositoryRoot),
+  }
+  const producers: CoverageProducer[] = ['node', 'storybook']
+  const fileFor = (producer: CoverageProducer, path: string) => normalized[producer][path]
   const paths = [...new Set(producers.flatMap((producer) => Object.keys(normalized[producer])))].sort()
-  const overlapFiles = paths.filter((path) => producers.every((producer) => normalized[producer][path])).length
+  const overlapFiles = paths.filter((path) => producers.every((producer) => fileFor(producer, path))).length
   const admissionIssues = expectedOverlapFiles !== undefined && overlapFiles !== expectedOverlapFiles
     ? [`Combined automation overlap changed: expected ${expectedOverlapFiles} files, found ${overlapFiles}`]
     : []
@@ -578,14 +620,19 @@ export const createCombinedAutomationReach = ({
   const combined: FileCoverage[] = []
 
   for (const path of paths) {
-    const present = producers.filter((producer) => normalized[producer][path])
+    const present = producers.filter((producer) => fileFor(producer, path))
     if (present.length === 1) {
-      combined.push(coverageFromMap(normalized[present[0]][path]))
+      const producer = present[0]
+      if (producer === undefined) continue
+      const onlyFile = fileFor(producer, path)
+      if (onlyFile === undefined) continue
+      combined.push(coverageFromMap(onlyFile))
       continue
     }
     const [first, ...others] = present
-    const firstSourceDigest = sourceDigests[first]?.[path]
-    if (!firstSourceDigest || others.some((producer) => !sourceDigests[producer]?.[path])) {
+    if (first === undefined) continue
+    const firstSourceDigest = sourceDigests[first][path]
+    if (!firstSourceDigest || others.some((producer) => !sourceDigests[producer][path])) {
       incompatibleFiles.push({
         path,
         reason: 'source digest is missing from producer evidence',
@@ -601,9 +648,12 @@ export const createCombinedAutomationReach = ({
       })
       continue
     }
+    const nodeFile = fileFor('node', path)
+    const storybookFile = fileFor('storybook', path)
+    if (nodeFile === undefined || storybookFile === undefined) continue
     const executableMaps = compareExecutableMaps({
-      node: normalized.node[path],
-      storybook: normalized.storybook[path],
+      node: nodeFile,
+      storybook: storybookFile,
     })
     if (!executableMaps.exactMatch) {
       incompatibleFiles.push({
@@ -614,10 +664,13 @@ export const createCombinedAutomationReach = ({
       })
       continue
     }
-    const merged = others.reduce(
-      (current, producer) => mergeFileCounters(current, normalized[producer][path]),
-      normalized[first][path]
-    )
+    const firstFile = fileFor(first, path)
+    if (firstFile === undefined) continue
+    const merged = others.reduce((current, producer) => {
+      const otherFile = fileFor(producer, path)
+      if (otherFile === undefined) throw new TypeError(`Missing coverage map for ${path}`)
+      return mergeFileCounters(current, otherFile)
+    }, firstFile)
     combined.push(coverageFromMap(merged))
   }
 

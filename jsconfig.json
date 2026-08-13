@@ -1,9 +1,14 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
     "types": ["node"]
   },
   "include": ["e2e/**/*.ts", "playwright.config.ts", "scripts/**/*.ts", "vitest.config.ts"]

@@ -200,7 +200,9 @@ test('theme treatment requires its declared Storybook story and play execution',
   })
 
   assert.equal(evidence.verdict, 'pass')
-  assert.equal(evidence.ui[0].evidence, storyPath)
-  assert.equal(evidence.ui[0].declaredPlays, 1)
-  assert.equal(evidence.ui[0].executedStories, 1)
+  const ui = evidence.ui[0]
+  assert.ok(ui)
+  assert.equal(ui.evidence, storyPath)
+  assert.equal(ui.declaredPlays, 1)
+  assert.equal(ui.executedStories, 1)
 })

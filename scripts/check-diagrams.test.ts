@@ -59,8 +59,10 @@ test('counts each diagram in a file separately', () => {
     diagram('stateDiagram-v2\n    z --> z: ONE\n    z --> z: TWO')
   const findings = findCollapsingSelfTransitions(markdown)
   assert.equal(findings.length, 1)
-  assert.equal(findings[0].diagram, 2)
-  assert.equal(findings[0].node, 'z')
+  const finding = findings[0]
+  assert.ok(finding)
+  assert.equal(finding.diagram, 2)
+  assert.equal(finding.node, 'z')
 })
 
 test('treats a node and its inline definition as the same node', () => {

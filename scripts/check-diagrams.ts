@@ -56,7 +56,9 @@ export const parseEdge = (line: string): { from: string; to: string; label: stri
   // `A -->|label| B`, the flowchart form.
   const piped = /^\s*\|([^|]*)\|/.exec(rest)
   if (piped) {
-    label = piped[1].trim()
+    const pipedLabel = piped[1]
+    if (pipedLabel === undefined) return null
+    label = pipedLabel.trim()
     rest = rest.slice(piped[0].length)
   }
 
@@ -102,11 +104,13 @@ export const selfTransitionsByNode = (source: string): Map<string, string[]> => 
 export const findCollapsingSelfTransitions = (
   markdown: string
 ): { diagram: number; node: string; labels: string[] }[] =>
-  [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)].flatMap(([, source], index) =>
-    [...selfTransitionsByNode(source)]
+  [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)].flatMap((match, index) => {
+    const source = match[1]
+    if (source === undefined) return []
+    return [...selfTransitionsByNode(source)]
       .filter(([, labels]) => labels.length > 1)
       .map(([node, labels]) => ({ diagram: index + 1, node, labels }))
-  )
+  })
 
 export const describeFinding = (
   { diagram, node, labels }: { diagram: number; node: string; labels: string[] },

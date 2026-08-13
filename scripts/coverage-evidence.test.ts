@@ -9,6 +9,7 @@ import {
   renderCoverageHtml,
   renderCoverageMarkdown,
 } from './coverage-evidence.ts'
+import type { FileCoverage } from './coverage-evidence.ts'
 
 const REPOSITORY_ROOT = '/repo'
 const METRICS = ['statements', 'branches', 'functions', 'lines']
@@ -24,7 +25,13 @@ const fileCoverage = ({
   branches = tuple(2, 3),
   functions = tuple(1, 1),
   lines = tuple(4, 5),
-}: Partial<Record<'statements' | 'branches' | 'functions' | 'lines', {covered: number, total: number}>> = {}) => ({ statements, branches, functions, lines })
+}: Partial<FileCoverage> = {}): FileCoverage => ({ statements, branches, functions, lines })
+
+const firstFile = (evaluation: ReturnType<typeof evaluateCoverage>) => {
+  const file = evaluation.files[0]
+  assert.ok(file)
+  return file
+}
 
 const summary = (files: Record<string, ReturnType<typeof fileCoverage>>) => ({
   total: fileCoverage(),
@@ -55,7 +62,7 @@ test('accepts an exact per-file baseline match', () => {
   assert.deepEqual(evaluation.files.map(({ path, status }) => ({ path, status })), [
     { path: 'shared/src/example.js', status: 'unchanged' },
   ])
-  assert.deepEqual(Object.keys(evaluation.files[0].current), METRICS)
+  assert.deepEqual(Object.keys(firstFile(evaluation).current), METRICS)
 })
 
 test('keeps informational UI coverage outside the exact logic baseline', () => {
@@ -92,10 +99,11 @@ test('rejects an added uncovered item in both check and baseline update modes', 
     })
 
     assert.equal(evaluation.verdict, 'fail')
-    assert.equal(evaluation.files[0].status, 'regression')
-    assert.equal(evaluation.files[0].metrics.statements.status, 'regression')
-    assert.equal(evaluation.files[0].metrics.statements.currentUncovered, 2)
-    assert.equal(evaluation.files[0].metrics.statements.baselineUncovered, 1)
+    const file = firstFile(evaluation)
+    assert.equal(file.status, 'regression')
+    assert.equal(file.metrics.statements.status, 'regression')
+    assert.equal(file.metrics.statements.currentUncovered, 2)
+    assert.equal(file.metrics.statements.baselineUncovered, 1)
   }
 })
 
@@ -109,7 +117,7 @@ test('rejects removal of covered code while misses remain', () => {
   })
 
   assert.equal(evaluation.verdict, 'fail')
-  assert.equal(evaluation.files[0].metrics.statements.status, 'regression')
+  assert.equal(firstFile(evaluation).metrics.statements.status, 'regression')
 })
 
 test('accepts removal of uncovered code only in baseline update mode', () => {
@@ -123,7 +131,7 @@ test('accepts removal of uncovered code only in baseline update mode', () => {
   assert.equal(evaluateCoverage(input).verdict, 'fail')
   assert.equal(evaluateCoverage({ ...input, mode: 'update-baseline' }).verdict, 'pass')
   assert.equal(
-    evaluateCoverage({ ...input, mode: 'update-baseline' }).files[0].metrics.statements.status,
+    firstFile(evaluateCoverage({ ...input, mode: 'update-baseline' })).metrics.statements.status,
     'improvement'
   )
 })
@@ -155,8 +163,8 @@ test('rejects one improved metric alongside one regressed metric', () => {
   })
 
   assert.equal(evaluation.verdict, 'fail')
-  assert.equal(evaluation.files[0].metrics.statements.status, 'improvement')
-  assert.equal(evaluation.files[0].metrics.branches.status, 'regression')
+  assert.equal(firstFile(evaluation).metrics.statements.status, 'improvement')
+  assert.equal(firstFile(evaluation).metrics.branches.status, 'regression')
 })
 
 test('treats zero-total metrics as one hundred percent', () => {
@@ -175,7 +183,7 @@ test('treats zero-total metrics as one hundred percent', () => {
   })
 
   assert.equal(exact.verdict, 'pass')
-  assert.equal(newlyUncovered.files[0].metrics.functions.status, 'regression')
+  assert.equal(firstFile(newlyUncovered).metrics.functions.status, 'regression')
 })
 
 test('reports new and deleted gated files as file-set changes', () => {
@@ -213,8 +221,8 @@ test('baseline update refuses a new gated file with uncovered behavior', () => {
   })
 
   assert.equal(evaluation.verdict, 'fail')
-  assert.equal(evaluation.files[0].status, 'new-file')
-  assert.equal(evaluation.files[0].outcome, 'regression')
+  assert.equal(firstFile(evaluation).status, 'new-file')
+  assert.equal(firstFile(evaluation).outcome, 'regression')
 })
 
 test('normal check rejects a zero-total file-set change that baseline update may accept', () => {
@@ -233,7 +241,7 @@ test('normal check rejects a zero-total file-set change that baseline update may
 
   const check = evaluateCoverage(input)
   assert.equal(check.verdict, 'fail')
-  assert.equal(check.files[0].status, 'new-file')
+  assert.equal(firstFile(check).status, 'new-file')
   assert.equal(evaluateCoverage({ ...input, mode: 'update-baseline' }).verdict, 'pass')
 })
 

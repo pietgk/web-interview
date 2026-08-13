@@ -2,8 +2,31 @@
 // (including JSX) and cannot use that union without lying at every property access.
 import type { ESLint, Rule } from 'eslint'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ESLint AST escape hatch
-export type AstNode = Record<string, any>
+/* eslint-disable @typescript-eslint/no-explicit-any -- ESLint AST escape hatch */
+export type AstNode = {
+  type: any
+  name: any
+  computed: any
+  property: any
+  key: any
+  value: any
+  parent: any
+  kind: any
+  callee: any
+  arguments: any
+  argument: any
+  operator: any
+  quasis: any
+  expressions: any
+  specifiers: any
+  source: any
+  id: any
+  init: any
+  left: any
+  right: any
+  [key: string]: any
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export type ContractDefinition = { id: string; module: string; export: string }
 export type UsageMapping = {

@@ -70,7 +70,8 @@ const PORTS_COLUMN_WIDTH = 14
 
 export const resolvePorts = (token: string): number[] => {
   if (token === 'all') return ALL_LANE_PORTS
-  if (Object.hasOwn(LANES, token)) return [...LANES[token]]
+  const lanePorts = LANES[token]
+  if (lanePorts !== undefined) return [...lanePorts]
   const port = Number(token)
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error(
@@ -133,7 +134,7 @@ export type LaneStatus = { name: string, ports: number[], pids: number[], listen
 
 export const overviewLaneStatuses = (): LaneStatus[] =>
   OVERVIEW_LANES.map((name) => {
-    const ports = [...LANES[name]]
+    const ports = [...(LANES[name] ?? [])]
     const pids = [...new Set(listenerPids(ports))]
     return { name, ports, pids, listening: pids.length > 0 }
   })

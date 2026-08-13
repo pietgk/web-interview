@@ -3,7 +3,7 @@ import {
   normalizeCoveragePath,
   sumCoverage,
 } from './coverage-producers.ts'
-import type { RawCoverageSummary } from './coverage-producers.ts'
+import type { FileCoverage, RawCoverageSummary } from './coverage-producers.ts'
 import {
   evidenceForSourcePath,
   SOURCE_EVIDENCE_ENTRIES,
@@ -14,7 +14,6 @@ import {
 export type SourceEvidenceCategory = keyof typeof TREATMENTS
 export type SourceClassification = {treatment: SourceEvidenceCategory, producer: string, verdict: string, rationale: string}
 export type CoverageMetric = 'statements' | 'branches' | 'functions' | 'lines'
-export type FileCoverage = Record<CoverageMetric, {covered: number, total: number}>
 
 const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
 export const CATEGORIES = Object.freeze(Object.keys(TREATMENTS))
@@ -74,13 +73,13 @@ export const createSourceEvidence = ({
   verdict: 'pass' | 'fail'
   issues: string[]
   categoryCounts: Record<string, number>
-  sources: Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}>
-  ui: Array<{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage}>
+  sources: Array<{path: string, treatment?: SourceEvidenceCategory | undefined, producer?: string | undefined, verdict?: string | undefined, rationale?: string | undefined}>
+  ui: Array<{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage | undefined}>
   uiTotals: FileCoverage
 } => {
   const issues = validateSourceEvidenceRegistry({ entries: registryEntries, sourcePaths })
   const registry = new Map(registryEntries.map((entry) => [entry.path, entry]))
-  const sources: Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}> = sourcePaths.slice().sort().map((path) => {
+  const sources: Array<{path: string, treatment?: SourceEvidenceCategory | undefined, producer?: string | undefined, verdict?: string | undefined, rationale?: string | undefined}> = sourcePaths.slice().sort().map((path) => {
     const entry = registry.get(path)
     if (!entry) return { path, treatment: undefined, producer: undefined, verdict: undefined, rationale: undefined }
     const definition = TREATMENTS[entry.treatment]

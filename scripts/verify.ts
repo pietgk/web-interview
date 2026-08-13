@@ -243,9 +243,9 @@ const main = async () => {
     process.stdout.write(failure.output)
   }
 
-  if (process.env.GITHUB_STEP_SUMMARY) {
+  if (process.env['GITHUB_STEP_SUMMARY']) {
     await appendFile(
-      process.env.GITHUB_STEP_SUMMARY,
+      process.env['GITHUB_STEP_SUMMARY'],
       ['```', ...rows.map(formatRow), '', verdict, '```', ''].join('\n')
     )
   }

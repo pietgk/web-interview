@@ -15,10 +15,10 @@ const execFileAsync = promisify(execFile)
 const repoPath = (path: string) => normalizeCoveragePath(path, ROOT)
 
 const producerArg = process.argv[2]
-if (!Object.hasOwn(PRODUCER_CONFIG_PATHS, producerArg)) {
+if (producerArg !== 'node' && producerArg !== 'storybook') {
   throw new Error(`Usage: node scripts/coverage-producer-cli.ts <${Object.keys(PRODUCER_CONFIG_PATHS).join('|')}>`)
 }
-const producer = producerArg as 'node' | 'storybook'
+const producer = producerArg
 const providerProvenance = await resolveCoverageProviderProvenance(producer, ROOT)
 if (providerProvenance.issues.length > 0) {
   throw new Error(providerProvenance.issues.join('\n'))

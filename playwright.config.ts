@@ -12,7 +12,7 @@ import { E2E_SEED_TODO_LISTS } from './e2e/fixture.ts'
 
 // Playwright sets FORCE_COLOR=1 for its web servers and workers. Remove the
 // conflicting inherited flag before those child processes are created.
-delete process.env.NO_COLOR
+delete process.env['NO_COLOR']
 
 const E2E_TEST_TIMEOUT_MS = 60_000
 const WEB_SERVER_START_TIMEOUT_MS = 120_000
@@ -24,8 +24,8 @@ export default defineConfig({
   testDir: './e2e',
   timeout: E2E_TEST_TIMEOUT_MS,
   fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  forbidOnly: !!process.env['CI'],
+  retries: process.env['CI'] ? 1 : 0,
   workers: 1,
   reporter: 'list',
   use: {
