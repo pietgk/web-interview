@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import {
   createCoverageStabilitySnapshot,
+  describeCoverageStabilityDrift,
   stabilityAdmissionIssues,
 } from './coverage-producers.ts'
 import { exactCoveragePathsFor } from './source-evidence-registry.ts'
@@ -167,7 +168,8 @@ try {
       expectedRuns: STORYBOOK_STABILITY_RUNS,
     })
     if (issues.length > 0) {
-      throw new Error(issues.join('\n'))
+      const drift = describeCoverageStabilityDrift(snapshots)
+      throw new Error([...issues, ...drift].join('\n'))
     }
     await mkdir(resolve(ROOT, '.test-evidence'), { recursive: true })
     await writeFile(resolve(ROOT, '.test-evidence/storybook-stability.json'), `${JSON.stringify({

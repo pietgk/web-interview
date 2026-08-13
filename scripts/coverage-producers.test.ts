@@ -8,6 +8,7 @@ import {
   createCombinedAutomationReach,
   createCombinedOwnedRuntimeReach,
   createCoverageStabilitySnapshot,
+  describeCoverageStabilityDrift,
   createEvidenceDigest,
   coverageProviderInstallationIssues,
   coverageProviderProvenanceFromPackage,
@@ -435,4 +436,7 @@ test('controller stability snapshot includes complete maps and exact tuples', ()
 
   assert.notEqual(first.digest, changed.digest)
   assert.deepEqual(first.paths, [path])
+  assert.deepEqual(describeCoverageStabilityDrift([first, changed]), [
+    `${path} (collection 2): executable map`,
+  ])
 })

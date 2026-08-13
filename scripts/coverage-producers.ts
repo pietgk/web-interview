@@ -362,6 +362,31 @@ export const createCoverageStabilitySnapshot = ({
   }
 }
 
+export type CoverageStabilitySnapshot = ReturnType<typeof createCoverageStabilitySnapshot>
+
+export const describeCoverageStabilityDrift = (snapshots: CoverageStabilitySnapshot[]) => {
+  const baseline = snapshots[0]
+  if (!baseline) return []
+  const lines: string[] = []
+  for (const [index, snapshot] of snapshots.entries()) {
+    if (index === 0 || snapshot.digest === baseline.digest) continue
+    for (const path of baseline.paths) {
+      const left = baseline.files[path]
+      const right = snapshot.files[path]
+      if (left === undefined || right === undefined) continue
+      if (JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right))) continue
+      const coverageChanged = JSON.stringify(left.coverage) !== JSON.stringify(right.coverage)
+      const mapChanged = JSON.stringify(stableValue(left.map)) !== JSON.stringify(stableValue(right.map))
+      const parts = [
+        coverageChanged ? `coverage ${JSON.stringify(left.coverage)} vs ${JSON.stringify(right.coverage)}` : undefined,
+        mapChanged ? 'executable map' : undefined,
+      ].filter(Boolean)
+      lines.push(`${path} (collection ${index + 1}): ${parts.join('; ')}`)
+    }
+  }
+  return lines
+}
+
 const executableMap = (file: IstanbulFile) => stableValue({
   statementMap: file.statementMap,
   fnMap: file.fnMap,
