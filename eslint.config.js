@@ -155,6 +155,13 @@ export default [
     },
   },
   {
+    // Core `no-unused-vars` does not understand TypeScript function types and
+    // reports their parameter names. `@typescript-eslint/no-unused-vars` above
+    // is the rule that applies to `.ts` / `.tsx`.
+    files: [TYPESCRIPT],
+    rules: { 'no-unused-vars': 'off' },
+  },
+  {
     // Numeric literals are the grammar of these AST/geometry-heavy files. Their
     // surrounding syntax already supplies the clearest meaning; date and
     // canonical-contract enforcement remain enabled.

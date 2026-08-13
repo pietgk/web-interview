@@ -25,8 +25,7 @@ export const ULID_PATTERN = new RegExp(`^${ULID_SOURCE}$`)
 export const TODO_LIST_ID_PATTERN = new RegExp(`^L${ULID_SOURCE}$`)
 export const TODO_ID_PATTERN = new RegExp(`^L${ULID_SOURCE}/T${ULID_SOURCE}$`)
 
-/** @param {number} milliseconds */
-const encodeTime = (milliseconds) => {
+const encodeTime = (milliseconds: number) => {
   let remaining = milliseconds
   let encoded = ''
   for (let position = 0; position < TIME_LENGTH; position += 1) {
@@ -51,10 +50,8 @@ const randomBase32 = () => {
  * random bits already at maximum within a single millisecond, which no test can
  * arrange without replacing the generator with one that is no longer the thing
  * under test, so it is marked unreachable rather than chased.
- *
- * @param {string} encoded
  */
-const incrementBase32 = (encoded) => {
+const incrementBase32 = (encoded: string) => {
   for (let position = encoded.length - 1; position >= 0; position -= 1) {
     const digit = ENCODING.indexOf(encoded[position])
     if (digit === ENCODING_LENGTH - 1) {
@@ -70,11 +67,7 @@ const incrementBase32 = (encoded) => {
 let lastTime = -1
 let lastRandom = ''
 
-/**
- * @param {number} milliseconds
- * @returns {string}
- */
-export const ulid = (milliseconds) => {
+export const ulid = (milliseconds: number): string => {
   if (!Number.isInteger(milliseconds) || milliseconds < 0 || milliseconds > MAX_TIME) {
     throw new RangeError('ULID time must be a whole number of milliseconds within 48 bits')
   }
@@ -88,11 +81,8 @@ export const ulid = (milliseconds) => {
   return encodeTime(lastTime) + lastRandom
 }
 
-/**
- * @param {string} id a bare 26-character ULID
- * @returns {number} the millisecond the id was minted
- */
-export const ulidTime = (id) => {
+/** `id` is a bare 26-character ULID. @returns the millisecond the id was minted */
+export const ulidTime = (id: string): number => {
   if (!ULID_PATTERN.test(id)) throw new TypeError(`Not a ULID: ${id}`)
   let milliseconds = 0
   for (const character of id.slice(0, TIME_LENGTH)) {
@@ -101,32 +91,21 @@ export const ulidTime = (id) => {
   return milliseconds
 }
 
-/**
- * @param {number} milliseconds
- * @returns {string}
- */
-export const listId = (milliseconds) => `L${ulid(milliseconds)}`
+export const listId = (milliseconds: number): string => `L${ulid(milliseconds)}`
 
 /**
  * A Todo carries its Todo List in its id, so a Todo belonging to no Todo List is
  * unrepresentable rather than merely unlikely.
- *
- * @param {string} listEntity
- * @param {number} milliseconds
- * @returns {string}
  */
-export const todoId = (listEntity, milliseconds) =>
+export const todoId = (listEntity: string, milliseconds: number): string =>
   `${listEntity}/T${ulid(milliseconds)}`
 
 /**
  * Binds the generator to a clock. The browser passes its server-time source, so
  * ids and `tx` values are minted from the same trustworthy clock.
- *
- * @param {() => number} now
  */
-export const createUlidMinter = (now) => ({
+export const createUlidMinter = (now: () => number) => ({
   tx: () => ulid(now()),
   listId: () => listId(now()),
-  /** @param {string} listEntity */
-  todoId: (listEntity) => todoId(listEntity, now()),
+  todoId: (listEntity: string) => todoId(listEntity, now()),
 })

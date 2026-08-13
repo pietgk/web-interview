@@ -15,7 +15,7 @@ import { COVERAGE_PROVIDER } from './scripts/coverage-producers.ts'
 // Node owner baseline. Broad collection retains useful overlap for the optional
 // automation view without letting that overlap rescue an owner verdict.
 const NODE_COVERAGE_COLLECTION = [
-  'shared/src/**/*.js',
+  'shared/src/**/*.ts',
   'backend/src/**/*.js',
   'frontend/src/todos/**/*.js',
   'frontend/src/testing/*.js',
@@ -36,7 +36,7 @@ export default defineConfig({
         '**/*.test.js',
         '**/*.spec.js',
         // Pure JSDoc typedefs - no runtime code exists to execute.
-        '**/shared/src/types.js',
+        '**/shared/src/types.ts',
         // Process bootstrap. e2e proves it, in a process v8 cannot see from here.
         '**/backend/src/index.js',
       ],

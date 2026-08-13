@@ -1,19 +1,15 @@
 import { z } from 'zod'
-import { isRealCalendarDate } from './calendarDate.js'
+import { isRealCalendarDate } from './calendarDate.ts'
 import {
   TODO_LIST_TITLE_MAX_LENGTH,
   TODO_TEXT_MAX_LENGTH,
-} from './todoProtocol.js'
+} from './todoProtocol.ts'
 import {
   TODO_ID_PATTERN,
   TODO_LIST_ID_PATTERN,
   ULID_PATTERN,
-} from './ulid.js'
-
-/** @typedef {import('./types.js').Attribute} Attribute */
-/** @typedef {import('./types.js').Datom} Datom */
-/** @typedef {import('./types.js').EntityType} EntityType */
-/** @typedef {import('./types.js').FactValue} FactValue */
+} from './ulid.ts'
+import type { Attribute, EntityType } from './types.ts'
 
 export const ENTITY_TYPE = Object.freeze({
   TODO_LIST: 'Todo List',
@@ -27,21 +23,25 @@ export const ATTRIBUTE = Object.freeze({
   DUE_DATE: 'dueDate',
 })
 
-const ATTRIBUTE_VALUES = /** @type {const} */ ([
+const ATTRIBUTE_VALUES = [
   'title',
   'text',
   'completed',
   'dueDate',
-])
+] as const
+
+type AttributeDefinition = {
+  entity: EntityType
+  defining: boolean
+  isValidValue: (value: unknown) => boolean
+}
 
 /**
  * Each entity type declares one defining attribute. Asserting it creates the
  * entity, retracting it deletes the entity, and re-asserting it brings the
  * entity's other attributes back with it.
- *
- * @type {Readonly<Record<Attribute, {entity: EntityType, defining: boolean, isValidValue: (value: unknown) => boolean}>>}
  */
-const ATTRIBUTES = Object.freeze({
+const ATTRIBUTES: Readonly<Record<Attribute, AttributeDefinition>> = Object.freeze({
   [ATTRIBUTE.TITLE]: {
     entity: ENTITY_TYPE.TODO_LIST,
     defining: true,
@@ -73,11 +73,7 @@ export const DEFINING_ATTRIBUTE = Object.freeze({
   [ENTITY_TYPE.TODO]: ATTRIBUTE.TEXT,
 })
 
-/**
- * @param {string} entity
- * @returns {EntityType | null}
- */
-export const entityTypeOf = (entity) => {
+export const entityTypeOf = (entity: string): EntityType | null => {
   if (TODO_LIST_ID_PATTERN.test(entity)) return ENTITY_TYPE.TODO_LIST
   if (TODO_ID_PATTERN.test(entity)) return ENTITY_TYPE.TODO
   return null
@@ -85,11 +81,8 @@ export const entityTypeOf = (entity) => {
 
 /**
  * The Todo List a Todo belongs to for its whole life, read straight off its id.
- *
- * @param {string} todoEntity
- * @returns {string}
  */
-export const listEntityOf = (todoEntity) => todoEntity.slice(0, todoEntity.indexOf('/'))
+export const listEntityOf = (todoEntity: string): string => todoEntity.slice(0, todoEntity.indexOf('/'))
 
 export const datomSchema = z
   .tuple([

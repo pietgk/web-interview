@@ -32,7 +32,6 @@ type ReportDescriptor = { node: AstNode; messageId: string; data?: Record<string
 interface PluginRuleContext {
   options: RuleOptions[]
   filename: string
-  // eslint-disable-next-line no-unused-vars -- parameter name in a type-level method signature
   report(info: ReportDescriptor): void
 }
 

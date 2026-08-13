@@ -1,20 +1,25 @@
-import { CONNECTION } from './todoProtocol.js'
+import { CONNECTION } from './todoProtocol.ts'
+import type {
+  StatusBarModel,
+  Todo,
+  TodoClientStatus,
+  TodoList,
+  TodoLists,
+} from './types.ts'
 
-/** @typedef {import('./types.js').Todo} Todo */
-/** @typedef {import('./types.js').TodoList} TodoList */
-/** @typedef {import('./types.js').TodoLists} TodoLists */
-/** @typedef {import('./types.js').TodoClientStatus} TodoClientStatus */
-/** @typedef {{id: string, title: string, completed: boolean, completedCount: number, totalCount: number, nextDueDate: string | null}} TodoListSummary */
+export type TodoListSummary = {
+  id: string
+  title: string
+  completed: boolean
+  completedCount: number
+  totalCount: number
+  nextDueDate: string | null
+}
 
-/** @param {Todo[]} [todos] */
-export const isTodoListCompleted = (todos = []) =>
+export const isTodoListCompleted = (todos: Todo[] = []) =>
   todos.length > 0 && todos.every((todo) => todo.completed)
 
-/**
- * @param {TodoList} todoList
- * @returns {TodoListSummary}
- */
-export const selectListSummary = (todoList) => ({
+export const selectListSummary = (todoList: TodoList): TodoListSummary => ({
   id: todoList.id,
   title: todoList.title,
   completed: isTodoListCompleted(todoList.todos),
@@ -25,7 +30,7 @@ export const selectListSummary = (todoList) => ({
       !todo.completed && todo.dueDate && (!earliest || todo.dueDate < earliest)
         ? todo.dueDate
         : earliest,
-    /** @type {string | null} */ (null)
+    null as string | null
   ),
 })
 
@@ -42,11 +47,8 @@ export const selectListSummary = (todoList) => ({
  * integer-like keys first in numeric order and every other key in insertion
  * order. The `L` prefix on an id therefore carries sort stability as well as
  * entity type, so dropping it would silently reshuffle equal-ranked Todo Lists.
- *
- * @param {TodoLists} todoLists
- * @returns {TodoListSummary[]}
  */
-export const selectTodoListSummaries = (todoLists) =>
+export const selectTodoListSummaries = (todoLists: TodoLists): TodoListSummary[] =>
   Object.values(todoLists)
     .map((todoList, sourceIndex) => ({
       ...selectListSummary(todoList),
@@ -57,8 +59,8 @@ export const selectTodoListSummaries = (todoLists) =>
       const rightBucket = right.completed ? 2 : right.nextDueDate ? 0 : 1
       if (leftBucket !== rightBucket) return leftBucket - rightBucket
       if (leftBucket === 0 && left.nextDueDate !== right.nextDueDate) {
-        return /** @type {string} */ (left.nextDueDate).localeCompare(
-          /** @type {string} */ (right.nextDueDate)
+        return (left.nextDueDate as string).localeCompare(
+          right.nextDueDate as string
         )
       }
       return left.sourceIndex - right.sourceIndex
@@ -71,11 +73,8 @@ const titlePart = { id: 'title', text: 'Things to do' }
  * One status line over what the client knows about delivery and recovery. A
  * permanent rejection outranks connection and saving copy so the UI cannot call
  * a rejected optimistic change saved while authoritative state is being restored.
- *
- * @param {TodoClientStatus} status
- * @returns {import('./types.js').StatusBarModel}
  */
-export const selectStatusBar = ({ connection, pendingCount, saving, failure }) => {
+export const selectStatusBar = ({ connection, pendingCount, saving, failure }: TodoClientStatus): StatusBarModel => {
   const details = failure
     ? {
         status: failure.status,

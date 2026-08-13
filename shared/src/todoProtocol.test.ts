@@ -4,7 +4,7 @@ import {
   API_ERROR_CODE,
   BROWSER_ERROR_CODE,
   apiErrorBodySchema,
-} from './todoProtocol.js'
+} from './todoProtocol.ts'
 
 describe('API error contract', () => {
   it('accepts the public server shape with stable validation issues', () => {

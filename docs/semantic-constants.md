@@ -79,7 +79,7 @@ Promote a constant to `shared` only when multiple consumers depend on one semant
 Organize shared constants with the module that owns the meaning, never in a collection grouped by
 primitive type, unit, or value.
 
-Use the highest-level available abstraction. `shared/src/ulid.js`, for example, owns
+Use the highest-level available abstraction. `shared/src/ulid.ts`, for example, owns
 `ULID_LENGTH` and `EARLIEST_ULID`. A stale cursor scenario uses `EARLIEST_ULID`; it does not repeat
 the encoded width or rebuild the value.
 

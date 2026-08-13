@@ -63,13 +63,13 @@ export const SOURCE_EVIDENCE_ENTRIES: readonly EvidenceRegistryEntry[] = Object.
   { path: 'frontend/src/todos/useSettledText.js', treatment: 'storybook-controller', rationale: 'React timing, cleanup, and prop adoption are observable through browser-owned field consumers.' },
   { path: 'frontend/src/todos/useTodoLists.js', treatment: 'storybook-controller', rationale: 'React subscription and client lifecycle behavior is observable through the mounted application.' },
 
-  { path: 'shared/src/calendarDate.js', treatment: 'node-runtime', rationale: 'Calendar-date validation is deterministic shared runtime logic exercised in Node.' },
-  { path: 'shared/src/datom.js', treatment: 'node-runtime', rationale: 'Datom validation and identity rules are deterministic shared runtime logic exercised in Node.' },
-  { path: 'shared/src/datomStore.js', treatment: 'node-runtime', rationale: 'The shared fold and projection expose a deterministic in-process interface exercised in Node.' },
-  { path: 'shared/src/selectors.js', treatment: 'node-runtime', rationale: 'Todo List selectors are deterministic shared runtime logic exercised in Node.' },
-  { path: 'shared/src/todoProtocol.js', treatment: 'node-runtime', rationale: 'Protocol constants and schemas are deterministic shared runtime contracts exercised in Node.' },
-  { path: 'shared/src/types.js', treatment: 'type-only', rationale: 'JSDoc declarations emit no runtime code.' },
-  { path: 'shared/src/ulid.js', treatment: 'node-runtime', rationale: 'ULID parsing and minting expose deterministic injected-clock behavior exercised in Node.' },
+  { path: 'shared/src/calendarDate.ts', treatment: 'node-runtime', rationale: 'Calendar-date validation is deterministic shared runtime logic exercised in Node.' },
+  { path: 'shared/src/datom.ts', treatment: 'node-runtime', rationale: 'Datom validation and identity rules are deterministic shared runtime logic exercised in Node.' },
+  { path: 'shared/src/datomStore.ts', treatment: 'node-runtime', rationale: 'The shared fold and projection expose a deterministic in-process interface exercised in Node.' },
+  { path: 'shared/src/selectors.ts', treatment: 'node-runtime', rationale: 'Todo List selectors are deterministic shared runtime logic exercised in Node.' },
+  { path: 'shared/src/todoProtocol.ts', treatment: 'node-runtime', rationale: 'Protocol constants and schemas are deterministic shared runtime contracts exercised in Node.' },
+  { path: 'shared/src/types.ts', treatment: 'type-only', rationale: 'Type declarations emit no runtime code.' },
+  { path: 'shared/src/ulid.ts', treatment: 'node-runtime', rationale: 'ULID parsing and minting expose deterministic injected-clock behavior exercised in Node.' },
 ])
 
 export const validateSourceEvidenceRegistry = ({

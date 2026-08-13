@@ -56,7 +56,7 @@ export const canonicalContractOptions = {
     },
     {
       identifierPattern: '^(?:TODO_)?(?:TEXT_)?MAX_LENGTH$',
-      exceptFilePattern: '/shared/src/todoProtocol\\.js$',
+      exceptFilePattern: '/shared/src/todoProtocol\\.[jt]s$',
       usages: [],
       contract: 'todoTextMaximumLength',
     },

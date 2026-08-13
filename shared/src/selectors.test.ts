@@ -5,7 +5,8 @@ import {
   selectListSummary,
   selectStatusBar,
   selectTodoListSummaries,
-} from './selectors.js'
+} from './selectors.ts'
+import type { TodoClientStatus } from './types.ts'
 
 const COMPLETED_DUE_DAY = '2026-08-01'
 const LATER_DUE_DAY = '2026-08-20'
@@ -16,8 +17,7 @@ const VALIDATION_ERROR_STATUS = 400
 
 describe('todo-list selectors', () => {
   describe('isTodoListCompleted', () => {
-    /** @param {string} id @param {boolean} completed */
-    const todo = (id, completed) => ({ id, text: id, completed, dueDate: null })
+    const todo = (id: string, completed: boolean) => ({ id, text: id, completed, dueDate: null })
 
     it('is false for an empty Todo List', () => {
       assert.equal(isTodoListCompleted([]), false)
@@ -54,8 +54,7 @@ describe('todo-list selectors', () => {
   })
 
   it('orders due, undated, and completed Todo Lists with stable ties', () => {
-    /** @param {string} id @param {boolean} completed @param {string | null} [dueDate] */
-    const todo = (id, completed, dueDate = null) => ({
+    const todo = (id: string, completed: boolean, dueDate: string | null = null) => ({
       id,
       text: id,
       completed,
@@ -78,8 +77,7 @@ describe('todo-list selectors', () => {
   })
 
   it('projects every StatusBar priority without contradictory parts', () => {
-    /** @param {Partial<import('./types.js').TodoClientStatus>} [overrides] */
-    const visible = (overrides = {}) => {
+    const visible = (overrides: Partial<TodoClientStatus> = {}) => {
       const status = selectStatusBar({
         connection: 'live',
         pendingCount: 0,

@@ -3,17 +3,10 @@ import {
   ENTITY_TYPE,
   entityTypeOf,
   listEntityOf,
-} from './datom.js'
+} from './datom.ts'
+import type { Attribute, Datom, Fact, TodoList, TodoLists } from './types.ts'
 
-/** @typedef {import('./types.js').Attribute} Attribute */
-/** @typedef {import('./types.js').Datom} Datom */
-/** @typedef {import('./types.js').Fact} Fact */
-/** @typedef {import('./types.js').Todo} Todo */
-/** @typedef {import('./types.js').TodoList} TodoList */
-/** @typedef {import('./types.js').TodoLists} TodoLists */
-
-/** @param {string} left @param {string} right */
-const ascending = (left, right) => (left < right ? -1 : left > right ? 1 : 0)
+const ascending = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0)
 
 /**
  * The fold both sides run verbatim: an append-only log of single datoms projected
@@ -21,20 +14,14 @@ const ascending = (left, right) => (left < right ? -1 : left > right ? 1 : 0)
  * a datom is an exact no-op and needs no idempotency bookkeeping.
  */
 export class DatomStore {
-  /** @type {Map<string, Map<Attribute, Fact>>} */
-  #facts = new Map()
+  #facts = new Map<string, Map<Attribute, Fact>>()
 
-  /** @type {TodoLists | null} */
-  #readModel = null
+  #readModel: TodoLists | null = null
 
-  /** @type {Set<() => void>} */
-  #listeners = new Set()
+  #listeners = new Set<() => void>()
 
-  /**
-   * @param {Datom} datom
-   * @returns {boolean} whether the datom won on `tx`
-   */
-  apply([entity, attribute, value, tx, op]) {
+  /** @returns whether the datom won on `tx` */
+  apply([entity, attribute, value, tx, op]: Datom): boolean {
     let attributes = this.#facts.get(entity)
     const current = attributes?.get(attribute)
     if (current && current.tx >= tx) return false
@@ -54,12 +41,10 @@ export class DatomStore {
    * consuming cursor advances monotonically. Retractions are included: a client
    * that was away learns of a deletion only from its tombstone.
    *
-   * @param {string} [tx] every winning datom when omitted
-   * @returns {Datom[]}
+   * @param tx every winning datom when omitted
    */
-  datomsSince(tx) {
-    /** @type {Datom[]} */
-    const datoms = []
+  datomsSince(tx?: string): Datom[] {
+    const datoms: Datom[] = []
     for (const [entity, attributes] of this.#facts) {
       for (const [attribute, fact] of attributes) {
         if (tx !== undefined && fact.tx <= tx) continue
@@ -74,9 +59,9 @@ export class DatomStore {
    * replaced: a cursor names a position in a log, never which log, so the datoms
    * already folded in here can no longer be reconciled with what arrives next.
    *
-   * @returns {boolean} whether there was anything to forget
+   * @returns whether there was anything to forget
    */
-  clear() {
+  clear(): boolean {
     if (this.#facts.size === 0) return false
     this.#facts.clear()
     this.#readModel = null
@@ -87,29 +72,24 @@ export class DatomStore {
   /**
    * Memoized because `useSyncExternalStore` requires a referentially stable
    * snapshot; the memo is dropped whenever a datom wins.
-   *
-   * @returns {TodoLists}
    */
-  readModel() {
+  readModel(): TodoLists {
     if (!this.#readModel) this.#readModel = this.#project()
     return this.#readModel
   }
 
-  /** @param {() => void} listener */
-  subscribe(listener) {
+  subscribe(listener: () => void) {
     this.#listeners.add(listener)
     return { unsubscribe: () => this.#listeners.delete(listener) }
   }
 
-  /** @returns {TodoLists} */
-  #project() {
-    /** @type {TodoList[]} */
-    const lists = []
+  #project(): TodoLists {
+    const lists: TodoList[] = []
     for (const [entity, attributes] of this.#facts) {
       if (entityTypeOf(entity) !== ENTITY_TYPE.TODO_LIST) continue
       const title = attributes.get(ATTRIBUTE.TITLE)
       if (!title?.op) continue
-      lists.push({ id: entity, title: /** @type {string} */ (title.v), todos: [] })
+      lists.push({ id: entity, title: title.v as string, todos: [] })
     }
     lists.sort((left, right) => ascending(left.id, right.id))
 
@@ -125,14 +105,13 @@ export class DatomStore {
       const dueDate = attributes.get(ATTRIBUTE.DUE_DATE)
       list.todos.push({
         id: entity,
-        text: /** @type {string} */ (text.v),
-        completed: completed?.op ? /** @type {boolean} */ (completed.v) : false,
-        dueDate: dueDate?.op ? /** @type {string} */ (dueDate.v) : null,
+        text: text.v as string,
+        completed: completed?.op ? completed.v as boolean : false,
+        dueDate: dueDate?.op ? dueDate.v as string : null,
       })
     }
 
-    /** @type {TodoLists} */
-    const todoLists = {}
+    const todoLists: TodoLists = {}
     for (const list of lists) {
       // Newest Todo first; oldest Todo List first. Both are pure functions of the id.
       list.todos.sort((left, right) => ascending(right.id, left.id))

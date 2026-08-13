@@ -9,7 +9,7 @@ import {
   todoId,
   ulid,
   ulidTime,
-} from './ulid.js'
+} from './ulid.ts'
 
 // The generator is monotonic across the whole process, so every test mints from a
 // later millisecond than the one before it.

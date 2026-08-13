@@ -18,8 +18,8 @@ const registryEntriesFor = (paths: string[]) => SOURCE_EVIDENCE_ENTRIES.filter((
 
 test('classifies every production source seam explicitly', () => {
   const examples = {
-    'shared/src/datom.js': 'node-runtime',
-    'shared/src/types.js': 'type-only',
+    'shared/src/datom.ts': 'node-runtime',
+    'shared/src/types.ts': 'type-only',
     'backend/src/app.js': 'node-runtime',
     'backend/src/index.js': 'playwright-bootstrap',
     'frontend/src/todos/todoModel.js': 'node-runtime',
@@ -91,10 +91,10 @@ test('registry validation fails closed for missing, deleted, duplicate, and inva
 test('accounts for source ownership and reports UI execution separately from the logic baseline', () => {
   const appPath = 'frontend/src/App.jsx'
   const storyPath = 'frontend/src/App.stories.jsx'
-  const logicPath = 'shared/src/datom.js'
+  const logicPath = 'shared/src/datom.ts'
   const evidence = createSourceEvidence({
-    sourcePaths: [appPath, 'frontend/src/index.jsx', logicPath, 'shared/src/types.js'],
-    registryEntries: registryEntriesFor([appPath, 'frontend/src/index.jsx', logicPath, 'shared/src/types.js']),
+    sourcePaths: [appPath, 'frontend/src/index.jsx', logicPath, 'shared/src/types.ts'],
+    registryEntries: registryEntriesFor([appPath, 'frontend/src/index.jsx', logicPath, 'shared/src/types.ts']),
     baselinePathsByProducer: { node: [logicPath], storybook: [] },
     summary: {
       total: fileCoverage(),
@@ -164,11 +164,11 @@ test('fails closed on unowned source, baseline drift, or missing Storybook execu
 
 test('rejects exact baseline paths under the wrong producer or non-coverage treatment', () => {
   const evidence = createSourceEvidence({
-    sourcePaths: ['shared/src/datom.js', 'frontend/src/App.jsx'],
-    registryEntries: registryEntriesFor(['shared/src/datom.js', 'frontend/src/App.jsx']),
+    sourcePaths: ['shared/src/datom.ts', 'frontend/src/App.jsx'],
+    registryEntries: registryEntriesFor(['shared/src/datom.ts', 'frontend/src/App.jsx']),
     baselinePathsByProducer: {
       node: [],
-      storybook: ['shared/src/datom.js', 'frontend/src/App.jsx'],
+      storybook: ['shared/src/datom.ts', 'frontend/src/App.jsx'],
     },
     summary: {
       '/repo/frontend/src/App.jsx': fileCoverage(),
@@ -178,7 +178,7 @@ test('rejects exact baseline paths under the wrong producer or non-coverage trea
     storyResults: { testResults: [] },
   })
 
-  assert.ok(evidence.issues.includes('shared/src/datom.js: node-owned source is absent from the node exact baseline'))
+  assert.ok(evidence.issues.includes('shared/src/datom.ts: node-owned source is absent from the node exact baseline'))
   assert.ok(evidence.issues.includes('frontend/src/App.jsx: storybook baseline entry does not allow exact coverage'))
 })
 

@@ -6,12 +6,12 @@ import {
   datomSchema,
   entityTypeOf,
   listEntityOf,
-} from './datom.js'
+} from './datom.ts'
 import {
   TODO_LIST_TITLE_MAX_LENGTH,
   TODO_TEXT_MAX_LENGTH,
-} from './todoProtocol.js'
-import { listId, todoId, ulid } from './ulid.js'
+} from './todoProtocol.ts'
+import { listId, todoId, ulid } from './ulid.ts'
 
 const INITIAL_DATOM_TIME_MS = 1_760_000_000_000
 const VALID_DUE_DAY = '2026-08-03'
@@ -25,11 +25,9 @@ const LIST = listId(nextTimestamp())
 const TODO = todoId(LIST, nextTimestamp())
 const TX = ulid(nextTimestamp())
 
-/** @param {unknown} datom */
-const parse = (datom) => datomSchema.safeParse(datom)
+const parse = (datom: unknown) => datomSchema.safeParse(datom)
 
-/** @param {unknown} datom */
-const firstIssue = (datom) => {
+const firstIssue = (datom: unknown) => {
   const result = parse(datom)
   assert.equal(result.success, false, `expected ${JSON.stringify(datom)} to be rejected`)
   return result.error.issues[0]

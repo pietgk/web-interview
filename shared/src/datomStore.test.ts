@@ -1,8 +1,9 @@
 import { describe, it } from 'vitest'
 import assert from 'node:assert/strict'
-import { ATTRIBUTE } from './datom.js'
-import { DatomStore } from './datomStore.js'
-import { listId, todoId, ulid } from './ulid.js'
+import { ATTRIBUTE } from './datom.ts'
+import { DatomStore } from './datomStore.ts'
+import { listId, todoId, ulid } from './ulid.ts'
+import type { Attribute, Datom, FactValue } from './types.ts'
 
 const INITIAL_STORE_TIME_MS = 1_770_000_000_000
 const STORED_DUE_DAY = '2026-08-03'
@@ -13,15 +14,13 @@ const nextTimestamp = () => (clock += 1)
 /** Mints in ascending `tx` order unless a test deliberately reorders. */
 const tx = () => ulid(nextTimestamp())
 
-/**
- * @param {string} entity
- * @param {import('./types.js').Attribute} attribute
- * @param {import('./types.js').FactValue} value
- * @param {string} transaction
- * @param {boolean} [op]
- * @returns {import('./types.js').Datom}
- */
-const datom = (entity, attribute, value, transaction, op = true) => [
+const datom = (
+  entity: string,
+  attribute: Attribute,
+  value: FactValue,
+  transaction: string,
+  op = true
+): Datom => [
   entity,
   attribute,
   value,

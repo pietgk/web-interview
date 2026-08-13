@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     name: 'shared',
     environment: 'node',
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.test.ts'],
   },
 })
