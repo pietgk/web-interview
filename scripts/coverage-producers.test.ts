@@ -419,7 +419,7 @@ test('stability admission requires one clean revision and the complete run count
   }), [])
 })
 
-test('controller stability snapshot includes complete maps and exact tuples', () => {
+test('controller stability snapshot includes hit counters and exact tuples', () => {
   const path = 'frontend/src/controller.js'
   const first = createCoverageStabilitySnapshot({
     repositoryRoot: '/repo',
@@ -427,16 +427,23 @@ test('controller stability snapshot includes complete maps and exact tuples', ()
     map: { [`/repo/${path}`]: mapFor(path, { statementHit: 1 }) },
     paths: [path],
   })
-  const changed = createCoverageStabilitySnapshot({
+  const extraHits = createCoverageStabilitySnapshot({
     repositoryRoot: '/repo',
     summary: summary({ [path]: fileCoverage(1, 1) }),
     map: { [`/repo/${path}`]: mapFor(path, { statementHit: 2 }) },
     paths: [path],
   })
+  const movedColumn = createCoverageStabilitySnapshot({
+    repositoryRoot: '/repo',
+    summary: summary({ [path]: fileCoverage(1, 1) }),
+    map: { [`/repo/${path}`]: mapFor(path, { statementHit: 1, line: 4 }) },
+    paths: [path],
+  })
 
-  assert.notEqual(first.digest, changed.digest)
+  assert.notEqual(first.digest, extraHits.digest)
+  assert.equal(first.digest, movedColumn.digest)
   assert.deepEqual(first.paths, [path])
-  assert.deepEqual(describeCoverageStabilityDrift([first, changed]), [
-    `${path} (collection 2): executable map`,
+  assert.deepEqual(describeCoverageStabilityDrift([first, extraHits]), [
+    `${path} (collection 2): hit counters`,
   ])
 })

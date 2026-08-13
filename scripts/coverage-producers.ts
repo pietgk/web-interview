@@ -332,6 +332,18 @@ const normalizeCoverageMap = (rawMap: Record<string, IstanbulFile>, repositoryRo
 
 /**
  */
+const coverageHits = (file: IstanbulFile) => stableValue({
+  s: file.s,
+  f: file.f,
+  b: file.b,
+})
+
+const locationMap = (file: IstanbulFile) => stableValue({
+  statementMap: file.statementMap,
+  fnMap: file.fnMap,
+  branchMap: file.branchMap,
+})
+
 export const createCoverageStabilitySnapshot = ({
   repositoryRoot,
   summary,
@@ -355,9 +367,14 @@ export const createCoverageStabilitySnapshot = ({
       map: normalizedMap[path],
     }]
   }))
+  const digestInput = Object.fromEntries(orderedPaths.map((path) => {
+    const file = files[path]
+    if (file === undefined) throw new Error(`${path}: missing from Storybook stability evidence`)
+    return [path, { coverage: file.coverage, hits: coverageHits(file.map) }]
+  }))
   return {
     paths: orderedPaths,
-    digest: createEvidenceDigest({ snapshot: JSON.stringify(stableValue(files)) }),
+    digest: createEvidenceDigest({ snapshot: JSON.stringify(stableValue(digestInput)) }),
     files,
   }
 }
@@ -376,10 +393,12 @@ export const describeCoverageStabilityDrift = (snapshots: CoverageStabilitySnaps
       if (left === undefined || right === undefined) continue
       if (JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right))) continue
       const coverageChanged = JSON.stringify(left.coverage) !== JSON.stringify(right.coverage)
-      const mapChanged = JSON.stringify(stableValue(left.map)) !== JSON.stringify(stableValue(right.map))
+      const hitsChanged = JSON.stringify(coverageHits(left.map)) !== JSON.stringify(coverageHits(right.map))
+      const locationsChanged = JSON.stringify(locationMap(left.map)) !== JSON.stringify(locationMap(right.map))
       const parts = [
         coverageChanged ? `coverage ${JSON.stringify(left.coverage)} vs ${JSON.stringify(right.coverage)}` : undefined,
-        mapChanged ? 'executable map' : undefined,
+        hitsChanged ? 'hit counters' : undefined,
+        locationsChanged ? 'instrumentation locations' : undefined,
       ].filter(Boolean)
       lines.push(`${path} (collection ${index + 1}): ${parts.join('; ')}`)
     }
