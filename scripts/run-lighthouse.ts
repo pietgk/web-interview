@@ -134,7 +134,7 @@ const main = async () => {
   const processes: ReturnType<typeof startChild>[] = []
 
   try {
-    processes.push(startChild('backend', process.execPath, ['src/index.js'], {
+    processes.push(startChild('backend', process.execPath, ['src/index.ts'], {
       cwd: resolve(ROOT, 'backend'),
       env: {
         ...process.env,

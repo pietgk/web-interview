@@ -6,22 +6,18 @@ import { join } from 'node:path'
 import { ATTRIBUTE } from '@web-interview/todos/datom'
 import { DatomStore } from '@web-interview/todos/datom-store'
 import { listId, todoId, ulid, ulidTime } from '@web-interview/todos/ulid'
-import { DatomJournal } from './datomJournal.js'
+import { DatomJournal } from './datomJournal.ts'
+import { createDatomService } from './datomService.ts'
+import type { Datom } from '@web-interview/todos/types'
 
 const REPLAYED_DUE_DAY = '2026-08-03'
-import { createDatomService } from './datomService.js'
-
-/** @typedef {import('@web-interview/todos/types').Datom} Datom */
 
 const SEED = [{ title: 'First List', todos: [{ text: 'First todo', completed: false, dueDate: null }] }]
 
 describe('datom journal', () => {
-  /** @type {string} */
-  let directory
-  /** @type {string} */
-  let filePath
-  /** @type {number} */
-  let clock
+  let directory: string
+  let filePath: string
+  let clock: number
 
   const nextTimestamp = () => (clock += 1)
 
@@ -113,8 +109,8 @@ describe('datom journal', () => {
     const winner = ulid(nextTimestamp())
 
     const winners = await service.record([
-      /** @type {Datom} */ ([list, ATTRIBUTE.TITLE, 'Winner', winner, true]),
-      /** @type {Datom} */ ([list, ATTRIBUTE.TITLE, 'Loser', loser, true]),
+      [list, ATTRIBUTE.TITLE, 'Winner', winner, true] as Datom,
+      [list, ATTRIBUTE.TITLE, 'Loser', loser, true] as Datom,
     ])
     await service.close()
 

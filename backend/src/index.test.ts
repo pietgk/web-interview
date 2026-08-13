@@ -2,7 +2,7 @@ import { describe, it } from 'vitest'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { readBackendConfig } from './config.js'
+import { readBackendConfig } from './config.ts'
 
 const backendDirectory = fileURLToPath(new URL('..', import.meta.url))
 
@@ -40,15 +40,14 @@ describe('backend startup', () => {
   })
 
   it('refuses to run in E2E mode without an isolated datom journal', () => {
-    /** @type {NodeJS.ProcessEnv} */
-    const environment = {
+    const environment: NodeJS.ProcessEnv = {
       ...process.env,
       APP_ENV: 'e2e',
       PORT: '3101',
     }
     delete environment.DATOM_LOG_PATH
 
-    const result = spawnSync(process.execPath, ['src/index.js'], {
+    const result = spawnSync(process.execPath, ['src/index.ts'], {
       cwd: backendDirectory,
       env: environment,
       encoding: 'utf8',

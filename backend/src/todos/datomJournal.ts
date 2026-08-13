@@ -1,9 +1,8 @@
 import { mkdir, open, readFile } from 'node:fs/promises'
+import type { FileHandle } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { datomSchema } from '@web-interview/todos/datom'
-
-/** @typedef {import('node:fs/promises').FileHandle} FileHandle */
-/** @typedef {import('@web-interview/todos/types').Datom} Datom */
+import type { Datom } from '@web-interview/todos/types'
 
 const NEWLINE = 0x0a
 
@@ -12,11 +11,9 @@ const NEWLINE = 0x0a
  * no checksum: a torn write always loses the closing bracket and therefore always
  * fails `JSON.parse`, so a checksum would add roughly 70% to each line to detect
  * only bit rot.
- *
- * @param {Buffer} buffer
  */
-const completeLines = (buffer) => {
-  const lines = []
+const completeLines = (buffer: Buffer) => {
+  const lines: Array<{ start: number, data: Buffer }> = []
   let start = 0
   for (let index = 0; index < buffer.length; index += 1) {
     if (buffer[index] !== NEWLINE) continue
@@ -26,8 +23,7 @@ const completeLines = (buffer) => {
   return { lines, trailingStart: start }
 }
 
-/** @param {Buffer} line @returns {Datom} */
-const parseLine = (line) => {
+const parseLine = (line: Buffer): Datom => {
   const parsed = datomSchema.safeParse(JSON.parse(line.toString('utf8')))
   if (!parsed.success) throw new Error('Journal line is not a valid datom')
   return parsed.data
@@ -35,21 +31,18 @@ const parseLine = (line) => {
 
 /** Append-only JSONL log of every valid datom, including the ones that lost. */
 export class DatomJournal {
-  /** @type {FileHandle | null} */
-  #fileHandle = null
+  filePath: string
+  #fileHandle: FileHandle | null = null
 
-  /** @param {{filePath: string}} options */
-  constructor({ filePath }) {
+  constructor({ filePath }: { filePath: string }) {
     this.filePath = filePath
   }
 
   /**
    * Replays the journal, discarding an unterminated or unparseable final line and
    * failing on any earlier bad line.
-   *
-   * @returns {Promise<Datom[]>}
    */
-  async open() {
+  async open(): Promise<Datom[]> {
     await mkdir(dirname(this.filePath), { recursive: true })
     const fileHandle = await open(this.filePath, 'a+')
     this.#fileHandle = fileHandle
@@ -60,8 +53,7 @@ export class DatomJournal {
 
       if (trailingStart < buffer.length) await fileHandle.truncate(trailingStart)
 
-      /** @type {Datom[]} */
-      const datoms = []
+      const datoms: Datom[] = []
       for (const [index, line] of lines.entries()) {
         try {
           datoms.push(parseLine(line.data))
@@ -82,10 +74,8 @@ export class DatomJournal {
   /**
    * `datasync()` completes before this resolves, so the server is never less
    * durable than a browser that has already rendered the datom.
-   *
-   * @param {Datom[]} datoms
    */
-  async append(datoms) {
+  async append(datoms: Datom[]) {
     const fileHandle = this.#fileHandle
     if (!fileHandle) throw new Error('Datom journal is not open')
     if (datoms.length === 0) return

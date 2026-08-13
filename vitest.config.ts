@@ -16,7 +16,7 @@ import { COVERAGE_PROVIDER } from './scripts/coverage-producers.ts'
 // automation view without letting that overlap rescue an owner verdict.
 const NODE_COVERAGE_COLLECTION = [
   'shared/src/**/*.ts',
-  'backend/src/**/*.js',
+  'backend/src/**/*.ts',
   'frontend/src/todos/**/*.js',
   'frontend/src/testing/*.js',
 ]
@@ -38,7 +38,7 @@ export default defineConfig({
         // Pure JSDoc typedefs - no runtime code exists to execute.
         '**/shared/src/types.ts',
         // Process bootstrap. e2e proves it, in a process v8 cannot see from here.
-        '**/backend/src/index.js',
+        '**/backend/src/index.ts',
       ],
       // AST remapping can reveal original test and JSX sources after the first
       // include pass. Reapply collection scope to those source paths.

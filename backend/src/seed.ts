@@ -5,9 +5,7 @@ import {
   TODO_TEXT_MAX_LENGTH,
 } from '@web-interview/todos/protocol'
 import { listId, todoId, ulid } from '@web-interview/todos/ulid'
-
-/** @typedef {import('@web-interview/todos/types').Datom} Datom */
-/** @typedef {z.infer<typeof seedTodoListsSchema>} SeedTodoLists */
+import type { Datom } from '@web-interview/todos/types'
 
 /**
  * The seed carries no ids. Entity ids are ULIDs minted by the server, so seeded
@@ -32,8 +30,9 @@ export const seedTodoListsSchema = z.array(
     .strict()
 )
 
-/** @returns {SeedTodoLists} */
-export const createSeedTodoLists = () => [
+export type SeedTodoLists = z.infer<typeof seedTodoListsSchema>
+
+export const createSeedTodoLists = (): SeedTodoLists => [
   {
     title: 'First List',
     todos: [{ text: 'First todo of first list!', completed: false, dueDate: null }],
@@ -44,14 +43,8 @@ export const createSeedTodoLists = () => [
   },
 ]
 
-/**
- * @param {SeedTodoLists} todoLists
- * @param {number} seededAt
- * @returns {Datom[]}
- */
-export const seedDatoms = (todoLists, seededAt) => {
-  /** @type {Datom[]} */
-  const datoms = []
+export const seedDatoms = (todoLists: SeedTodoLists, seededAt: number): Datom[] => {
+  const datoms: Datom[] = []
   for (const todoList of todoLists) {
     const list = listId(seededAt)
     datoms.push([list, ATTRIBUTE.TITLE, todoList.title.trim(), ulid(seededAt), true])

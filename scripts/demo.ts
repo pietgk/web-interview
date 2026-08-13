@@ -8,7 +8,7 @@ import {
   freeLanes,
 } from './kill-ports.ts'
 import { resolveCommand } from './commandResolution.ts'
-import { PREVIEW_DATOM_LOG_PATH } from '../backend/src/dataPaths.js'
+import { PREVIEW_DATOM_LOG_PATH } from '../backend/src/dataPaths.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const FRONTEND = resolve(ROOT, 'frontend')
@@ -81,7 +81,7 @@ const startBackend = async () => {
   }
 
   backendStopRequested = false
-  const child = spawn(process.execPath, ['src/index.js'], {
+  const child = spawn(process.execPath, ['src/index.ts'], {
     cwd: BACKEND,
     // stdin stays with this script so the command prompt below owns the keyboard.
     stdio: ['ignore', 'inherit', 'inherit'],

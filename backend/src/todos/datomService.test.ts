@@ -3,15 +3,13 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createDatomService } from './datomService.js'
+import { createDatomService } from './datomService.ts'
 
 const SEED = [{ title: 'First List', todos: [] }]
 
 describe('datom service seeding', () => {
-  /** @type {string} */
-  let directory
-  /** @type {string} */
-  let filePath
+  let directory: string
+  let filePath: string
 
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'datom-service-'))
@@ -28,7 +26,7 @@ describe('datom service seeding', () => {
         createDatomService({
           filePath,
           seed: SEED,
-          buildSeed: () => /** @type {never} */ ([['not-a-datom']]),
+          buildSeed: () => [['not-a-datom']] as never,
         }),
       /Seed produced an invalid datom/
     )

@@ -4,7 +4,7 @@ import {
   DEFAULT_DATOM_LOG_PATH,
   DEV_DATOM_LOG_PATH,
   PREVIEW_DATOM_LOG_PATH,
-} from './dataPaths.js'
+} from './dataPaths.ts'
 
 describe('durable datom log paths', () => {
   it('gives each durable lane its own journal under backend/data', () => {

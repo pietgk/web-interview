@@ -1,16 +1,13 @@
 import express from 'express'
 import cors from 'cors'
+import type { CorsOptions } from 'cors'
+import type { ErrorRequestHandler } from 'express'
 import { constants as HTTP } from 'node:http2'
 import { API_ERROR_CODE, DATOM_API_PATH } from '@web-interview/todos/protocol'
-import { createDatomsRouter } from './routes/datoms.js'
+import { createDatomsRouter } from './routes/datoms.ts'
+import type { DatomService } from './todos/datomService.ts'
 
-/** @typedef {Awaited<ReturnType<typeof import('./todos/datomService.js').createDatomService>>} DatomService */
-
-/**
- * @param {string[]} allowedOrigins
- * @returns {import('cors').CorsOptions['origin']}
- */
-const corsOriginPolicy = (allowedOrigins) =>
+const corsOriginPolicy = (allowedOrigins: string[]): CorsOptions['origin'] =>
   (origin, callback) => {
     const allowed =
       !origin ||
@@ -19,11 +16,10 @@ const corsOriginPolicy = (allowedOrigins) =>
     callback(null, allowed)
   }
 
-/**
- * @param {DatomService} datomService
- * @param {{corsOrigins?: string[], heartbeatMs?: number}} [options]
- */
-export const createApp = (datomService, { corsOrigins = [], heartbeatMs } = {}) => {
+export const createApp = (
+  datomService: DatomService,
+  { corsOrigins = [], heartbeatMs }: { corsOrigins?: string[], heartbeatMs?: number } = {}
+) => {
   if (!datomService) throw new Error('createApp requires the datom service')
   const app = express()
 
@@ -33,9 +29,9 @@ export const createApp = (datomService, { corsOrigins = [], heartbeatMs } = {}) 
   app.get('/', (_req, res) => res.send('Hi'))
   app.use(DATOM_API_PATH.ROOT, createDatomsRouter(datomService, { heartbeatMs }))
 
-  /** @type {import('express').ErrorRequestHandler} */
-  // eslint-disable-next-line no-unused-vars
-  const jsonErrorHandler = (err, _req, res, _next) => {
+  // Four-argument signature is required for Express error middleware.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const jsonErrorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     if (err instanceof SyntaxError && 'body' in err) {
       res.status(HTTP.HTTP_STATUS_BAD_REQUEST).json({
         error: 'Malformed JSON',
@@ -51,7 +47,6 @@ export const createApp = (datomService, { corsOrigins = [], heartbeatMs } = {}) 
     })
   }
 
-  // Four-argument signature is required for Express error middleware.
   app.use(jsonErrorHandler)
 
   return app

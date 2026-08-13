@@ -20,8 +20,8 @@ test('classifies every production source seam explicitly', () => {
   const examples = {
     'shared/src/datom.ts': 'node-runtime',
     'shared/src/types.ts': 'type-only',
-    'backend/src/app.js': 'node-runtime',
-    'backend/src/index.js': 'playwright-bootstrap',
+    'backend/src/app.ts': 'node-runtime',
+    'backend/src/index.ts': 'playwright-bootstrap',
     'frontend/src/todos/todoModel.js': 'node-runtime',
     'frontend/src/todos/trustedClock.js': 'node-runtime',
     'frontend/src/testing/fakeDatomServer.js': 'node-runtime',
@@ -43,7 +43,7 @@ test('classifies every production source seam explicitly', () => {
   assert.equal(classifySourcePath('shared/src/anything.d.ts'), undefined)
   assert.equal(classifySourcePath('frontend/src/unowned.js'), undefined)
   assert.equal(classifySourcePath('frontend/src/App.stories.jsx'), undefined)
-  assert.equal(classifySourcePath('backend/src/app.test.js'), undefined)
+  assert.equal(classifySourcePath('backend/src/app.test.ts'), undefined)
 })
 
 test('the reviewed registry assigns producer and verdict semantics once per treatment', () => {

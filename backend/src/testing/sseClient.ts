@@ -3,7 +3,7 @@
  * no `EventSource`.
  *
  * It is not a spec-compliant SSE client and should not be reused as one. It
- * assumes what `routes/datoms.js` actually writes:
+ * assumes what `routes/datoms.ts` actually writes:
  *
  * - frames separated by `\n\n`, never `\r\n\r\n`
  * - exactly one `data:` line per frame; a second would overwrite the first
@@ -12,19 +12,19 @@
  * - a space after the field name (`id: `, not `id:`)
  * - no comment (`:`) lines; this server heartbeats with a `clock` event instead
  *
- * `sseClient.test.js` pins each of those assumptions, because most of the datom
+ * `sseClient.test.ts` pins each of those assumptions, because most of the datom
  * API suite reads its stream through here and a reader that silently mis-frames
  * would make those tests agree with a broken server.
  */
 
-/** @typedef {{type: string, data: string, id: string | undefined}} ServerSentEvent */
+import type { Datom } from '@web-interview/todos/types'
+
+export type ServerSentEvent = { type: string, data: string, id: string | undefined }
 
 const STREAM_POLL_INTERVAL_MS = 10
 
-/** @param {string} frame @returns {ServerSentEvent} */
-const parseFrame = (frame) => {
-  /** @type {ServerSentEvent} */
-  const event = { type: 'message', data: '', id: undefined }
+const parseFrame = (frame: string): ServerSentEvent => {
+  const event: ServerSentEvent = { type: 'message', data: '', id: undefined }
   for (const line of frame.split('\n')) {
     if (line.startsWith('id: ')) event.id = line.slice(4)
     else if (line.startsWith('event: ')) event.type = line.slice(7)
@@ -33,11 +33,10 @@ const parseFrame = (frame) => {
   return event
 }
 
-/**
- * @param {string} baseUrl
- * @param {{since?: string, lastEventId?: string}} [options]
- */
-export const openDatomStream = async (baseUrl, { since, lastEventId } = {}) => {
+export const openDatomStream = async (
+  baseUrl: string,
+  { since, lastEventId }: { since?: string, lastEventId?: string } = {}
+) => {
   const url = new URL('/api/datoms/stream', baseUrl)
   if (since) url.searchParams.set('since', since)
 
@@ -47,13 +46,12 @@ export const openDatomStream = async (baseUrl, { since, lastEventId } = {}) => {
     headers: lastEventId ? { 'Last-Event-ID': lastEventId } : {},
   })
 
-  /** @type {ServerSentEvent[]} */
-  const events = []
+  const events: ServerSentEvent[] = []
   const decoder = new TextDecoder()
   let buffer = ''
 
   const pump = async () => {
-    const reader = /** @type {ReadableStream<Uint8Array>} */ (response.body).getReader()
+    const reader = (response.body as ReadableStream<Uint8Array>).getReader()
     try {
       for (;;) {
         const { done, value } = await reader.read()
@@ -75,16 +73,15 @@ export const openDatomStream = async (baseUrl, { since, lastEventId } = {}) => {
   return {
     response,
     events,
-    /** Datoms only, in delivery order. @returns {import('@web-interview/todos/types').Datom[]} */
-    datoms: () =>
+    /** Datoms only, in delivery order. */
+    datoms: (): Datom[] =>
       events
         .filter((event) => event.type === 'message')
         .map((event) => JSON.parse(event.data)),
-    /**
-     * @param {(events: ServerSentEvent[]) => boolean} predicate
-     * @param {number} [timeoutMs]
-     */
-    async until(predicate, timeoutMs = 3_000) {
+    async until(
+      predicate: (events: ServerSentEvent[]) => boolean,
+      timeoutMs = 3_000
+    ) {
       const deadline = Date.now() + timeoutMs
       while (!predicate(events)) {
         if (Date.now() > deadline) {

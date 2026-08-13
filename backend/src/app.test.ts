@@ -11,12 +11,13 @@ import {
   apiErrorBodySchema,
 } from '@web-interview/todos/protocol'
 import { EARLIEST_ULID, ulid, ulidTime } from '@web-interview/todos/ulid'
-import { createApp } from './app.js'
-import { DatomJournal } from './todos/datomJournal.js'
-import { openDatomStream } from './testing/sseClient.js'
-import { createDatomService } from './todos/datomService.js'
-
-/** @typedef {import('@web-interview/todos/types').Datom} Datom */
+import { createApp } from './app.ts'
+import { DatomJournal } from './todos/datomJournal.ts'
+import { openDatomStream } from './testing/sseClient.ts'
+import { createDatomService } from './todos/datomService.ts'
+import type { Datom } from '@web-interview/todos/types'
+import type { Express } from 'express'
+import type { AddressInfo } from 'node:net'
 
 const SEED = [{ title: 'First List', todos: [{ text: 'First todo', completed: false, dueDate: null }] }]
 const SEEDED_TODO_DUE_DAY = '2026-08-03'
@@ -32,11 +33,10 @@ const DURABILITY_OBSERVATION_MS = 100
  */
 const generatorTime = () => ulidTime(ulid(0))
 
-/** @param {import('express').Express} app */
-const listen = async (app) => {
+const listen = async (app: Express) => {
   const server = createServer(app)
   await new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(undefined)))
-  const address = /** @type {import('node:net').AddressInfo} */ (server.address())
+  const address = server.address() as AddressInfo
   return {
     baseUrl: `http://127.0.0.1:${address.port}`,
     async close() {
@@ -47,22 +47,16 @@ const listen = async (app) => {
 }
 
 describe('datom API', () => {
-  /** @type {string} */
-  let directory
-  /** @type {string} */
-  let filePath
-  /** @type {Awaited<ReturnType<typeof createDatomService>>} */
-  let service
-  /** @type {Awaited<ReturnType<typeof listen>>} */
-  let server
-  /** @type {Array<{close: () => void}>} */
-  let openStreams
-  /** @type {number} */
-  let serverTime
+  let directory: string
+  let filePath: string
+  let service: Awaited<ReturnType<typeof createDatomService>>
+  let server: Awaited<ReturnType<typeof listen>>
+  let openStreams: Array<{close: () => void}>
+  let serverTime: number
 
   const post = (
-    /** @type {Datom[]} */ datoms,
-    /** @type {RequestInit} */ init = {}
+    datoms: Datom[],
+    init: RequestInit = {}
   ) =>
     fetch(`${server.baseUrl}/api/datoms`, {
       method: 'POST',
@@ -71,11 +65,9 @@ describe('datom API', () => {
       ...init,
     })
 
-  /** @param {globalThis.Response} response */
-  const errorBody = async (response) => apiErrorBodySchema.parse(await response.json())
+  const errorBody = async (response: globalThis.Response) => apiErrorBodySchema.parse(await response.json())
 
-  /** @param {Parameters<typeof openDatomStream>[1]} [options] */
-  const stream = async (options) => {
+  const stream = async (options?: Parameters<typeof openDatomStream>[1]) => {
     const client = await openDatomStream(server.baseUrl, options)
     openStreams.push(client)
     return client
@@ -128,7 +120,7 @@ describe('datom API', () => {
     const todo = seededTodo()
     const away = await stream()
     await away.until(() => away.datoms().length >= 2)
-    const cursor = /** @type {string} */ (away.datoms().at(-1)?.[3])
+    const cursor = away.datoms().at(-1)?.[3] as string
     away.close()
 
     await post([[todo.id, ATTRIBUTE.TEXT, todo.text, tx(), false]])
@@ -179,7 +171,7 @@ describe('datom API', () => {
     const list = seededList()
     const opening = await stream()
     await opening.until(() => opening.datoms().length >= 2)
-    const cursor = /** @type {string} */ (opening.datoms().at(-1)?.[3])
+    const cursor = opening.datoms().at(-1)?.[3] as string
     opening.close()
     await post([[list, ATTRIBUTE.TITLE, 'Renamed', tx(), true]])
 
@@ -267,7 +259,7 @@ describe('datom API', () => {
 
   it('makes a client\'s own datom a no-op when the server echoes it back', async () => {
     const list = seededList()
-    const own = /** @type {Datom} */ ([list, ATTRIBUTE.TITLE, 'Renamed', tx(), true])
+    const own = [list, ATTRIBUTE.TITLE, 'Renamed', tx(), true] as Datom
     const client = await stream()
     await client.until(() => client.datoms().length >= 2)
 
@@ -280,9 +272,9 @@ describe('datom API', () => {
 
   it('rejects an invalid datom without changing the read model', async () => {
     const before = service.store.readModel()
-    const response = await post(/** @type {Datom[]} */ (/** @type {unknown} */ ([
+    const response = await post([
       ['0000000001', 'list/deleted', true, tx(), true],
-    ])))
+    ] as unknown as Datom[])
 
     assert.equal(response.status, HTTP.HTTP_STATUS_BAD_REQUEST)
     const body = await errorBody(response)
@@ -336,21 +328,19 @@ describe('datom API durability', () => {
     const serverTime = generatorTime() + 1_000
     const inner = new DatomJournal({ filePath: join(directory, 'datoms.jsonl') })
 
-    /** @type {(() => void) | null} */
-    let releaseSync = null
+    let releaseSync: (() => void) | null = null
     let appends = 0
-    const journal = /** @type {DatomJournal} */ (/** @type {unknown} */ ({
+    const journal = {
       filePath: inner.filePath,
       open: () => inner.open(),
-      /** @param {import('@web-interview/todos/types').Datom[]} datoms */
-      append: async (datoms) => {
+      append: async (datoms: Datom[]) => {
         await inner.append(datoms)
         appends += 1
         if (appends === 1) return // the seed
         await new Promise((resolve) => { releaseSync = () => resolve(undefined) })
       },
       close: () => inner.close(),
-    }))
+    } as unknown as DatomJournal
 
     const service = await createDatomService({ seed: SEED, now: () => serverTime, journal })
     const server = await listen(createApp(service, {
@@ -371,7 +361,7 @@ describe('datom API durability', () => {
       await new Promise((resolve) => setTimeout(resolve, DURABILITY_OBSERVATION_MS))
       assert.equal(answered, false, 'the response must wait for datasync()')
 
-      const release = /** @type {() => void} */ (/** @type {unknown} */ (releaseSync))
+      const release = releaseSync as unknown as () => void
       release()
       assert.equal((await request).status, HTTP.HTTP_STATUS_OK)
     } finally {

@@ -1,6 +1,6 @@
-import { createApp } from './app.js'
-import { readBackendConfig } from './config.js'
-import { createDatomService } from './todos/datomService.js'
+import { createApp } from './app.ts'
+import { readBackendConfig } from './config.ts'
+import { createDatomService } from './todos/datomService.ts'
 
 const config = readBackendConfig()
 const datomService = await createDatomService({

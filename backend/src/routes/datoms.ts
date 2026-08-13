@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import type { Response } from 'express'
 import { constants as HTTP } from 'node:http2'
 import { datomsRequestSchema } from '@web-interview/todos/datom'
 import {
@@ -9,30 +10,24 @@ import {
   TX_FUTURE_TOLERANCE_MS,
 } from '@web-interview/todos/protocol'
 import { ULID_PATTERN, ulidTime } from '@web-interview/todos/ulid'
+import type { Datom } from '@web-interview/todos/types'
+import type { ZodError } from 'zod'
+import type { DatomService } from '../todos/datomService.ts'
 
-/** @typedef {import('express').Response} Response */
-/** @typedef {import('@web-interview/todos/types').Datom} Datom */
-/** @typedef {Awaited<ReturnType<typeof import('../todos/datomService.js').createDatomService>>} DatomService */
-
-/** @param {import('zod').ZodError} error */
-const formatZodIssues = (error) =>
+const formatZodIssues = (error: ZodError) =>
   error.issues.map((issue) => ({ path: issue.path, message: issue.message }))
 
-/** @param {unknown} value */
-const asCursor = (value) =>
+const asCursor = (value: unknown) =>
   typeof value === 'string' && ULID_PATTERN.test(value) ? value : undefined
 
-/**
- * @param {DatomService} service
- * @param {{heartbeatMs?: number}} [options]
- */
-export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_MS } = {}) => {
+export const createDatomsRouter = (
+  service: DatomService,
+  { heartbeatMs = HEARTBEAT_INTERVAL_MS }: { heartbeatMs?: number } = {}
+) => {
   const router = Router()
-  /** @type {Set<Response>} */
-  const subscribers = new Set()
+  const subscribers = new Set<Response>()
 
-  /** @param {Response} res @param {Datom} datom */
-  const writeDatom = (res, datom) => {
+  const writeDatom = (res: Response, datom: Datom) => {
     // `id` duplicates the datom's fourth element on purpose: `data` is the fact,
     // `id` is the browser's cursor bookkeeping.
     res.write(`id: ${datom[3]}\ndata: ${JSON.stringify(datom)}\n\n`)
@@ -42,10 +37,8 @@ export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_M
    * Carries server time and keeps the connection open through proxies. It must
    * not carry an `id`: any event with one overwrites the browser's
    * `Last-Event-ID`, and a clock tick is not a position in the datom log.
-   *
-   * @param {Response} res
    */
-  const writeClock = (res) => {
+  const writeClock = (res: Response) => {
     res.write(
       `event: ${CLOCK_EVENT}\ndata: ${JSON.stringify({ serverTime: service.now() })}\n\n`
     )
@@ -54,10 +47,8 @@ export const createDatomsRouter = (service, { heartbeatMs = HEARTBEAT_INTERVAL_M
   /**
    * Says which log this stream is serving, so a client holding a replaced one can
    * forget it. Carries no `id`, for the same reason the clock does not.
-   *
-   * @param {Response} res
    */
-  const writeEpoch = (res) => {
+  const writeEpoch = (res: Response) => {
     res.write(
       `event: ${EPOCH_EVENT}\ndata: ${JSON.stringify({ epoch: service.epoch })}\n\n`
     )

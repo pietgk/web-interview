@@ -1,21 +1,14 @@
 import { datomSchema } from '@web-interview/todos/datom'
 import { DatomStore } from '@web-interview/todos/datom-store'
-import { createSeedTodoLists, seedDatoms } from '../seed.js'
-import { DEFAULT_DATOM_LOG_PATH } from '../dataPaths.js'
-import { DatomJournal } from './datomJournal.js'
-
-/** @typedef {import('@web-interview/todos/types').Datom} Datom */
+import { createSeedTodoLists, seedDatoms } from '../seed.ts'
+import type { SeedTodoLists } from '../seed.ts'
+import { DEFAULT_DATOM_LOG_PATH } from '../dataPaths.ts'
+import { DatomJournal } from './datomJournal.ts'
+import type { Datom } from '@web-interview/todos/types'
 
 /**
  * The store plus its durability. Startup replays the journal; every write is
  * journaled before it is applied, and only the winners come back out.
- *
- * @param {object} [options]
- * @param {string} [options.filePath]
- * @param {import('../seed.js').SeedTodoLists} [options.seed]
- * @param {() => number} [options.now]
- * @param {DatomJournal} [options.journal]
- * @param {(todoLists: import('../seed.js').SeedTodoLists, seededAt: number) => Datom[]} [options.buildSeed]
  */
 export const createDatomService = async ({
   filePath = DEFAULT_DATOM_LOG_PATH,
@@ -23,6 +16,12 @@ export const createDatomService = async ({
   now = () => Date.now(),
   journal = new DatomJournal({ filePath }),
   buildSeed = seedDatoms,
+}: {
+  filePath?: string
+  seed?: SeedTodoLists
+  now?: () => number
+  journal?: DatomJournal
+  buildSeed?: (todoLists: SeedTodoLists, seededAt: number) => Datom[]
 } = {}) => {
   const store = new DatomStore()
 
@@ -45,10 +44,8 @@ export const createDatomService = async ({
    * storage and survives restarts for free. Recovery only ever truncates the last
    * line, so the first one is stable; a wiped journal gets a new first datom and
    * therefore a new epoch.
-   *
-   * @type {string | null}
    */
-  let epoch = replayed[0]?.[3] ?? null
+  let epoch: string | null = replayed[0]?.[3] ?? null
 
   return {
     store,
@@ -59,11 +56,8 @@ export const createDatomService = async ({
     /**
      * Journals every datom because the journal is the history, and returns only
      * the winners because no client needs a datom that lost.
-     *
-     * @param {Datom[]} datoms
-     * @returns {Promise<Datom[]>}
      */
-    async record(datoms) {
+    async record(datoms: Datom[]): Promise<Datom[]> {
       await journal.append(datoms)
       // An unseeded server has no epoch until something is written to it.
       epoch ??= datoms[0]?.[3] ?? null
@@ -72,3 +66,5 @@ export const createDatomService = async ({
     close: () => journal.close(),
   }
 }
+
+export type DatomService = Awaited<ReturnType<typeof createDatomService>>

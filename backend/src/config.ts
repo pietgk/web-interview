@@ -1,12 +1,10 @@
-import { seedTodoListsSchema } from './seed.js'
-
-/** @typedef {import('./seed.js').SeedTodoLists} SeedTodoLists */
+import { seedTodoListsSchema } from './seed.ts'
+import type { SeedTodoLists } from './seed.ts'
 
 const DEFAULT_BACKEND_PORT = 3001
 const DEFAULT_DEVELOPMENT_ORIGIN = 'http://localhost:3000'
 
-/** @param {string | undefined} value */
-const parsePort = (value) => {
+const parsePort = (value: string | undefined) => {
   const port = Number(value ?? DEFAULT_BACKEND_PORT)
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('PORT must be an integer between 1 and 65535')
@@ -14,11 +12,7 @@ const parsePort = (value) => {
   return port
 }
 
-/**
- * @param {string | undefined} value
- * @returns {SeedTodoLists | undefined}
- */
-const parseInitialTodoLists = (value) => {
+const parseInitialTodoLists = (value: string | undefined): SeedTodoLists | undefined => {
   if (!value) return undefined
 
   let decoded
@@ -35,11 +29,7 @@ const parseInitialTodoLists = (value) => {
   return parsed.data
 }
 
-/**
- * @param {string | undefined} value
- * @param {string} appEnvironment
- */
-const parseCorsOrigins = (value, appEnvironment) => {
+const parseCorsOrigins = (value: string | undefined, appEnvironment: string) => {
   if (value) {
     return value
       .split(',')
@@ -49,8 +39,7 @@ const parseCorsOrigins = (value, appEnvironment) => {
   return appEnvironment === 'production' ? [] : [DEFAULT_DEVELOPMENT_ORIGIN]
 }
 
-/** @param {NodeJS.ProcessEnv} environment */
-export const readBackendConfig = (environment = process.env) => {
+export const readBackendConfig = (environment: NodeJS.ProcessEnv = process.env) => {
   const appEnvironment = environment.APP_ENV ?? 'development'
   const datomLogPath = environment.DATOM_LOG_PATH || undefined
   if (appEnvironment === 'e2e' && !datomLogPath) {

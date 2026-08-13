@@ -20,7 +20,7 @@ import {
 import {
   DEV_DATOM_LOG_PATH,
   PREVIEW_DATOM_LOG_PATH,
-} from '../backend/src/dataPaths.js'
+} from '../backend/src/dataPaths.ts'
 import { resolveCommand } from './commandResolution.ts'
 
 export const DEV_WEB_PORT = 3000

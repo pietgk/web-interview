@@ -21,15 +21,15 @@ export type EvidenceRegistryEntry = {
 }
 
 export const SOURCE_EVIDENCE_ENTRIES: readonly EvidenceRegistryEntry[] = Object.freeze([
-  { path: 'backend/src/app.js', treatment: 'node-runtime', rationale: 'Express composition has a deterministic injected-service interface exercised in Node.' },
-  { path: 'backend/src/config.js', treatment: 'node-runtime', rationale: 'Environment parsing is deterministic process configuration exercised in Node.' },
-  { path: 'backend/src/dataPaths.js', treatment: 'node-runtime', rationale: 'Journal path selection is deterministic process configuration exercised in Node.' },
-  { path: 'backend/src/index.js', treatment: 'playwright-bootstrap', rationale: 'Backend process startup is exercised through assembled Playwright journeys.' },
-  { path: 'backend/src/routes/datoms.js', treatment: 'node-runtime', rationale: 'HTTP route behavior has an injected service boundary exercised in Node.' },
-  { path: 'backend/src/seed.js', treatment: 'node-runtime', rationale: 'Seed conversion is deterministic runtime logic exercised in Node.' },
-  { path: 'backend/src/testing/sseClient.js', treatment: 'test-support-node', rationale: 'Node integration tests consume this SSE protocol test client.' },
-  { path: 'backend/src/todos/datomJournal.js', treatment: 'node-runtime', rationale: 'Journal persistence has a filesystem adapter boundary exercised in Node.' },
-  { path: 'backend/src/todos/datomService.js', treatment: 'node-runtime', rationale: 'Datom service policy has a deterministic journal and clock boundary exercised in Node.' },
+  { path: 'backend/src/app.ts', treatment: 'node-runtime', rationale: 'Express composition has a deterministic injected-service interface exercised in Node.' },
+  { path: 'backend/src/config.ts', treatment: 'node-runtime', rationale: 'Environment parsing is deterministic process configuration exercised in Node.' },
+  { path: 'backend/src/dataPaths.ts', treatment: 'node-runtime', rationale: 'Journal path selection is deterministic process configuration exercised in Node.' },
+  { path: 'backend/src/index.ts', treatment: 'playwright-bootstrap', rationale: 'Backend process startup is exercised through assembled Playwright journeys.' },
+  { path: 'backend/src/routes/datoms.ts', treatment: 'node-runtime', rationale: 'HTTP route behavior has an injected service boundary exercised in Node.' },
+  { path: 'backend/src/seed.ts', treatment: 'node-runtime', rationale: 'Seed conversion is deterministic runtime logic exercised in Node.' },
+  { path: 'backend/src/testing/sseClient.ts', treatment: 'test-support-node', rationale: 'Node integration tests consume this SSE protocol test client.' },
+  { path: 'backend/src/todos/datomJournal.ts', treatment: 'node-runtime', rationale: 'Journal persistence has a filesystem adapter boundary exercised in Node.' },
+  { path: 'backend/src/todos/datomService.ts', treatment: 'node-runtime', rationale: 'Datom service policy has a deterministic journal and clock boundary exercised in Node.' },
 
   { path: 'frontend/src/App.jsx', treatment: 'rendered-ui', rationale: 'The application shell is protected by Storybook states, plays, and accessibility checks.' },
   { path: 'frontend/src/index.jsx', treatment: 'playwright-bootstrap', rationale: 'DOM and theme bootstrap is exercised through assembled Playwright journeys.' },

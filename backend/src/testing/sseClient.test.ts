@@ -1,8 +1,10 @@
 import { afterEach, describe, it } from 'vitest'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import { once } from 'node:events'
-import { openDatomStream } from './sseClient.js'
+import { openDatomStream } from './sseClient.ts'
+import type { AddressInfo } from 'node:net'
 
 const HTTP_OK_STATUS = 200
 const FIRST_CHUNK_DELAY_MS = 10
@@ -15,18 +17,17 @@ const SECOND_CHUNK_DELAY_MS = 20
  * rather than a stubbed one, so chunk boundaries are genuinely exercised.
  */
 
-/** @type {Array<() => Promise<void> | void>} */
-let cleanups = []
+let cleanups: Array<() => Promise<void> | void> = []
 
 afterEach(async () => {
   for (const cleanup of cleanups.reverse()) await cleanup()
   cleanups = []
 })
 
-/** @param {(request: import('node:http').IncomingMessage, write: (chunk: string) => void) => void} onStream */
-const startServer = async (onStream) => {
-  /** @type {import('node:http').IncomingMessage[]} */
-  const requests = []
+const startServer = async (
+  onStream: (request: IncomingMessage, write: (chunk: string) => void) => void
+) => {
+  const requests: IncomingMessage[] = []
   const server = createServer((request, response) => {
     requests.push(request)
     response.writeHead(HTTP_OK_STATUS, {
@@ -40,18 +41,16 @@ const startServer = async (onStream) => {
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   cleanups.push(() => new Promise((resolve) => server.close(() => resolve(undefined))))
-  const address = /** @type {import('node:net').AddressInfo} */ (server.address())
+  const address = server.address() as AddressInfo
   return { baseUrl: `http://127.0.0.1:${address.port}`, requests }
 }
 
-/** @param {Awaited<ReturnType<typeof openDatomStream>>} client */
-const closing = (client) => {
+const closing = (client: Awaited<ReturnType<typeof openDatomStream>>) => {
   cleanups.push(() => client.close())
   return client
 }
 
-/** @param {string} id */
-const datom = (id) => `id: ${id}\ndata: ${JSON.stringify([`todo:${id}`, 'text', 'a', id, true])}\n\n`
+const datom = (id: string) => `id: ${id}\ndata: ${JSON.stringify([`todo:${id}`, 'text', 'a', id, true])}\n\n`
 
 describe('sse client', () => {
   it('joins a frame that arrives split across two chunks', async () => {
