@@ -53,7 +53,7 @@ const randomBase32 = () => {
  */
 const incrementBase32 = (encoded: string) => {
   for (let position = encoded.length - 1; position >= 0; position -= 1) {
-    const digit = ENCODING.indexOf(encoded[position])
+    const digit = ENCODING.indexOf(encoded.charAt(position))
     if (digit === ENCODING_LENGTH - 1) {
       encoded = `${encoded.slice(0, position)}${ENCODING[0]}${encoded.slice(position + 1)}`
       continue

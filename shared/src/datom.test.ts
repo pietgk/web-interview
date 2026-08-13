@@ -30,7 +30,9 @@ const parse = (datom: unknown) => datomSchema.safeParse(datom)
 const firstIssue = (datom: unknown) => {
   const result = parse(datom)
   assert.equal(result.success, false, `expected ${JSON.stringify(datom)} to be rejected`)
-  return result.error.issues[0]
+  const issue = result.error.issues[0]
+  assert.ok(issue)
+  return issue
 }
 
 describe('datom', () => {

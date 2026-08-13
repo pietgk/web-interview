@@ -12,7 +12,7 @@ const daysInMonth = (year: number, month: number) => {
 export const isRealCalendarDate = (value: unknown) => {
   if (typeof value !== 'string' || !DATE_ONLY.test(value)) return false
 
-  const [year, month, day] = value.split('-').map(Number)
+  const [year, month, day] = value.split('-').map(Number) as [number, number, number]
   return (
     year >= 1 &&
     month >= 1 &&

@@ -42,7 +42,7 @@ describe('DatomStore', () => {
     const { store, list } = seededStore()
 
     assert.equal(store.apply(datom(list, ATTRIBUTE.TITLE, 'Renamed', tx())), true)
-    assert.equal(store.readModel()[list].title, 'Renamed')
+    assert.equal(store.readModel()[list]?.title, 'Renamed')
   })
 
   it('does not let a lower tx arriving later overwrite the winner', () => {
@@ -52,7 +52,7 @@ describe('DatomStore', () => {
 
     store.apply(datom(list, ATTRIBUTE.TITLE, 'Winner', winner))
     assert.equal(store.apply(datom(list, ATTRIBUTE.TITLE, 'Stale', stale)), false)
-    assert.equal(store.readModel()[list].title, 'Winner')
+    assert.equal(store.readModel()[list]?.title, 'Winner')
   })
 
   it('reports that an identical re-delivered datom did not win', () => {
@@ -80,7 +80,7 @@ describe('DatomStore', () => {
 
     store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx(), false))
 
-    assert.deepEqual(store.readModel()[list].todos, [])
+    assert.deepEqual(store.readModel()[list]?.todos, [])
   })
 
   it('restores completed and dueDate when a defining attribute is re-asserted', () => {
@@ -91,7 +91,7 @@ describe('DatomStore', () => {
 
     store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx()))
 
-    assert.deepEqual(store.readModel()[list].todos, [
+    assert.deepEqual(store.readModel()[list]?.todos, [
       { id: todo, text: 'Ship it', completed: true, dueDate: STORED_DUE_DAY },
     ])
   })
@@ -118,7 +118,7 @@ describe('DatomStore', () => {
     const readModel = store.readModel()
     assert.deepEqual(Object.keys(readModel), [first, second])
     assert.deepEqual(
-      readModel[first].todos.map((todo) => todo.text),
+      readModel[first]?.todos.map((todo) => todo.text),
       ['Newer', 'Older']
     )
   })
@@ -135,7 +135,7 @@ describe('DatomStore', () => {
     store.apply(datom(older, ATTRIBUTE.TEXT, 'Older, renamed', tx()))
 
     assert.deepEqual(
-      store.readModel()[list].todos.map((todo) => todo.text),
+      store.readModel()[list]?.todos.map((todo) => todo.text),
       ['Newer', 'Older, renamed']
     )
   })
@@ -165,8 +165,11 @@ describe('DatomStore', () => {
     const cursor = store.datomsSince().at(-1)?.[3]
     store.apply(datom(todo, ATTRIBUTE.TEXT, 'Ship it', tx(), false))
 
-    assert.deepEqual(store.datomsSince(cursor), [
-      datom(todo, ATTRIBUTE.TEXT, 'Ship it', store.datomsSince(cursor)[0][3], false),
+    const streamed = store.datomsSince(cursor)
+    const [first] = streamed
+    assert.ok(first)
+    assert.deepEqual(streamed, [
+      datom(todo, ATTRIBUTE.TEXT, 'Ship it', first[3], false),
     ])
   })
 
@@ -200,7 +203,7 @@ describe('DatomStore', () => {
 
     // A datom that lost against the cleared state applies again from scratch.
     assert.equal(store.apply(datom(list, ATTRIBUTE.TITLE, 'Fresh log', tx())), true)
-    assert.equal(store.readModel()[list].title, 'Fresh log')
+    assert.equal(store.readModel()[list]?.title, 'Fresh log')
   })
 
   it('notifies subscribers only for winning datoms', () => {
