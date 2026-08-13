@@ -7,8 +7,7 @@ import {
   validateSourceEvidenceRegistry,
 } from './source-evidence-registry.ts'
 
-/** @param {number} covered @param {number} total */
-const coverage = (covered, total) => ({ covered, total })
+const coverage = (covered: number, total: number) => ({ covered, total })
 const fileCoverage = (covered = 1, total = 1) => ({
   statements: coverage(covered, total),
   branches: coverage(covered, total),
@@ -63,7 +62,7 @@ test('the reviewed registry assigns producer and verdict semantics once per trea
 })
 
 test('registry validation fails closed for missing, deleted, duplicate, and invalid entries', () => {
-  const entries: any[] = [
+  const entries = [
     { path: 'shared/src/a.js', treatment: 'node-runtime', rationale: 'pure logic' },
     { path: 'shared/src/a.js', treatment: 'node-runtime', rationale: 'duplicate' },
     { path: 'shared/src/deleted.js', treatment: 'node-runtime', rationale: 'gone' },

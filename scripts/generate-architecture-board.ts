@@ -24,7 +24,9 @@ const now = Date.UTC(2026, 7, 5)
  * both the overrides and the result stay untyped on purpose. The factories
  * below carry the types instead, because they are what call sites use.
  */
-const base = (partial: Record<string, any>): Record<string, any> => ({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Excalidraw element JSON varies by type
+type ExcalidrawElement = Record<string, any>
+const base = (partial: ExcalidrawElement): ExcalidrawElement => ({
   angle: 0,
   strokeColor: '#1e1e1e',
   backgroundColor: 'transparent',
@@ -47,20 +49,27 @@ const base = (partial: Record<string, any>): Record<string, any> => ({
   ...partial,
 })
 
-/**
- * @param {{
- *   x: number,
- *   y: number,
- *   w: number,
- *   h: number,
- *   bg?: string,
- *   stroke?: string,
- *   round?: boolean,
- *   strokeWidth?: number,
- *   id?: string,
- * }} options
- */
-const rect = ({ x, y, w, h, bg = 'transparent', stroke = '#1e1e1e', round = true, strokeWidth = 2, id: eid }) =>
+const rect = ({
+  x,
+  y,
+  w,
+  h,
+  bg = 'transparent',
+  stroke = '#1e1e1e',
+  round = true,
+  strokeWidth = 2,
+  id: eid,
+}: {
+  x: number
+  y: number
+  w: number
+  h: number
+  bg?: string
+  stroke?: string
+  round?: boolean
+  strokeWidth?: number
+  id?: string
+}) =>
   base({
     id: eid || id('r'),
     type: 'rectangle',
@@ -80,19 +89,25 @@ const rect = ({ x, y, w, h, bg = 'transparent', stroke = '#1e1e1e', round = true
 // A text box has no fill, so being generous costs nothing visually.
 const CHAR_WIDTH_EM = 0.62
 
-/**
- * @param {{
- *   x: number,
- *   y: number,
- *   t: string,
- *   size?: number,
- *   align?: string,
- *   color?: string,
- *   width?: number,
- *   id?: string,
- * }} options
- */
-const text = ({ x, y, t, size = 16, align = 'left', color = '#1e1e1e', width, id: eid }) => {
+const text = ({
+  x,
+  y,
+  t,
+  size = 16,
+  align = 'left',
+  color = '#1e1e1e',
+  width,
+  id: eid,
+}: {
+  x: number
+  y: number
+  t: string
+  size?: number
+  align?: string
+  color?: string
+  width?: number
+  id?: string
+}) => {
   const lines = t.split('\n')
   const lineHeight = 1.25
   const w = width ?? Math.max(...lines.map((l) => l.length)) * size * CHAR_WIDTH_EM
@@ -120,15 +135,17 @@ const text = ({ x, y, t, size = 16, align = 'left', color = '#1e1e1e', width, id
   })
 }
 
-/**
- * @param {{
- *   x: number,
- *   y: number,
- *   points: number[][],
- *   label?: string,
- * }} options
- */
-const arrow = ({ x, y, points, label }) => {
+const arrow = ({
+  x,
+  y,
+  points,
+  label,
+}: {
+  x: number
+  y: number
+  points: number[][]
+  label?: string
+}) => {
   const els = [
     base({
       id: id('a'),
@@ -160,7 +177,7 @@ const arrow = ({ x, y, points, label }) => {
   return els
 }
 
-const elements = []
+const elements: ExcalidrawElement[] = []
 
 // --- layout constants ---
 const PAGE_W = 1180
@@ -456,7 +473,7 @@ console.log('wrote', excalidrawPath)
 const svgEsc = (s: string) =>
   s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
 
-const svgParts = []
+const svgParts: string[] = []
 const pageH = toolY + toolH + 50
 svgParts.push(
   `<svg xmlns="http://www.w3.org/2000/svg" width="${PAGE_W}" height="${pageH}" viewBox="0 0 ${PAGE_W} ${pageH}">`,

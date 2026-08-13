@@ -40,8 +40,7 @@ const DURABLE_JOURNALS = Object.freeze({
   preview: PREVIEW_DATOM_LOG_PATH,
 })
 
-/** @type {Record<string, readonly number[]>} */
-export const LANES = {
+export const LANES: Record<string, readonly number[]> = {
   dev: [DEV_WEB_PORT, DEV_API_PORT],
   'dev-web': [DEV_WEB_PORT],
   'dev-api': [DEV_API_PORT],
@@ -124,18 +123,13 @@ export const freePorts = (ports: number[]): { ports: number[], pids: number[] } 
   return { ports: uniquePorts, pids }
 }
 
-/**
- * @param {...string} tokens lane names, `all`, or numeric ports
- * @returns {{ ports: number[], pids: number[] }}
- */
-export const freeLanes = (...tokens) => {
+/** Lane names, `all`, or numeric ports. */
+export const freeLanes = (...tokens: string[]): { ports: number[], pids: number[] } => {
   const ports = [...new Set(tokens.flatMap(resolvePorts))]
   return freePorts(ports)
 }
 
-/**
- * @typedef {{ name: string, ports: number[], pids: number[], listening: boolean }} LaneStatus
- */
+export type LaneStatus = { name: string, ports: number[], pids: number[], listening: boolean }
 
 export const overviewLaneStatuses = (): LaneStatus[] =>
   OVERVIEW_LANES.map((name) => {

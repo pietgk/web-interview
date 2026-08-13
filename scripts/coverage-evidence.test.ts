@@ -17,16 +17,14 @@ const coverageProviders = {
   storybook: { name: 'istanbul', package: '@vitest/coverage-istanbul', version: '4.1.10' },
 }
 
-/** @param {number} covered @param {number} total */
-const tuple = (covered, total) => ({ covered, total })
+const tuple = (covered: number, total: number) => ({ covered, total })
 
-/** @param {Partial<Record<'statements' | 'branches' | 'functions' | 'lines', {covered: number, total: number}>>} [coverage] */
 const fileCoverage = ({
   statements = tuple(4, 5),
   branches = tuple(2, 3),
   functions = tuple(1, 1),
   lines = tuple(4, 5),
-} = {}) => ({ statements, branches, functions, lines })
+}: Partial<Record<'statements' | 'branches' | 'functions' | 'lines', {covered: number, total: number}>> = {}) => ({ statements, branches, functions, lines })
 
 const summary = (files: Record<string, ReturnType<typeof fileCoverage>>) => ({
   total: fileCoverage(),
@@ -492,6 +490,7 @@ test('combined automation admission issues fail the evidence verdict', () => {
       incompatibleFiles: [],
       providerIssues: ['Node and Storybook coverage providers differ'],
       admissionIssues: [],
+      coverage: undefined,
     },
   })
 

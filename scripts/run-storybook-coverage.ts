@@ -41,8 +41,7 @@ const startStorybook = () => {
   let serverOutput = ''
   server.stdout.on('data', (chunk) => { serverOutput += chunk })
   server.stderr.on('data', (chunk) => { serverOutput += chunk })
-  /** @type {{code: number | null, signal: NodeJS.Signals | null} | undefined} */
-  let serverExit
+  let serverExit: {code: number | null, signal: NodeJS.Signals | null} | undefined
   server.on('exit', (code, signal) => { serverExit = { code, signal } })
 
   const waitUntilReady = async () => {
@@ -106,14 +105,14 @@ try {
     const storybook = startStorybook()
     try {
       await storybook.waitUntilReady()
-      const reportsDirectory = stabilityMode
-        ? resolve(/** @type {string} */ (tempRoot), `run-${run}`)
+      const reportsDirectory = tempRoot
+        ? resolve(tempRoot, `run-${run}`)
         : resolve(ROOT, '.coverage-reports/storybook')
-      const evidenceDirectory = stabilityMode
-        ? resolve(/** @type {string} */ (tempRoot), `evidence-${run}`)
+      const evidenceDirectory = tempRoot
+        ? resolve(tempRoot, `evidence-${run}`)
         : resolve(ROOT, '.test-evidence')
-      const blobDirectory = stabilityMode
-        ? resolve(/** @type {string} */ (tempRoot), `blob-${run}`)
+      const blobDirectory = tempRoot
+        ? resolve(tempRoot, `blob-${run}`)
         : resolve(ROOT, '.vitest-reports')
       await Promise.all([
         mkdir(evidenceDirectory, { recursive: true }),
@@ -163,7 +162,7 @@ try {
     const runDigests = snapshots.map(({ digest }) => digest)
     const issues = stabilityAdmissionIssues({
       dirty: finalSourceState.dirty && !allowDirtyWorktree,
-      revisionChanged: finalSourceState.revision !== /** @type {{revision: string}} */ (sourceState).revision,
+      revisionChanged: finalSourceState.revision !== sourceState?.revision,
       runDigests,
       expectedRuns: STORYBOOK_STABILITY_RUNS,
     })
@@ -173,7 +172,7 @@ try {
     await mkdir(resolve(ROOT, '.test-evidence'), { recursive: true })
     await writeFile(resolve(ROOT, '.test-evidence/storybook-stability.json'), `${JSON.stringify({
       schemaVersion: 1,
-      revision: /** @type {{revision: string}} */ (sourceState).revision,
+      revision: sourceState?.revision,
       dirty: finalSourceState.dirty,
       runs: runCount,
       controllerPaths: firstSnapshot.paths,

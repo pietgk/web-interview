@@ -17,10 +17,8 @@ import {
   validateProducerManifest,
 } from './coverage-producers.ts'
 
-/** @param {number} covered @param {number} total */
-const tuple = (covered, total) => ({ covered, total })
-/** @param {number} covered @param {number} total */
-const fileCoverage = (covered, total) => ({
+const tuple = (covered: number, total: number) => ({ covered, total })
+const fileCoverage = (covered: number, total: number) => ({
   statements: tuple(covered, total),
   branches: tuple(covered, total),
   functions: tuple(covered, total),
@@ -30,8 +28,15 @@ const summary = (files: Record<string, ReturnType<typeof fileCoverage>>) => ({
   total: fileCoverage(0, 0),
   ...Object.fromEntries(Object.entries(files).map(([path, value]) => [`/repo/${path}`, value])),
 })
-/** @param {string} path @param {{statementHit?: number, branchHits?: number[], functionHit?: number, line?: number}} [options] */
-const mapFor = (path, { statementHit = 0, branchHits = [0, 0], functionHit = 0, line = 1 } = {}) => ({
+const mapFor = (
+  path: string,
+  { statementHit = 0, branchHits = [0, 0], functionHit = 0, line = 1 }: {
+    statementHit?: number
+    branchHits?: number[]
+    functionHit?: number
+    line?: number
+  } = {}
+) => ({
   path: `/repo/${path}`,
   statementMap: { 0: { start: { line, column: 0 }, end: { line, column: 1 } } },
   fnMap: { 0: { name: 'run', decl: { start: { line, column: 0 }, end: { line, column: 1 } }, loc: { start: { line, column: 0 }, end: { line, column: 1 } }, line } },
@@ -44,15 +49,16 @@ const mapFor = (path, { statementHit = 0, branchHits = [0, 0], functionHit = 0, 
   b: { 0: branchHits },
 })
 
-/** @param {string} path @param {Array<{start: {line: number, column: number}, end: {line: number, column: number | null}}>} statements */
-const mapWithStatements = (path, statements) => ({
+const mapWithStatements = (
+  path: string,
+  statements: Array<{start: {line: number, column: number}, end: {line: number, column: number | null}}>
+) => ({
   ...mapFor(path),
   statementMap: Object.fromEntries(statements.map((location, index) => [index, location])),
   s: Object.fromEntries(statements.map((_, index) => [index, 0])),
 })
 
-/** @param {number} line @param {number} column */
-const location = (line, column) => ({
+const location = (line: number, column: number) => ({
   start: { line, column },
   end: { line, column: null },
 })
@@ -129,7 +135,7 @@ test('executable-map diagnostic samples are deterministic and bounded', () => {
 
   const result = compareExecutableMaps({ node, storybook, sampleLimit: 2 })
 
-  assert.deepEqual(result.maps.statements.samples.map(({ counters }) => counters), [
+  assert.deepEqual(result.maps.statements.samples.map((sample) => sample.kind === 'different' ? sample.counters : undefined), [
     { node: '0', storybook: '0' },
     { node: '1', storybook: '1' },
   ])
@@ -351,10 +357,12 @@ test('different source digests or executable maps withhold only the automation u
     reason: 'source digest differs between producers',
     sourceDigest: { status: 'differs' },
   })
-  assert.equal(result.incompatibleFiles[1].path, mapPath)
-  assert.equal(result.incompatibleFiles[1].reason, 'executable maps differ between producers')
-  assert.deepEqual(result.incompatibleFiles[1].sourceDigest, { status: 'matches' })
-  assert.deepEqual(result.incompatibleFiles[1].executableMaps.maps.statements, {
+  const mapMismatch = result.incompatibleFiles[1]
+  assert.ok(mapMismatch)
+  assert.equal(mapMismatch.path, mapPath)
+  assert.equal(mapMismatch.reason, 'executable maps differ between producers')
+  assert.deepEqual(mapMismatch.sourceDigest, { status: 'matches' })
+  assert.deepEqual(mapMismatch.executableMaps?.maps.statements, {
     entryCounts: { node: 1, storybook: 1 },
     differingEntries: 1,
     onlyIn: { node: 0, storybook: 0 },
@@ -368,8 +376,8 @@ test('different source digests or executable maps withhold only the automation u
     }],
     omittedSamples: 0,
   })
-  assert.equal(result.incompatibleFiles[1].executableMaps.maps.functions.differingEntries, 1)
-  assert.equal(result.incompatibleFiles[1].executableMaps.maps.branches.differingEntries, 1)
+  assert.equal(mapMismatch.executableMaps?.maps.functions.differingEntries, 1)
+  assert.equal(mapMismatch.executableMaps?.maps.branches.differingEntries, 1)
 })
 
 test('a missing overlap source digest cannot be treated as compatible', () => {

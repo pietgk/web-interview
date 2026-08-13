@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type SpawnOptions } from 'node:child_process'
 import { appendFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -48,8 +48,12 @@ const LIGHTHOUSE_ENV = {
   CHROME_PATH: process.env.CHROME_PATH ?? chromium.executablePath(),
 }
 
-/** @param {string} name @param {string} command @param {string[]} args @param {import('node:child_process').SpawnOptions} options */
-const startChild = (name, command, args, options) => {
+const startChild = (
+  name: string,
+  command: string,
+  args: string[],
+  options: SpawnOptions
+) => {
   const child = spawn(command, args, {
     ...options,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -78,8 +82,7 @@ const stopChild = async ({ child }: ReturnType<typeof startChild>) => {
   ])
 }
 
-/** @param {string} url @param {ReturnType<typeof startChild>[]} processes */
-const waitForUrl = async (url, processes) => {
+const waitForUrl = async (url: string, processes: ReturnType<typeof startChild>[]) => {
   for (let attempt = 0; attempt < 150; attempt += 1) {
     for (const processInfo of processes) {
       if (processInfo.child.exitCode !== null) {

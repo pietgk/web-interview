@@ -11,7 +11,24 @@ const CATEGORY_LABELS = Object.freeze({
   'agentic-browsing': 'Agentic Browsing',
 })
 
-export const evaluateLighthouseQuality = (reports: Array<Record<string, any>>, budgets: {maxScriptTransferBytes: number, maxUnusedJavaScriptBytes: number}) => {
+type LighthouseAudit = {
+  title?: string
+  score?: number
+  scoreDisplayMode?: string
+  displayValue?: string
+  numericValue?: number
+  details?: {
+    items?: Array<{ resourceType?: string; transferSize?: number }>
+    overallSavingsBytes?: number
+  }
+}
+
+type LighthouseReport = {
+  categories?: Record<string, { score?: number }>
+  audits?: Record<string, LighthouseAudit>
+}
+
+export const evaluateLighthouseQuality = (reports: LighthouseReport[], budgets: {maxScriptTransferBytes: number, maxUnusedJavaScriptBytes: number}) => {
   const failures: string[] = []
   for (const [id, label] of Object.entries(CATEGORY_LABELS)) {
     const scores = reports.map((report) => report.categories?.[id]?.score)
@@ -25,7 +42,7 @@ export const evaluateLighthouseQuality = (reports: Array<Record<string, any>>, b
 
   const scriptTransferBytes = reports.map((report) =>
     report.audits?.['resource-summary']?.details?.items?.find(
-      (/** @type {{resourceType?: string}} */ item) => item.resourceType === 'script'
+      (item) => item.resourceType === 'script'
     )?.transferSize
   )
   const largestScriptTransfer = scriptTransferBytes.every((value) => typeof value === 'number')
@@ -65,12 +82,12 @@ export const evaluateLighthouseQuality = (reports: Array<Record<string, any>>, b
   }
 }
 
-export const createLighthouseSummary = (reports: Array<Record<string, any>>) => {
+export const createLighthouseSummary = (reports: LighthouseReport[]) => {
   if (reports.length === 0) throw new Error('No Lighthouse reports found')
 
   const categoryRows = Object.entries(CATEGORY_LABELS).map(([id, label]) => {
     const scores = reports.map((report) => report.categories?.[id]?.score)
-    if (scores.some((score) => typeof score !== 'number')) {
+    if (!scores.every((score): score is number => typeof score === 'number')) {
       throw new Error(`Lighthouse report is missing the ${id} category`)
     }
     const score = Math.round(Math.min(...scores) * 100)

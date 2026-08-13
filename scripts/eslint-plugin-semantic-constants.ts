@@ -1,5 +1,40 @@
+// ESLint's Rule.Node is a closed ESTree union. This plugin walks a looser tree
+// (including JSX) and cannot use that union without lying at every property access.
+import type { ESLint, Rule } from 'eslint'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ESLint AST escape hatch
 export type AstNode = Record<string, any>
-export type RuleOptions = Record<string, any>
+
+export type ContractDefinition = { id: string; module: string; export: string }
+export type UsageMapping = {
+  usages?: string[]
+  filePattern?: string
+  contract?: string
+  identifierPattern?: string
+  exceptFilePattern?: string
+}
+export type RuleOptions = {
+  stringPatterns?: Array<{ category?: string; pattern?: string }>
+  categoryNamePattern?: string
+  deniedNames?: string[]
+  ignoredNumbers?: number[]
+  structuralMatchers?: string[]
+  observationMatchers?: string[]
+  sensitiveCalls?: string[]
+  sensitiveIdentifiers?: string[]
+  sensitiveProperties?: string[]
+  numbers?: boolean
+  contracts?: ContractDefinition[]
+  usageMappings?: UsageMapping[]
+}
+
+type ReportDescriptor = { node: AstNode; messageId: string; data?: Record<string, string> }
+interface PluginRuleContext {
+  options: RuleOptions[]
+  filename: string
+  // eslint-disable-next-line no-unused-vars -- parameter name in a type-level method signature
+  report(info: ReportDescriptor): void
+}
 
 const getPropertyName = (node: AstNode | null | undefined) => {
   if (!node) return null
@@ -86,10 +121,9 @@ const callName = (node: AstNode | null | undefined) => {
   return null
 }
 
-/** @param {AstNode} node @param {string[]} patterns */
-const isSensitiveCall = (node, patterns) => {
+const isSensitiveCall = (node: AstNode, patterns: string[]) => {
   const name = callName(node)
-  return name !== null && patterns.some((/** @type {string} */ pattern) =>
+  return name !== null && patterns.some((pattern) =>
     new RegExp(pattern).test(name)
   )
 }
@@ -118,8 +152,7 @@ const expectSubject = (matcherCall: AstNode) => {
   return expectCall.arguments[0] ?? null
 }
 
-/** @param {AstNode | null | undefined} subject @param {Set<string>} sensitiveProperties */
-const isSensitiveSubject = (subject, sensitiveProperties) => {
+const isSensitiveSubject = (subject: AstNode | null | undefined, sensitiveProperties: Set<string>) => {
   if (subject?.type === 'CallExpression') return true
   if (subject?.type === 'MemberExpression') {
     return sensitiveProperties.has(getPropertyName(subject))
@@ -127,8 +160,7 @@ const isSensitiveSubject = (subject, sensitiveProperties) => {
   return false
 }
 
-/** @param {AstNode} node @param {RuleOptions} options */
-const isStructuralNumber = (node, options) => {
+const isStructuralNumber = (node: AstNode, options: RuleOptions) => {
   const parent = node.parent
   const sensitiveProperties = new Set(options.sensitiveProperties ?? [])
   const sensitiveIdentifiers = new Set(options.sensitiveIdentifiers ?? [])
@@ -163,7 +195,7 @@ const isStructuralNumber = (node, options) => {
   return !isSensitiveCall(argument.call, options.sensitiveCalls ?? [])
 }
 
-const requireNamedLiteral = /** @type {import('eslint').Rule.RuleModule} */ ({
+const requireNamedLiteral = {
   meta: {
     type: 'problem',
     schema: [{ type: 'object', additionalProperties: true }],
@@ -173,11 +205,11 @@ const requireNamedLiteral = /** @type {import('eslint').Rule.RuleModule} */ ({
       name: 'Rename "{{name}}" to state the scenario meaning and include a category such as day, time, length, limit, timeout, or count.',
     },
   },
-  create(context) {
+  create(context: PluginRuleContext) {
     const options = context.options[0] ?? {}
-    const patterns = (options.stringPatterns ?? []).map((/** @type {AstNode} */ entry) => ({
+    const patterns = (options.stringPatterns ?? []).map((entry) => ({
       ...entry,
-      matcher: new RegExp(entry.pattern),
+      matcher: new RegExp(entry.pattern ?? ''),
     }))
     const categoryName = new RegExp(options.categoryNamePattern ?? '.', 'i')
     const deniedNames = new Set((options.deniedNames ?? []).map(normaliseName))
@@ -193,9 +225,8 @@ const requireNamedLiteral = /** @type {import('eslint').Rule.RuleModule} */ ({
       ) &&
       !deniedNames.has(normaliseName(name))
 
-    /** @param {AstNode} node @param {string} value */
-    const checkSemanticString = (node, value) => {
-      const matched = patterns.find((/** @type {AstNode} */ entry) =>
+    const checkSemanticString = (node: AstNode, value: string) => {
+      const matched = patterns.find((entry) =>
         entry.matcher.test(value)
       )
       if (!matched) return
@@ -206,21 +237,21 @@ const requireNamedLiteral = /** @type {import('eslint').Rule.RuleModule} */ ({
       const name = getBindingName(declaration?.id)
       const isConst =
         declaration !== null &&
-        /** @type {AstNode | undefined} */ (declaration.parent)?.kind === 'const'
+        (declaration.parent as AstNode | undefined)?.kind === 'const'
       if (isConst && validName(name)) return
       if (declaration !== null && isConst && name !== null) {
         context.report({ node: declaration.id, messageId: 'name', data: { name } })
         return
       }
       context.report({
-        node: /** @type {any} */ (node),
+        node,
         messageId: 'date',
-        data: { category: matched.category },
+        data: { category: matched.category ?? '' },
       })
     }
 
     return {
-      Literal(node) {
+      Literal(node: AstNode) {
         if (typeof node.value === 'string') {
           checkSemanticString(node, node.value)
           return
@@ -243,9 +274,9 @@ const requireNamedLiteral = /** @type {import('eslint').Rule.RuleModule} */ ({
           return
         }
         reportedExpressions.add(root)
-        context.report({ node: /** @type {any} */ (root), messageId: 'number' })
+        context.report({ node: root, messageId: 'number' })
       },
-      TemplateLiteral(node) {
+      TemplateLiteral(node: AstNode) {
         if (node.expressions.length !== 0 || node.quasis.length !== 1) return
         const quasi = node.quasis[0]
         if (!quasi) return
@@ -254,15 +285,14 @@ const requireNamedLiteral = /** @type {import('eslint').Rule.RuleModule} */ ({
       },
     }
   },
-})
+} as unknown as Rule.RuleModule
 
-/** @param {string} filename @param {AstNode[]} mappings @param {string} usage */
-const matchingUsage = (filename, mappings, usage) =>
-  mappings.find((/** @type {AstNode} */ mapping) =>
-    mapping.usages.includes(usage) && new RegExp(mapping.filePattern).test(filename)
+const matchingUsage = (filename: string, mappings: UsageMapping[], usage: string) =>
+  mappings.find((mapping) =>
+    mapping.usages?.includes(usage) && new RegExp(mapping.filePattern ?? '').test(filename)
   )
 
-const requireCanonicalContract = /** @type {import('eslint').Rule.RuleModule} */ ({
+const requireCanonicalContract = {
   meta: {
     type: 'problem',
     schema: [{ type: 'object', additionalProperties: true }],
@@ -271,34 +301,36 @@ const requireCanonicalContract = /** @type {import('eslint').Rule.RuleModule} */
       canonical: 'Use {{exportName}} from "{{module}}"{{boundary}}.',
     },
   },
-  create(context) {
+  create(context: PluginRuleContext) {
     const options = context.options[0] ?? {}
-    const contracts = new Map((options.contracts ?? []).map((/** @type {AstNode} */ contract) =>
+    const contracts = new Map((options.contracts ?? []).map((contract) =>
       [contract.id, contract]
     ))
-    const mappings = options.usageMappings ?? []
-    const imports = new Map()
+    const mappings: UsageMapping[] = options.usageMappings ?? []
+    const imports = new Map<string, { module: string; imported: string }>()
     const filename = context.filename.replaceAll('\\', '/')
 
-    /** @param {AstNode | null | undefined} node @param {AstNode} contract */
-    const canonicalReference = (node, contract) =>
+    const canonicalReference = (node: AstNode | null | undefined, contract: ContractDefinition | undefined) =>
       node?.type === 'Identifier' &&
-      imports.get(node.name)?.module === contract.module &&
-      imports.get(node.name)?.imported === contract.export
+      imports.get(node.name)?.module === contract?.module &&
+      imports.get(node.name)?.imported === contract?.export
 
-    /**
-     * @param {AstNode} node
-     * @param {string} usage
-     * @param {AstNode | null | undefined} expression
-     * @param {string} [boundary]
-     */
-    const reportUsage = (node, usage, expression, boundary = '') => {
+    const reportUsage = (
+      node: AstNode,
+      usage: string,
+      expression: AstNode | null | undefined,
+      boundary: string = ''
+    ) => {
       const mapping = matchingUsage(filename, mappings, usage)
       if (!mapping) {
-        context.report({ node: /** @type {any} */ (node), messageId: 'ambiguous', data: { usage } })
+        context.report({
+          node,
+          messageId: 'ambiguous',
+          data: { usage },
+        })
         return
       }
-      const contract = contracts.get(mapping.contract)
+      const contract = contracts.get(mapping.contract ?? '')
       const valid =
         boundary === ' converted to a string at the DOM boundary'
           ? expression?.type === 'CallExpression' &&
@@ -309,15 +341,15 @@ const requireCanonicalContract = /** @type {import('eslint').Rule.RuleModule} */
           : canonicalReference(expression, contract)
       if (!valid) {
         context.report({
-          node: /** @type {any} */ (node),
+          node,
           messageId: 'canonical',
-          data: { exportName: contract.export, module: contract.module, boundary },
+          data: { exportName: contract?.export ?? '', module: contract?.module ?? '', boundary },
         })
       }
     }
 
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: AstNode) {
         for (const specifier of node.specifiers) {
           if (specifier.type !== 'ImportSpecifier') continue
           imports.set(specifier.local.name, {
@@ -328,16 +360,16 @@ const requireCanonicalContract = /** @type {import('eslint').Rule.RuleModule} */
           })
         }
       },
-      Property(node) {
+      Property(node: AstNode) {
         if (getObjectPropertyName(node) !== 'maxLength') return
         reportUsage(node, 'maxLength property', node.value)
       },
-      JSXAttribute(/** @type {AstNode} */ node) {
+      JSXAttribute(node: AstNode) {
         if (node.name.name !== 'maxLength') return
         const expression = node.value?.type === 'JSXExpressionContainer' ? node.value.expression : node.value
         reportUsage(node, 'maxLength property', expression)
       },
-      CallExpression(node) {
+      CallExpression(node: AstNode) {
         if (callName(node) !== 'toHaveAttribute') return
         if (node.arguments[0]?.type !== 'Literal' || node.arguments[0].value !== 'maxlength') return
         reportUsage(
@@ -347,32 +379,32 @@ const requireCanonicalContract = /** @type {import('eslint').Rule.RuleModule} */
           ' converted to a string at the DOM boundary'
         )
       },
-      VariableDeclarator(node) {
+      VariableDeclarator(node: AstNode) {
         const name = getBindingName(node.id)
         if (name === null) return
-        const mapping = mappings.find((/** @type {AstNode} */ candidate) =>
+        const mapping = mappings.find((candidate) =>
           candidate.identifierPattern &&
           new RegExp(candidate.identifierPattern).test(name) &&
           (!candidate.exceptFilePattern || !new RegExp(candidate.exceptFilePattern).test(filename))
         )
         if (!mapping) return
-        const contract = contracts.get(mapping.contract)
+        const contract = contracts.get(mapping.contract ?? '')
         if (canonicalReference(node.init, contract)) return
         context.report({
           node,
           messageId: 'canonical',
-          data: { exportName: contract.export, module: contract.module, boundary: '' },
+          data: { exportName: contract?.export ?? '', module: contract?.module ?? '', boundary: '' },
         })
       },
     }
   },
-})
+} as unknown as Rule.RuleModule
 
-const plugin = /** @type {import('eslint').ESLint.Plugin} */ ({
+const plugin = {
   rules: {
     'require-named-literal': requireNamedLiteral,
     'require-canonical-contract': requireCanonicalContract,
   },
-})
+} as unknown as ESLint.Plugin
 
 export default plugin

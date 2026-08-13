@@ -76,7 +76,7 @@ export const validateSourceEvidenceRegistry = ({
   entries = SOURCE_EVIDENCE_ENTRIES,
   sourcePaths,
 }: {
-  entries?: readonly EvidenceRegistryEntry[]
+  entries?: readonly { path: string; treatment: string; rationale: string }[]
   sourcePaths: string[]
 }): string[] => {
   const issues: string[] = []
@@ -88,7 +88,7 @@ export const validateSourceEvidenceRegistry = ({
   }
   for (const { path, treatment, rationale } of entries) {
     if (!rationale.trim()) issues.push(`${path}: evidence rationale is required`)
-    if (!TREATMENTS[treatment]) issues.push(`${path}: unknown evidence treatment ${treatment}`)
+    if (!(treatment in TREATMENTS)) issues.push(`${path}: unknown evidence treatment ${treatment}`)
   }
 
   const registryPaths = new Set(entries.map(({ path }) => path))

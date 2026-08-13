@@ -1,5 +1,5 @@
-import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
+import { spawn, type ChildProcess as NodeChildProcess } from 'node:child_process'
+import { createInterface, type Interface as ReadlineInterface } from 'node:readline'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -27,7 +27,7 @@ const PREVIEW_URL = `http://localhost:${PREVIEW_WEB_PORT}/`
 const DEMO_API_BASE = `http://localhost:${PREVIEW_API_PORT}`
 const VITE = resolve(FRONTEND, 'node_modules/vite/bin/vite.js')
 
-export type ChildProcess = import('node:child_process').ChildProcess
+export type ChildProcess = NodeChildProcess
 
 let shuttingDown = false
 let backend: ChildProcess | null = null
@@ -35,7 +35,7 @@ let preview: ChildProcess | null = null
 // Distinguishes "I stopped the backend" from "the backend fell over", which are
 // the same event to Node and very different things to say out loud.
 let backendStopRequested = false
-let prompt: import('node:readline').Interface | null = null
+let prompt: ReadlineInterface | null = null
 
 const isAlive = (child: ChildProcess | null) =>
   child !== null && child.exitCode === null && child.signalCode === null
@@ -50,8 +50,7 @@ const reprompt = () => {
   prompt.prompt()
 }
 
-/** @param {ChildProcess} child @param {number} timeoutMs */
-const waitForExit = (child, timeoutMs = 5_000) => new Promise((done) => {
+const waitForExit = (child: ChildProcess, timeoutMs: number = 5_000) => new Promise<void>((done) => {
   if (!isAlive(child)) {
     done(undefined)
     return
@@ -63,8 +62,7 @@ const waitForExit = (child, timeoutMs = 5_000) => new Promise((done) => {
   })
 })
 
-/** @param {string} url @param {number} attempts */
-const waitForUrl = async (url, attempts = 150) => {
+const waitForUrl = async (url: string, attempts: number = 150) => {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       if ((await fetch(url)).ok) return true
@@ -164,8 +162,7 @@ const startPreview = async () => {
   await shutdown(1)
 }
 
-/** @param {number} exitCode */
-const shutdown = async (exitCode = 0) => {
+const shutdown = async (exitCode: number = 0) => {
   if (shuttingDown) return
   shuttingDown = true
   for (const child of [preview, backend]) {

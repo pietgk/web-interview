@@ -3,6 +3,7 @@ import {
   normalizeCoveragePath,
   sumCoverage,
 } from './coverage-producers.ts'
+import type { RawCoverageSummary } from './coverage-producers.ts'
 import {
   evidenceForSourcePath,
   SOURCE_EVIDENCE_ENTRIES,
@@ -18,8 +19,7 @@ export type FileCoverage = Record<CoverageMetric, {covered: number, total: numbe
 const TEST_SOURCE_PATTERN = /\.(?:test|spec|stories)\.(?:[cm]?[jt]sx?)$/
 export const CATEGORIES = Object.freeze(Object.keys(TREATMENTS))
 
-/** @type {Readonly<Record<string, string>>} */
-export const UI_COMPONENT_EXEMPTIONS = Object.freeze({
+export const UI_COMPONENT_EXEMPTIONS: Readonly<Record<string, string>> = Object.freeze({
   'frontend/src/todos/components/TodoRow.jsx':
     'Layout wrapper only; TodoItem and TodoComposer stories exercise it.',
   'frontend/src/todos/components/focusLeft.js':
@@ -53,9 +53,6 @@ export const classifySourcePath = (path: string): SourceClassification | undefin
 /**
  * Account for every production source and join Storybook UI files to their
  * declared stories, executed browser tests, and informational coverage.
- *
- * @param {{sourcePaths: string[], registryEntries?: typeof SOURCE_EVIDENCE_ENTRIES, baselinePathsByProducer: Record<string, string[]>, summary: Record<string, any>, repositoryRoot: string, storySources: Record<string, string>, storyResults: {testResults?: Array<{name: string, assertionResults?: Array<{status?: string}>}>}}} input
- * @returns {{verdict: 'pass' | 'fail', issues: string[], categoryCounts: Record<string, number>, sources: Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}>, ui: Array<{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage}>, uiTotals: FileCoverage}}
  */
 export const createSourceEvidence = ({
   sourcePaths,
@@ -65,7 +62,22 @@ export const createSourceEvidence = ({
   repositoryRoot,
   storySources,
   storyResults,
-}) => {
+}: {
+  sourcePaths: string[]
+  registryEntries?: typeof SOURCE_EVIDENCE_ENTRIES
+  baselinePathsByProducer: Record<string, string[]>
+  summary: RawCoverageSummary
+  repositoryRoot: string
+  storySources: Record<string, string>
+  storyResults: {testResults?: Array<{name: string, assertionResults?: Array<{status?: string}>}>}
+}): {
+  verdict: 'pass' | 'fail'
+  issues: string[]
+  categoryCounts: Record<string, number>
+  sources: Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}>
+  ui: Array<{path: string, evidence: string, declaredStories: number, declaredPlays: number, executedStories: number, coverage?: FileCoverage}>
+  uiTotals: FileCoverage
+} => {
   const issues = validateSourceEvidenceRegistry({ entries: registryEntries, sourcePaths })
   const registry = new Map(registryEntries.map((entry) => [entry.path, entry]))
   const sources: Array<{path: string, treatment?: SourceEvidenceCategory, producer?: string, verdict?: string, rationale?: string}> = sourcePaths.slice().sort().map((path) => {
@@ -132,7 +144,7 @@ export const createSourceEvidence = ({
         declaredStories: counts.stories,
         declaredPlays: counts.plays,
         executedStories: executed.length,
-        coverage: rawCoverage ? /** @type {FileCoverage} */ (exactCoverage(rawCoverage)) : undefined,
+        coverage: rawCoverage ? exactCoverage(rawCoverage) : undefined,
       }
     })
 
@@ -142,6 +154,6 @@ export const createSourceEvidence = ({
     categoryCounts,
     sources,
     ui,
-    uiTotals: /** @type {FileCoverage} */ (sumCoverage(ui.flatMap(({ coverage }) => coverage ? [coverage] : []))),
+    uiTotals: sumCoverage(ui.flatMap(({ coverage }) => coverage ? [coverage] : [])),
   }
 }

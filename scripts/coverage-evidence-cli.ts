@@ -20,6 +20,12 @@ import {
   resolveCoverageProviderProvenance,
   validateProducerManifest,
 } from './coverage-producers.ts'
+import type {
+  CoverageProvider,
+  IstanbulFile,
+  ProducerManifest,
+  RawCoverageSummary,
+} from './coverage-producers.ts'
 import {
   exactCoveragePathsFor,
   SOURCE_EVIDENCE_ENTRIES,
@@ -36,13 +42,11 @@ const STORY_RESULTS_PATH = resolve(ROOT, '.test-evidence/storybook.json')
 const VALID_MODES = new Set(['check', 'update-baseline'])
 const PRODUCERS: readonly ('node' | 'storybook')[] = Object.freeze(['node', 'storybook'])
 
-/** @param path @returns {Promise<Record<string, any>>} */
-const readJson = async (path: string) => JSON.parse(await readFile(path, 'utf8'))
+const readJson = async (path: string): Promise<unknown> => JSON.parse(await readFile(path, 'utf8'))
 
 const normalizePath = (path: string) => normalizeCoveragePath(path, ROOT)
 
-/** @param directory @returns {Promise<string[]>} */
-const filesUnder = async (directory: string) => (await Promise.all(
+const filesUnder = async (directory: string): Promise<string[]> => (await Promise.all(
   (await readdir(directory, { withFileTypes: true })).map((entry) => {
     const path = resolve(directory, entry.name)
     return entry.isDirectory() ? filesUnder(path) : path
@@ -75,14 +79,20 @@ const sourceState = async () => {
   return { revision: revision.trim(), dirty: status.trim().length > 0 }
 }
 
-/** @param {'node' | 'storybook'} producer @param {{revision: string, dirty: boolean}} currentState @param {Record<string, any>} currentCoverageProvider */
-const readProducerEvidence = async (producer, currentState, currentCoverageProvider) => {
+const readProducerEvidence = async (
+  producer: 'node' | 'storybook',
+  currentState: {revision: string, dirty: boolean},
+  currentCoverageProvider: CoverageProvider
+) => {
   const directory = resolve(ROOT, '.coverage-reports', producer)
-  const [summary, map, manifest] = await Promise.all([
+  const [rawSummary, rawMap, rawManifest] = await Promise.all([
     readJson(resolve(directory, 'coverage-summary.json')),
     readJson(resolve(directory, 'coverage-final.json')),
     readJson(resolve(directory, 'producer-evidence.json')),
   ])
+  const summary = rawSummary as RawCoverageSummary
+  const map = rawMap as Record<string, IstanbulFile>
+  const manifest = rawManifest as ProducerManifest
   const sourcePaths = [...new Set(Object.entries(map).map(([reportedPath, file]) =>
     normalizePath(file.path ?? reportedPath)
   ))].sort()
@@ -136,64 +146,73 @@ const main = async () => {
   const mode: 'check' | 'update-baseline' = (requestedMode as 'check' | 'update-baseline')
   const ownershipReviewed = process.env.COVERAGE_EVIDENCE_REVIEW_OWNERSHIP === '1'
   const providerReviewed = process.env.COVERAGE_EVIDENCE_REVIEW_PROVIDER === '1'
-  const [rawBaselineJson, storyResults, sources, currentState] = await Promise.all([
+  const [rawBaselineJson, rawStoryResults, sources, currentState] = await Promise.all([
     readJson(BASELINE_PATH),
     readJson(STORY_RESULTS_PATH),
     sourceInputs(),
     sourceState(),
   ])
-  const rawBaseline = (rawBaselineJson as Record<string, any>)
+  type OwnerBaseline = ReturnType<typeof createOwnerCoverageBaseline>
+  type CoverageBaseline = {
+    schemaVersion?: number
+    registryDigest?: string
+    coverageProviders?: Record<string, CoverageProvider>
+    owners: OwnerBaseline['owners']
+  }
+  const storyResults = rawStoryResults as {
+    testResults?: Array<{name: string, assertionResults?: Array<{status?: string}>}>
+  }
+  let baseline = rawBaselineJson as CoverageBaseline
   const installedProviders = Object.fromEntries(await Promise.all(PRODUCERS.map(async (producer) => [
     producer,
     await resolveCoverageProviderProvenance(producer, ROOT),
-  ])))
+  ]))) as Record<'node' | 'storybook', Awaited<ReturnType<typeof resolveCoverageProviderProvenance>>>
   const coverageProviders = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
     installedProviders[producer].coverageProvider,
-  ]))
+  ])) as Record<'node' | 'storybook', CoverageProvider>
   const producerEvidence = Object.fromEntries(await Promise.all(PRODUCERS.map(async (producer) => [
     producer,
     await readProducerEvidence(producer, currentState, coverageProviders[producer]),
-  ])))
+  ]))) as Record<'node' | 'storybook', Awaited<ReturnType<typeof readProducerEvidence>>>
   const summaries = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
     producerEvidence[producer].summary,
-  ]))
+  ])) as Record<'node' | 'storybook', RawCoverageSummary>
   const maps = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
     producerEvidence[producer].map,
-  ]))
+  ])) as Record<'node' | 'storybook', Record<string, IstanbulFile>>
   const sourceDigests = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
-    producerEvidence[producer].manifest.sourceDigests,
-  ]))
+    producerEvidence[producer].manifest.sourceDigests ?? {},
+  ])) as Record<'node' | 'storybook', Record<string, string>>
   const capturedCoverageProviders = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
     producerEvidence[producer].manifest.coverageProvider,
-  ]))
+  ])) as Record<'node' | 'storybook', CoverageProvider | undefined>
   const producerIssues = PRODUCERS.flatMap((producer) => [
     ...installedProviders[producer].issues,
     ...producerEvidence[producer].issues,
   ])
   const ownedPathsByProducer = Object.fromEntries(PRODUCERS.map((producer) => [
     producer,
-    exactCoveragePathsFor((producer as 'node' | 'storybook')),
-  ]))
+    exactCoveragePathsFor(producer),
+  ])) as Record<'node' | 'storybook', string[]>
   const registryDigest = createEvidenceDigest({
     registry: JSON.stringify(SOURCE_EVIDENCE_ENTRIES),
   })
 
-  let baseline: any = rawBaseline
   if (baseline.schemaVersion === 1) {
     if (mode !== 'update-baseline' || !ownershipReviewed) {
       throw new Error('The merged baseline must be migrated with reviewed ownership before producer-owned coverage can be checked')
     }
-  } else if (![2, 3].includes(baseline.schemaVersion)) {
+  } else if (baseline.schemaVersion !== 2 && baseline.schemaVersion !== 3) {
     throw new Error(`Unsupported coverage baseline schema: ${baseline.schemaVersion ?? 'missing'}`)
   }
   if (baseline.schemaVersion >= 2) {
     const ownershipIssues = ownershipReviewIssues({
-      baselineRegistryDigest: baseline.registryDigest,
+      baselineRegistryDigest: baseline.registryDigest ?? '',
       currentRegistryDigest: registryDigest,
       ownershipReviewed,
     })

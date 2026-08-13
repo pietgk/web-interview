@@ -5,7 +5,6 @@ import {
   evaluateLighthouseQuality,
 } from './lighthouse-report.ts'
 
-/** @param {{performance: number, accessibility: number, bestPractices: number, seo: number, agenticBrowsing?: number, unusedJavaScript: number, scriptBytes?: number}} values */
 const report = ({
   performance,
   accessibility,
@@ -14,6 +13,14 @@ const report = ({
   agenticBrowsing = 1,
   unusedJavaScript,
   scriptBytes = 130_000,
+}: {
+  performance: number
+  accessibility: number
+  bestPractices: number
+  seo: number
+  agenticBrowsing?: number
+  unusedJavaScript: number
+  scriptBytes?: number
 }) => ({
   categories: {
     performance: { score: performance },

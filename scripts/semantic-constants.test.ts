@@ -9,11 +9,14 @@ import {
 
 const linter = new Linter()
 
-/**
- * @param {string} code
- * @param {{filename?: string, named?: Record<string, unknown>, jsx?: boolean}} [settings]
- */
-const lint = (code, { filename = 'example.js', named = {}, jsx = false } = {}) =>
+const lint = (
+  code: string,
+  { filename = 'example.js', named = {}, jsx = false }: {
+    filename?: string
+    named?: Record<string, unknown>
+    jsx?: boolean
+  } = {}
+) =>
   linter.verify(code, [
     {
       files: ['**/*.{js,jsx}'],
@@ -36,8 +39,7 @@ const lint = (code, { filename = 'example.js', named = {}, jsx = false } = {}) =
     },
   ], { filename })
 
-/** @param {string} code @param {Parameters<typeof lint>[1]} [options] */
-const ruleMessages = (code, options) => lint(code, options).map(({ ruleId, messageId }) => ({
+const ruleMessages = (code: string, options?: Parameters<typeof lint>[1]) => lint(code, options).map(({ ruleId, messageId }) => ({
   ruleId,
   messageId,
 }))

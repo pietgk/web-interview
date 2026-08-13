@@ -6,14 +6,21 @@ export type CoverageMetric = 'statements' | 'branches' | 'functions' | 'lines'
 export type FileCoverage = Record<CoverageMetric, { covered: number; total: number }>
 
 /** Where a counter sits in the original source, as Istanbul records it. */
-export type SourcePosition = { line: number; column?: number }
+export type SourcePosition = { line: number; column?: number | null }
 export type SourceSpan = { start?: SourcePosition; end?: SourcePosition }
 
 /**
  * An entry in one of Istanbul's executable maps. Statement entries carry the
  * span directly; function and branch entries nest it under `loc`.
  */
-export type CounterMapEntry = SourceSpan & { loc?: SourceSpan }
+export type CounterMapEntry = SourceSpan & {
+  loc?: SourceSpan
+  name?: string
+  decl?: SourceSpan
+  line?: number
+  type?: string
+  locations?: SourceSpan[]
+}
 
 /** The fields this module reads out of an Istanbul per-file coverage object. */
 export type IstanbulFile = {
@@ -40,12 +47,70 @@ export type CounterDifference =
 /** A coverage summary as the providers emit it, before normalisation. */
 export type RawCoverageSummary = Record<string, Record<string, { covered: number; total: number }>>
 
-/** Only the fields this module reads out of a package.json. */
+/** The fields this module reads out of a package.json. */
 export type PackageManifest = {
   name?: string
   version?: string
   devDependencies?: Record<string, string>
 }
+
+export type CoverageProvider = {
+  name?: string
+  package?: string
+  version?: string
+}
+
+export type ProducerManifest = {
+  schemaVersion?: number
+  producer?: string
+  coverageProvider?: CoverageProvider
+  revision?: string
+  dirty?: boolean
+  inputDigest?: string
+  sourcePaths?: string[]
+  configPaths?: string[]
+  sourceDigests?: Record<string, string>
+}
+
+export type ExecutableMapDiagnostic = {
+  entryCounts: { node: number; storybook: number }
+  differingEntries: number
+  onlyIn: { node: number; storybook: number }
+  samples: CounterDifference[]
+  omittedSamples: number
+}
+
+export type ExecutableMapsComparison = {
+  exactMatch: boolean
+  maps: {
+    statements: ExecutableMapDiagnostic
+    functions: ExecutableMapDiagnostic
+    branches: ExecutableMapDiagnostic
+  }
+}
+
+export type IncompatibleFile = {
+  path: string
+  reason: string
+  sourceDigest: { status: string }
+  executableMaps?: ExecutableMapsComparison
+}
+
+export type CombinedAutomationReach =
+  | {
+      status: 'available'
+      incompatibleFiles: IncompatibleFile[]
+      providerIssues: string[]
+      admissionIssues: string[]
+      coverage: FileCoverage
+    }
+  | {
+      status: 'withheld'
+      incompatibleFiles: IncompatibleFile[]
+      providerIssues: string[]
+      admissionIssues: string[]
+      coverage: undefined
+    }
 
 export const COVERAGE_METRICS: readonly CoverageMetric[] = Object.freeze([
   'statements',
@@ -62,7 +127,7 @@ export const COVERAGE_PROVIDER = Object.freeze({
 
 export const EXPECTED_COMBINED_AUTOMATION_OVERLAP_FILES = 13
 
-export const coverageProviderProvenanceFromPackage = (installedPackageManifest: Record<string, any>) => ({
+export const coverageProviderProvenanceFromPackage = (installedPackageManifest: PackageManifest): CoverageProvider => ({
   name: COVERAGE_PROVIDER.name,
   package: installedPackageManifest.name,
   version: installedPackageManifest.version,
@@ -95,7 +160,7 @@ export const PRODUCER_CONFIG_PATHS = Object.freeze({
     'shared/vitest.config.js',
     'backend/vitest.config.js',
     'frontend/vitest.logic.config.js',
-    'scripts/vitest.config.js',
+    'scripts/vitest.config.ts',
   ]),
   storybook: Object.freeze([
     'frontend/package.json',
@@ -118,7 +183,7 @@ export const resolveCoverageProviderProvenance = async (
 ) => {
   const packagePath = resolve(repositoryRoot, PRODUCER_PACKAGE_PATHS[producer])
   const packageManifest = JSON.parse(await readFile(packagePath, 'utf8'))
-  let installedPackageManifest: Record<string, any> = {}
+  let installedPackageManifest: PackageManifest = {}
   try {
     const packageRoot = resolve(packagePath, '..')
     const installedPackagePath = resolve(packageRoot, 'node_modules', COVERAGE_PROVIDER.package, 'package.json')
@@ -136,13 +201,13 @@ export const resolveCoverageProviderProvenance = async (
   }
 }
 
-const coverageProviderIdentity = (provider: Record<string, any> | undefined) => provider && {
+const coverageProviderIdentity = (provider: CoverageProvider | undefined) => provider && {
   name: provider.name,
   package: provider.package,
   version: provider.version,
 }
 
-export const coverageProviderCompatibilityIssues = (coverageProviders: Record<string, Record<string, any> | undefined>) => {
+export const coverageProviderCompatibilityIssues = (coverageProviders: Record<string, CoverageProvider | undefined>) => {
   const node = coverageProviderIdentity(coverageProviders.node)
   const storybook = coverageProviderIdentity(coverageProviders.storybook)
   if (!node || !storybook || Object.values(node).some((value) => !value) || Object.values(storybook).some((value) => !value)) {
@@ -179,8 +244,15 @@ export const validateProducerManifest = ({
   dirty,
   currentInputDigest,
   currentCoverageProvider,
+}: {
+  producer: string
+  manifest: ProducerManifest
+  revision: string
+  dirty: boolean
+  currentInputDigest: string
+  currentCoverageProvider: CoverageProvider
 }) => {
-  const issues = []
+  const issues: string[] = []
   if (manifest.schemaVersion !== 2) issues.push(`${producer} coverage manifest has an unsupported schema`)
   if (manifest.producer !== producer) issues.push(`${producer} coverage manifest identifies ${manifest.producer ?? 'no producer'}`)
   if (!manifest.coverageProvider) {
@@ -226,6 +298,10 @@ export const createCombinedOwnedRuntimeReach = ({
   repositoryRoot,
   summaries,
   ownedPathsByProducer,
+}: {
+  repositoryRoot: string
+  summaries: Record<string, RawCoverageSummary>
+  ownedPathsByProducer: Record<string, string[]>
 }) => {
   const normalized = Object.fromEntries(Object.entries(summaries).map(([producer, producerSummary]) => [
     producer,
@@ -387,7 +463,7 @@ export const compareExecutableMaps = ({
   node: IstanbulFile
   storybook: IstanbulFile
   sampleLimit?: number
-}) => {
+}): ExecutableMapsComparison => {
   const mapDefinitions: readonly (readonly [CounterKind, 'statementMap' | 'fnMap' | 'branchMap'])[] = [
     ['statements', 'statementMap'],
     ['functions', 'fnMap'],
@@ -435,28 +511,27 @@ export const compareExecutableMaps = ({
   }))
   return {
     exactMatch: JSON.stringify(executableMap(node)) === JSON.stringify(executableMap(storybook)),
-    maps,
+    maps: maps as ExecutableMapsComparison['maps'],
   }
 }
 
-/** @param {Record<string, any>} left @param {Record<string, any>} right */
-const mergeFileCounters = (left, right) => ({
+const mergeFileCounters = (left: IstanbulFile, right: IstanbulFile): IstanbulFile => ({
   ...left,
-  s: Object.fromEntries(Object.keys(left.s).map((key) => [key, Math.max(left.s[key], right.s[key])])),
-  f: Object.fromEntries(Object.keys(left.f).map((key) => [key, Math.max(left.f[key], right.f[key])])),
-  b: Object.fromEntries(Object.keys(left.b).map((key) => [key,
-    left.b[key].map((/** @type {number} */ hit, /** @type {number} */ index) => Math.max(hit, right.b[key][index])),
+  s: Object.fromEntries(Object.keys(left.s ?? {}).map((key) => [key, Math.max((left.s ?? {})[key], (right.s ?? {})[key])])),
+  f: Object.fromEntries(Object.keys(left.f ?? {}).map((key) => [key, Math.max((left.f ?? {})[key], (right.f ?? {})[key])])),
+  b: Object.fromEntries(Object.keys(left.b ?? {}).map((key) => [key,
+    (left.b ?? {})[key].map((hit, index) => Math.max(hit, (right.b ?? {})[key][index])),
   ])),
 })
 
-const coverageFromMap = (file: Record<string, any>) => {
-  const statementHits = /** @type {number[]} */ (Object.values(file.s))
-  const functionHits = /** @type {number[]} */ (Object.values(file.f))
-  const branchHits = /** @type {number[]} */ (Object.values(file.b).flat())
+const coverageFromMap = (file: IstanbulFile): FileCoverage => {
+  const statementHits = Object.values(file.s ?? {})
+  const functionHits = Object.values(file.f ?? {})
+  const branchHits = Object.values(file.b ?? {}).flat()
   const lineHits: Map<number, number> = new Map()
-  for (const [key, hit] of Object.entries(file.s)) {
-    const line = file.statementMap[key].start.line
-    lineHits.set(line, Math.max(lineHits.get(line) ?? 0, /** @type {number} */ (hit)))
+  for (const [key, hit] of Object.entries(file.s ?? {})) {
+    const line = file.statementMap?.[key]?.start?.line
+    lineHits.set(line!, Math.max(lineHits.get(line!) ?? 0, hit))
   }
   const tuple = (hits: number[]) => ({ covered: hits.filter((hit) => hit > 0).length, total: hits.length })
   return {
@@ -471,9 +546,6 @@ const coverageFromMap = (file: Record<string, any>) => {
  * Create the optional union of compatible Node and Storybook Istanbul maps.
  * Any overlapping file with different source or executable maps withholds the
  * complete view, while owner-specific verdicts remain independent.
- *
- * @param {{repositoryRoot: string, maps: Record<string, Record<string, any>>, sourceDigests: Record<string, Record<string, string>>, coverageProviders: Record<string, Record<string, any> | undefined>, expectedOverlapFiles?: number}} input
- * @returns {{status: 'available', incompatibleFiles: any[], providerIssues: string[], admissionIssues: string[], coverage: FileCoverage} | {status: 'withheld', incompatibleFiles: any[], providerIssues: string[], admissionIssues: string[], coverage: undefined}}
  */
 export const createCombinedAutomationReach = ({
   repositoryRoot,
@@ -481,7 +553,13 @@ export const createCombinedAutomationReach = ({
   sourceDigests,
   coverageProviders,
   expectedOverlapFiles,
-}) => {
+}: {
+  repositoryRoot: string
+  maps: Record<string, Record<string, IstanbulFile>>
+  sourceDigests: Record<string, Record<string, string>>
+  coverageProviders: Record<string, CoverageProvider | undefined>
+  expectedOverlapFiles?: number
+}): CombinedAutomationReach => {
   const providerIssues = coverageProviderCompatibilityIssues(coverageProviders)
   if (providerIssues.length > 0) {
     return { status: 'withheld', incompatibleFiles: [], providerIssues, admissionIssues: [], coverage: undefined }
@@ -496,7 +574,7 @@ export const createCombinedAutomationReach = ({
   const admissionIssues = expectedOverlapFiles !== undefined && overlapFiles !== expectedOverlapFiles
     ? [`Combined automation overlap changed: expected ${expectedOverlapFiles} files, found ${overlapFiles}`]
     : []
-  const incompatibleFiles: any[] = []
+  const incompatibleFiles: IncompatibleFile[] = []
   const combined: FileCoverage[] = []
 
   for (const path of paths) {
@@ -549,11 +627,18 @@ export const createCombinedAutomationReach = ({
   return { status: 'available', incompatibleFiles: [], providerIssues: [], admissionIssues: [], coverage: sumCoverage(combined) }
 }
 
-/**
- * @param {{dirty: boolean, revisionChanged?: boolean, runDigests: string[], expectedRuns: number}} input
- */
-export const stabilityAdmissionIssues = ({ dirty, revisionChanged = false, runDigests, expectedRuns }) => {
-  const issues = []
+export const stabilityAdmissionIssues = ({
+  dirty,
+  revisionChanged = false,
+  runDigests,
+  expectedRuns,
+}: {
+  dirty: boolean
+  revisionChanged?: boolean
+  runDigests: string[]
+  expectedRuns: number
+}) => {
+  const issues: string[] = []
   if (dirty) issues.push('Storybook stability admission requires a clean worktree')
   if (revisionChanged) issues.push('Storybook stability admission requires one unchanged revision')
   if (runDigests.length !== expectedRuns) {

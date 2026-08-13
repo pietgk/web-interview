@@ -28,24 +28,24 @@ const ASSET_PATH = `${EXCALIDRAW_DIST}/`
  */
 const inlineJson = (scene: unknown): string => JSON.stringify(scene).replace(/<\//g, '<\\/')
 
-/** @param text @returns {string} */
-const escapeHtml = (text: string) =>
+const escapeHtml = (text: string): string =>
   text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
 
-/**
- * @param {{
- *   title: string,
- *   scene: unknown,
- *   sourceName: string,
- *   fallbackSvg?: string,
- * }} options
- * @returns {string}
- */
-export const renderWhiteboardHtml = ({ title, scene, sourceName, fallbackSvg }) => {
+export const renderWhiteboardHtml = ({
+  title,
+  scene,
+  sourceName,
+  fallbackSvg,
+}: {
+  title: string
+  scene: unknown
+  sourceName: string
+  fallbackSvg?: string
+}): string => {
   const fallback =
     fallbackSvg ??
     `<p class="fallback-note">This board needs ${escapeHtml(CDN)} to render. Open <code>${escapeHtml(sourceName)}</code> in Excalidraw instead.</p>`
@@ -204,8 +204,6 @@ ${fallback}
 /**
  * Renders `<scene>.html` beside a `.excalidraw` file, reusing a sibling `.svg`
  * as the offline fallback when one exists so both writers agree on the output.
- * @param sceneFile absolute path to a `.excalidraw` file
- * @returns absolute path of the HTML written
  */
 export const writeWhiteboardPage = (sceneFile: string): string => {
   const sourceName = basename(sceneFile)
