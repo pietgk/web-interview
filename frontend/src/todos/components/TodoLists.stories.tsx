@@ -44,7 +44,7 @@ const withServer = (seed: Datom[] = seedDatoms()) => ({
   loaders: [async () => ({ server: createStoryServer({ seed }) })],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
   render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
-    <ComposedTodoApp server={loaded.server} />
+    <ComposedTodoApp server={loaded['server']} />
   ),
 })
 
@@ -73,7 +73,7 @@ export const SummariesFromProjection = {
     '**See:** After the second list’s only Todo is retracted, First List shows `0 of 1 completed` and Second List shows `No todos yet`.',
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
-    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
+    loaded['server'].push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
     await waitUntilConnected(canvas, expect)
     const lists = canvas.getByRole('list', { name: 'Todo lists' })
     await expect(within(lists).getByText('0 of 1 completed')).toBeInTheDocument()
@@ -95,7 +95,7 @@ export const EditingDisabledUntilClock = {
   ],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
   render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
-    <ComposedTodoApp server={loaded.server} />
+    <ComposedTodoApp server={loaded['server']} />
   ),
   play: async ({ canvas }) => {
     await expect(await canvas.findByRole('button', { name: 'Add Todo List' })).toBeDisabled()
@@ -115,7 +115,7 @@ export const EditingStaysEnabledOffline = {
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
     await userEvent.click(canvas.getByText('First List'))
-    loaded.server.disconnect()
+    loaded['server'].disconnect()
 
     await expect(canvas.getByRole('button', { name: 'Add Todo List' })).toBeEnabled()
     const field = canvas.getByLabelText('What to do?')
@@ -139,10 +139,10 @@ export const OneDatomPerSettledEdit = {
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
     const posted: Parameters<typeof fetch>[] = []
-    loaded.server.setFetchImpl(
+    loaded['server'].setFetchImpl(
       (async (input, init) => {
         posted.push([input, init])
-        return loaded.server.baseFetchImpl(input, init)
+        return loaded['server'].baseFetchImpl(input, init)
       }) as typeof fetch
     )
 
@@ -156,12 +156,12 @@ export const OneDatomPerSettledEdit = {
 
     await settle()
     await waitFor(() => expect(posted).toHaveLength(1))
-    const { datoms } = JSON.parse(String(posted[0][1]?.body))
+    const { datoms } = JSON.parse(String(posted[0]?.[1]?.body))
     await expect(datoms).toEqual([
       [FIRST_TODO, ATTRIBUTE.TEXT, 'Settled once', expect.any(String), true],
     ])
     await expect(field).toHaveValue('Settled once')
-    await expect(loaded.server.store.readModel()[FIRST_LIST].todos[0].text).toBe('Settled once')
+    await expect(loaded['server'].store.readModel()[FIRST_LIST]?.todos[0]?.text).toBe('Settled once')
   },
 } as StoryObj
 
@@ -173,7 +173,7 @@ export const SavingAppearsAfterDelay = {
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
     let releasePost: (() => void) | undefined
-    loaded.server.setFetchImpl(
+    loaded['server'].setFetchImpl(
       () =>
         new Promise((resolve) => {
           releasePost = () =>
@@ -181,7 +181,7 @@ export const SavingAppearsAfterDelay = {
               {
                 ok: true,
                 status: HTTP_OK_STATUS,
-                json: async () => ({ serverTime: loaded.server.serverTime() }),
+                json: async () => ({ serverTime: loaded['server'].serverTime() }),
               } as unknown as Response
             )
         })
@@ -212,7 +212,7 @@ export const RemoteWriteAppears = {
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await waitUntilConnected(canvas, expect)
-    loaded.server.push([
+    loaded['server'].push([
       [todoId(FIRST_LIST, nextTimestamp()), ATTRIBUTE.TEXT, 'From another tab', ulid(nextTimestamp()), true],
     ])
     const lists = canvas.getByRole('list', { name: 'Todo lists' })
@@ -235,7 +235,7 @@ export const ReplacedLogResetsClient = {
     // they sort above the cursor this client already holds. Without the epoch the
     // client would keep the old Todo Lists and show both logs at once.
     const freshList = listId(nextTimestamp())
-    loaded.server.replaceLog([
+    loaded['server'].replaceLog([
       [freshList, ATTRIBUTE.TITLE, 'Only List', ulid(nextTimestamp()), true],
       [todoId(freshList, nextTimestamp()), ATTRIBUTE.TEXT, 'Only todo', ulid(nextTimestamp()), true],
     ])
@@ -366,7 +366,7 @@ export const DeleteEmptyAndConfirmPopulated = {
     '**See:** Second List (empty) vanishes with no dialog; First List opens Delete First List?, Cancel keeps it, Confirm removes it and focuses Add Todo List.',
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
-    loaded.server.push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
+    loaded['server'].push([[SECOND_TODO, ATTRIBUTE.TEXT, 'First todo of second list!', ulid(nextTimestamp()), false]])
     await waitUntilConnected(canvas, expect)
     const lists = canvas.getByRole('list', { name: 'Todo lists' })
 
@@ -410,7 +410,7 @@ export const ResortKeepsSelection = {
   ],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
   render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
-    <ComposedTodoApp server={loaded.server} />
+    <ComposedTodoApp server={loaded['server']} />
   ),
   play: async ({ canvas }) => {
     await waitUntilConnected(canvas, expect)

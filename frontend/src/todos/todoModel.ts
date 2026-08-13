@@ -27,8 +27,8 @@ const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', {
 })
 
 const parseDateOnly = (value: string) => {
-  const [year, month, day] = value.split('-').map(Number)
-  return Date.UTC(year, month - 1, day)
+  const parts = value.split('-')
+  return Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
 }
 
 const relativeDueDuration = (days: number): {value: number, unit: RelativeDueUnit} => {

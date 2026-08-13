@@ -9,7 +9,7 @@ const HTTP_OK_STATUS = 200
  * an `EventSource` that replays the compacted set and then broadcasts winners,
  * and a `fetch` that journals nothing but applies and echoes.
  */
-export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 }: {startTime?: number} = {}) => {
+export const createFakeDatomServer = ({ startTime = 1_760_000_000_000 }: {startTime?: number | undefined} = {}) => {
   const store = new DatomStore()
   let serverTime = startTime
   let reachable = true

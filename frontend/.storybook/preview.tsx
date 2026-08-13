@@ -8,6 +8,7 @@ import {
   OS_MEDIA_PREF_SYSTEM,
   PREFERS_CONTRAST,
   PREFERS_REDUCED_MOTION,
+  type OsMediaFeature,
 } from './osMediaPrefs.ts'
 import { withOsMediaPrefs } from './withOsMediaPrefs.tsx'
 
@@ -21,7 +22,7 @@ import { withOsMediaPrefs } from './withOsMediaPrefs.tsx'
 const ColorSchemedBaseline = () => <CssBaseline enableColorScheme />
 
 const osMediaPrefToolbar = (
-  feature: string,
+  feature: OsMediaFeature,
   title: string,
   icon: 'lightning' | 'contrast' | 'accessibility'
 ) => ({

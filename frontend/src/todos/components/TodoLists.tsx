@@ -165,7 +165,7 @@ export const TodoLists = ({ runtime, sx }: {runtime: TodoRuntime, sx?: SxProps<T
           )}
           <List aria-label='Todo lists'>
             {summaries.map((summary) => {
-              const todoList = readModel[summary.id]
+              const todoList = readModel[summary.id] as TodoList
               return (
                 <TodoListRow
                   key={summary.id}

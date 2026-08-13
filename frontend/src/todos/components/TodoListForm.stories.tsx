@@ -39,7 +39,7 @@ const meta = ({
   },
   // Fresh spies per story, so one play cannot see another's calls.
   loaders: [() => ({ commands: fakeCommands() })],
-  render: (args, { loaded }) => <TodoListForm {...args} commands={loaded.commands} />,
+  render: (args, { loaded }) => <TodoListForm {...args} commands={loaded['commands']} />,
   parameters: {
     docs: {
       description: {
@@ -67,13 +67,13 @@ export const Populated = ({
     await userEvent.clear(canvas.getByLabelText('What to do?'))
     await userEvent.type(canvas.getByLabelText('What to do?'), 'Updated')
     await userEvent.tab()
-    await expect(loaded.commands.retitleTodo).toHaveBeenCalledWith(
+    await expect(loaded['commands'].retitleTodo).toHaveBeenCalledWith(
       baseList.todos[0],
       'Updated'
     )
 
     await userEvent.click(canvas.getByLabelText('Delete todo: Original'))
-    await expect(loaded.commands.deleteTodo).toHaveBeenCalledWith(baseList.todos[0])
+    await expect(loaded['commands'].deleteTodo).toHaveBeenCalledWith(baseList.todos[0])
   },
 }) as StoryObj<typeof TodoListForm>
 
@@ -157,11 +157,11 @@ export const GhostComposerMaterializes = ({
     await userEvent.type(composer, 'New')
     // Proof: keystrokes are in-flight text, not facts. Nothing is written until
     // the field settles.
-    await expect(loaded.commands.addTodo).not.toHaveBeenCalled()
+    await expect(loaded['commands'].addTodo).not.toHaveBeenCalled()
 
     await userEvent.click(canvas.getByRole('button', { name: 'Add todo' }))
-    await expect(loaded.commands.addTodo).toHaveBeenCalledWith('list', 'New')
-    await expect(loaded.commands.addTodo).toHaveBeenCalledTimes(1)
+    await expect(loaded['commands'].addTodo).toHaveBeenCalledWith('list', 'New')
+    await expect(loaded['commands'].addTodo).toHaveBeenCalledTimes(1)
     await expect(composer).toHaveValue('')
   },
 }) as StoryObj<typeof TodoListForm>
@@ -173,7 +173,7 @@ export const GhostComposerIgnoresBlank = ({
   ].join(' ')),
   play: async ({ canvas, loaded }) => {
     await userEvent.click(canvas.getByRole('button', { name: 'Add todo' }))
-    await expect(loaded.commands.addTodo).not.toHaveBeenCalled()
-    await expect(loaded.commands.deleteTodo).not.toHaveBeenCalled()
+    await expect(loaded['commands'].addTodo).not.toHaveBeenCalled()
+    await expect(loaded['commands'].deleteTodo).not.toHaveBeenCalled()
   },
 }) as StoryObj<typeof TodoListForm>

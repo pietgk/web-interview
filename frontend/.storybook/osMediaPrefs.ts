@@ -26,28 +26,30 @@ export const FORCED_COLORS = 'forced-colors'
  * Media features the toolbar can override, with the discrete values we expose.
  * `system` is not listed — it means "do not override".
  */
-export const OS_MEDIA_FEATURE_VALUES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+export const OS_MEDIA_FEATURE_VALUES = Object.freeze({
   [PREFERS_REDUCED_MOTION]: Object.freeze(['no-preference', 'reduce']),
   [PREFERS_CONTRAST]: Object.freeze(['no-preference', 'more']),
   [FORCED_COLORS]: Object.freeze(['none', 'active']),
 })
 
+export type OsMediaFeature = keyof typeof OS_MEDIA_FEATURE_VALUES
+
 const originalMediaTextByRule = new WeakMap<CSSMediaRule, string>()
 
 let nativeMatchMedia: ((query: string) => MediaQueryList) | null = null
 
-let activeFeatureOverrides: Map<string, string> | null = null
+let activeFeatureOverrides: Map<OsMediaFeature, string> | null = null
 
 const matchMediaListeners = new Set<() => void>()
 
 export const mediaFeatureOverridesFromGlobals = (
   globals: Record<string, string | undefined>
-): Map<string, string> => {
-  const overrides = new Map<string, string>()
-  const pairs: Array<[string | undefined, string]> = [
-    [globals.prefersReducedMotion, PREFERS_REDUCED_MOTION],
-    [globals.prefersContrast, PREFERS_CONTRAST],
-    [globals.forcedColors, FORCED_COLORS],
+): Map<OsMediaFeature, string> => {
+  const overrides = new Map<OsMediaFeature, string>()
+  const pairs: Array<[string | undefined, OsMediaFeature]> = [
+    [globals['prefersReducedMotion'], PREFERS_REDUCED_MOTION],
+    [globals['prefersContrast'], PREFERS_CONTRAST],
+    [globals['forcedColors'], FORCED_COLORS],
   ]
   for (const [value, feature] of pairs) {
     if (value == null || value === OS_MEDIA_PREF_SYSTEM) continue
@@ -58,13 +60,13 @@ export const mediaFeatureOverridesFromGlobals = (
   return overrides
 }
 
-export const hasMediaFeatureOverrides = (overrides: Map<string, string>) => overrides.size > 0
+export const hasMediaFeatureOverrides = (overrides: Map<OsMediaFeature, string>) => overrides.size > 0
 
 /**
  * Replace `(feature: value)` / `(feature)` conditions so only the chosen
  * preference matches. Restores the rule's original media text first.
  */
-export const rewriteMediaText = (mediaText: string, overrides: Map<string, string>) => {
+export const rewriteMediaText = (mediaText: string, overrides: Map<OsMediaFeature, string>) => {
   let next = mediaText
   for (const [feature, chosen] of overrides) {
     if (!next.includes(feature)) continue
@@ -87,7 +89,7 @@ export const rewriteMediaText = (mediaText: string, overrides: Map<string, strin
 
 export const resolveMatchMediaOverride = (
   query: string,
-  overrides: Map<string, string>
+  overrides: Map<OsMediaFeature, string>
 ): boolean | undefined => {
   for (const [feature, chosen] of overrides) {
     if (!query.includes(feature)) continue
@@ -95,7 +97,8 @@ export const resolveMatchMediaOverride = (
       new RegExp(`\\(${feature}:\\s*([^)]+)\\)`)
     )
     if (valued) {
-      return valued[1].trim() === chosen
+      const [, captured] = valued as [string, string]
+      return captured.trim() === chosen
     }
     if (query.includes(`(${feature})`)) {
       return chosen !== 'no-preference' && chosen !== 'none'
@@ -117,7 +120,7 @@ const collectStyleSheets = (): CSSStyleSheet[] => {
   return sheets
 }
 
-const processCssRules = (rules: CSSRuleList | CSSRule[], overrides: Map<string, string>) => {
+const processCssRules = (rules: CSSRuleList | CSSRule[], overrides: Map<OsMediaFeature, string>) => {
   for (const rule of rules) {
     if (rule instanceof CSSMediaRule) {
       if (!originalMediaTextByRule.has(rule)) {
@@ -147,7 +150,7 @@ const processCssRules = (rules: CSSRuleList | CSSRule[], overrides: Map<string, 
 /**
  * Apply or clear CSSOM media-feature overrides across document stylesheets.
  */
-export const applyCssMediaFeatureOverrides = (overrides: Map<string, string>) => {
+export const applyCssMediaFeatureOverrides = (overrides: Map<OsMediaFeature, string>) => {
   for (const sheet of collectStyleSheets()) {
     try {
       processCssRules(sheet.cssRules, overrides)
@@ -161,7 +164,7 @@ export const applyCssMediaFeatureOverrides = (overrides: Map<string, string>) =>
  * Restore every previously rewritten media rule to its original text.
  */
 export const restoreCssMediaFeatureOverrides = () => {
-  applyCssMediaFeatureOverrides(new Map())
+  applyCssMediaFeatureOverrides(new Map<OsMediaFeature, string>())
 }
 
 const notifyMatchMediaListeners = () => {
@@ -241,7 +244,7 @@ const wrapMediaQueryList = (native: MediaQueryList, query: string): MediaQueryLi
 /**
  * Install a `matchMedia` shim that honors the active feature map. Idempotent.
  */
-export const syncMatchMediaOverrides = (overrides: Map<string, string>) => {
+export const syncMatchMediaOverrides = (overrides: Map<OsMediaFeature, string>) => {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return
   }
@@ -276,7 +279,7 @@ export const clearMatchMediaOverrides = () => {
 /**
  * Apply toolbar media prefs to CSSOM + matchMedia, or clear them when empty.
  */
-export const applyOsMediaPrefs = (overrides: Map<string, string>) => {
+export const applyOsMediaPrefs = (overrides: Map<OsMediaFeature, string>) => {
   if (!hasMediaFeatureOverrides(overrides)) {
     restoreCssMediaFeatureOverrides()
     clearMatchMediaOverrides()

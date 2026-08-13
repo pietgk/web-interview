@@ -15,7 +15,7 @@ export const createClientForServer = (server: ReturnType<typeof createFakeDatomS
   })
 
 export const createStoryServer = ({ startTime, seed = [] }: {
-  startTime?: number
+  startTime?: number | undefined
   seed?: Datom[]
 } = {}) => {
   const server = createFakeDatomServer({ startTime })

@@ -14,7 +14,7 @@ describe('createFakeDatomServer', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(source.readyState).toBe(server.FakeEventSource.OPEN)
-    expect(server.store.readModel()[list].title).toBe('Seeded')
+    expect(server.store.readModel()[list]?.title).toBe('Seeded')
 
     const seen: Datom[] = []
     source.onmessage = (event) => seen.push(JSON.parse((event as {data: string}).data))

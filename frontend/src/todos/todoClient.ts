@@ -18,7 +18,7 @@ import type {
 } from '@web-interview/todos/types'
 import { createTrustedClock } from './trustedClock.ts'
 
-const DEFAULT_API_BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '')
+const DEFAULT_API_BASE = (import.meta.env['VITE_API_BASE'] ?? '').replace(/\/$/, '')
 const OUTBOX_RETRY_MS = 1_000
 const EVENT_SOURCE_CLOSED = 2
 

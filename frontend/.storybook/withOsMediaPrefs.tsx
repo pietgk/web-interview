@@ -9,9 +9,10 @@ import {
   OS_MEDIA_PREF_SYSTEM,
   restoreCssMediaFeatureOverrides,
   syncMatchMediaOverrides,
+  type OsMediaFeature,
 } from './osMediaPrefs.ts'
 
-const overridesKey = (overrides: Map<string, string>) =>
+const overridesKey = (overrides: Map<OsMediaFeature, string>) =>
   [...overrides.entries()]
     .map(([feature, value]) => `${feature}:${value}`)
     .sort()

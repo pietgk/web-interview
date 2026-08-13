@@ -24,7 +24,7 @@ export const TodoListForm = ({
   today: string,
   draft?: boolean,
   autoFocusTitle?: boolean,
-  titleFocusRef?: React.MutableRefObject<HTMLInputElement | null>,
+  titleFocusRef?: React.MutableRefObject<HTMLInputElement | null> | undefined,
   onMaterialize: (title: string) => void,
   onTitleChange: (title: string) => void,
   onCancelDraft: () => void
@@ -47,7 +47,9 @@ export const TodoListForm = ({
           onMaterialize={onMaterialize}
           onTitleChange={onTitleChange}
           onCancelDraft={onCancelDraft}
-          onAccept={() => composerRef.current?.focus()}
+          onAccept={() => {
+            composerRef.current?.focus()
+          }}
         />
 
         {!draft && (

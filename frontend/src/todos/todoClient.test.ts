@@ -83,6 +83,7 @@ describe('createTodoClient', () => {
     await waitUntil(() => client.getToday() === MIDNIGHT_START_DAY)
     expect(notifications).toBe(1)
     const source = [...server.connections][0]
+    if (!source) throw new Error('expected an open stream')
 
     server.advance(HEARTBEAT_ADVANCE_MS)
     source.emitClock()
@@ -122,7 +123,7 @@ describe('createTodoClient', () => {
     const client = clientFor(server)
     client.start()
     await waitUntil(() => client.getStatus().canEdit)
-    expect(client.getReadModel()[seeded].title).toBe('Seeded')
+    expect(client.getReadModel()[seeded]?.title).toBe('Seeded')
 
     client.reconnect()
     await waitUntil(() =>
@@ -183,7 +184,7 @@ describe('createTodoClient', () => {
         issues: [{ path: ['datoms', 0, 2], message: 'Invalid value for title' }],
       },
     })
-    expect(client.getReadModel()[id].title).toBe('Authoritative')
+    expect(client.getReadModel()[id]?.title).toBe('Authoritative')
 
     client.stop()
   })
@@ -223,27 +224,32 @@ describe('createTodoClient', () => {
     await waitUntil(() => client.getStatus().canEdit)
 
     const commands = createTodoListCommands(client)
-    commands.retitleTodo(client.getReadModel()[list].todos[0], 'Rejected')
+    const firstTodo = () => {
+      const todo = client.getReadModel()[list]?.todos[0]
+      if (!todo) throw new Error('expected seeded todo')
+      return todo
+    }
+    commands.retitleTodo(firstTodo(), 'Rejected')
     await waitUntil(() => posted.length === 1)
-    commands.retitleTodo(client.getReadModel()[list].todos[0], 'Written later')
+    commands.retitleTodo(firstTodo(), 'Written later')
     expect(client.getStatus().pendingCount).toBe(2)
 
-    release[0]()
+    release[0]?.()
     await waitUntil(() => posted.length === 2)
     expect(statuses.some((status) => status.rehydrating && !status.canEdit)).toBe(true)
-    expect(client.getReadModel()[list].todos[0].text).toBe('Written later')
+    expect(client.getReadModel()[list]?.todos[0]?.text).toBe('Written later')
     expect(client.getStatus()).toMatchObject({
       pendingCount: 1,
       failure: { kind: 'api', code: API_ERROR_CODE.VALIDATION_ERROR },
     })
-    expect(posted[0][0][2]).toBe('Rejected')
+    expect(posted[0]?.[0]?.[2]).toBe('Rejected')
     expect(posted[1]).toHaveLength(1)
-    expect(posted[1][0][2]).toBe('Written later')
+    expect(posted[1]?.[0]?.[2]).toBe('Written later')
 
-    release[1]()
+    release[1]?.()
     await waitUntil(() => client.getStatus().pendingCount === 0)
     expect(client.getStatus().failure).toBe(null)
-    expect(server.store.readModel()[list].todos[0].text).toBe('Written later')
+    expect(server.store.readModel()[list]?.todos[0]?.text).toBe('Written later')
 
     client.stop()
   })
@@ -283,7 +289,7 @@ describe('createTodoClient', () => {
       },
     })
     expect(todoDuringRehydration).toBe(null)
-    expect(client.getReadModel()[id].title).toBe('Authoritative')
+    expect(client.getReadModel()[id]?.title).toBe('Authoritative')
 
     client.stop()
   })
@@ -477,6 +483,7 @@ describe('createTodoClient', () => {
     expect(client.getStatus().connection).toBe(CONNECTION.LIVE)
 
     const source = [...server.connections][0]
+    if (!source) throw new Error('expected an open stream')
     client.stop()
     source.onerror?.({ type: 'error' })
     expect(client.getStatus().connection).toBe(CONNECTION.LIVE)
@@ -489,11 +496,12 @@ describe('createTodoClient', () => {
     await waitUntil(() => client.getStatus().canEdit)
 
     const source = [...server.connections][0]
+    if (!source) throw new Error('expected an open stream')
     const entity = listId(2_000)
     const tx = ulid(2_000)
     const datom: Datom = [entity, ATTRIBUTE.TITLE, 'From stream', tx, true]
     source.onmessage?.({ data: JSON.stringify(datom), lastEventId: '' })
-    expect(client.getReadModel()[entity].title).toBe('From stream')
+    expect(client.getReadModel()[entity]?.title).toBe('From stream')
 
     client.stop()
   })

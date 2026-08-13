@@ -112,8 +112,8 @@ export const ControlsShareOneHeight = ({
   ].join(' ')),
   play: async ({ canvas, args }) => {
     const row = canvas.getByRole('group', { name: `Todo: ${args.todo.text}` })
-    const [completion, dueDate, text] = Array.from(row.children)
-    const heights = [completion, dueDate, text].map((cell) =>
+    const cells = Array.from(row.children).slice(0, 3)
+    const heights = cells.map((cell) =>
       Math.round(cell.getBoundingClientRect().height)
     )
 

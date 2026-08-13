@@ -22,7 +22,7 @@ export default mergeConfig(
         configDir: path.join(dirname, '.storybook'),
         // Do not spawn Storybook from Vitest - the UI already owns that process.
         // Spawning via storybookScript + watch easily re-triggers runs and hangs Stop.
-        storybookUrl: process.env.STORYBOOK_URL ?? 'http://localhost:6006',
+        storybookUrl: process.env['STORYBOOK_URL'] ?? 'http://localhost:6006',
       }),
     ],
     test: {

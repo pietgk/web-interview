@@ -30,7 +30,7 @@ const withServer = (seed: Datom[] = []) => ({
   ],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- original JSDoc loader bag
   render: (_args: unknown, { loaded }: {loaded: Record<string, any>}) => (
-    <App createClient={() => createClientForServer(loaded.server)} />
+    <App createClient={() => createClientForServer(loaded['server'])} />
   ),
 })
 

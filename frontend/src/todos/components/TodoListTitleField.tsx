@@ -12,7 +12,7 @@ export const TodoListTitleField = ({
   onTitleChange,
   onCancelDraft,
   onAccept,
-}: {title: string, draft?: boolean, autoFocus?: boolean, focusRef?: React.MutableRefObject<HTMLInputElement | null>, onMaterialize: (title: string) => void, onTitleChange: (title: string) => void, onCancelDraft: () => void, onAccept?: () => void}) => {
+}: {title: string, draft?: boolean, autoFocus?: boolean, focusRef?: React.MutableRefObject<HTMLInputElement | null> | undefined, onMaterialize: (title: string) => void, onTitleChange: (title: string) => void, onCancelDraft: () => void, onAccept?: () => void}) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const materializedRef = useRef(!draft)
   const { text, change, settle, reset } = useSettledText(title, (next) => {
