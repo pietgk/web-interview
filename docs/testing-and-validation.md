@@ -96,6 +96,9 @@ These checks catch contradictions that may not appear in a behavior scenario:
 
 - **Typecheck** verifies generated declarations and every TypeScript project agree.
 - **Lint** checks the repository's style and static rules.
+- **Lint scope** (`lint-scope`) verifies that every tracked source file is actually linted. ESLint
+  reports a file no configuration matches as a warning and still exits zero, so a file can leave
+  lint scope silently and take its rules with it.
 - **Dependency audit** checks every install root for high and critical advisories.
 - **Mermaid diagram integrity** checks that every Mermaid edge in the docs survives rendering.
 
@@ -122,7 +125,8 @@ are the useful parts to remember.
 | Source accounting | Production source can be unowned or assigned to the wrong evidence contract | Exactly one evidence treatment for every production source, with baseline paths aligned |
 | UI story discovery, execution, and coverage evidence | A UI source can have no story, an unrun story, a failed story, or missing coverage | Declared stories versus executed stories, play and axe results, and informational UI coverage |
 | Typecheck | Generated declarations and TypeScript projects can disagree | Declaration generation, declaration checks, and every configured TypeScript project |
-| Lint | Inconsistent or invalid code can hide defects and drift | ESLint rules across the checked source directories and config files |
+| Lint | Inconsistent or invalid code can hide defects and drift | ESLint rules across the whole repository, with exclusions declared in the config |
+| Lint scope | A source file can leave lint scope silently, because ESLint warns and exits zero when no configuration matches | Every tracked source file resolves an ESLint configuration, or carries a written exemption |
 | Dependency audit | A known high or critical package advisory can enter an install root | npm audit in the root, shared, backend, and frontend installs |
 | Mermaid diagram integrity | A diagram can silently lose an edge and mislead readers | Mermaid edge structure across the Markdown documentation |
 | Production build | Source can pass isolated checks but fail to assemble for shipping | The frontend production bundle with source maps |
@@ -146,6 +150,7 @@ Within a stage, every check runs so one failure does not hide its siblings.
 | --- | --- | --- |
 | `static` | Type correctness | TypeScript `typecheck` |
 | `static` | Style and static rules | ESLint `lint` |
+| `static` | Lint actually covers the source | `lint-scope` |
 | `static` | Diagram integrity | Mermaid `diagrams` |
 | `static` | Dependency risk | npm `audit` |
 | `unit` | Logic behavior and logic evidence | Vitest `unit` in Node |

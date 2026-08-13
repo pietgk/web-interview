@@ -53,22 +53,23 @@ export const STAGES = [
       },
       {
         name: 'lint',
-        blurb: 'eslint over every directory typecheck covers, autofixing first',
+        blurb: 'one eslint over every directory typecheck covers, autofixing first',
         invocations: [
           {
+            // Linting the whole repo, rather than a list of directories, is what
+            // makes `lint-scope` provable: a source file cannot be missed by
+            // being left off an argument list. Exclusions live in the config's
+            // `ignores`, where they have to be written down and justified.
             command: bin('.', 'eslint'),
-            args: [
-              '--fix',
-              'shared/src',
-              'scripts',
-              'e2e',
-              'vitest.config.mjs',
-              'playwright.config.js',
-              'eslint.config.mjs',
-            ],
+            args: ['--fix', '.'],
           },
-          { command: bin('backend', 'eslint'), args: ['--fix', 'src'], cwd: resolve(ROOT, 'backend') },
-          { command: bin('frontend', 'eslint'), args: ['--fix', 'src'], cwd: resolve(ROOT, 'frontend') },
+        ],
+      },
+      {
+        name: 'lint-scope',
+        blurb: 'every tracked source file is actually covered by an eslint config',
+        invocations: [
+          { command: 'node', args: ['scripts/check-lint-scope.mjs'] },
         ],
       },
       {

@@ -42,6 +42,12 @@ export const withOsMediaPrefs = (Story, context) => {
     clearMatchMediaOverrides()
   }
 
+  // Storybook renders a decorator as a component, so this hook is legal. The
+  // rule decides by name, and `withX` is the Storybook decorator convention.
+  // Moving the hook into an uppercase inner component would insert a boundary
+  // that changes when the effect commits relative to the theme provider, which
+  // the comment above documents as load-bearing.
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- decorator is a component
   useEffect(() => {
     applyOsMediaPrefs(overrides)
     if (!hasMediaFeatureOverrides(overrides)) {
