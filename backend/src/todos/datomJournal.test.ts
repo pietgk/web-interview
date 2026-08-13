@@ -36,6 +36,7 @@ describe('datom journal', () => {
   it('reproduces the read model exactly when the journal is replayed', async () => {
     const first = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(first.store.readModel())[0]
+    assert.ok(list)
     const todo = todoId(list, nextTimestamp())
     await first.record([
       [todo, ATTRIBUTE.TEXT, 'Written before the restart', ulid(nextTimestamp()), true],
@@ -56,13 +57,14 @@ describe('datom journal', () => {
   it('discards an unterminated final line on recovery', async () => {
     const service = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(service.store.readModel())[0]
+    assert.ok(list)
     await service.record([[list, ATTRIBUTE.TITLE, 'Durable', ulid(nextTimestamp()), true]])
     await service.close()
     await appendFile(filePath, `["${list}","${ATTRIBUTE.TITLE}","Torn`, 'utf8')
 
     const recovered = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     try {
-      assert.equal(recovered.store.readModel()[list].title, 'Durable')
+      assert.equal(recovered.store.readModel()[list]?.title, 'Durable')
       assert.doesNotMatch(await readFile(filePath, 'utf8'), /Torn/)
     } finally {
       await recovered.close()
@@ -72,13 +74,14 @@ describe('datom journal', () => {
   it('discards an unparseable final line on recovery', async () => {
     const service = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(service.store.readModel())[0]
+    assert.ok(list)
     await service.record([[list, ATTRIBUTE.TITLE, 'Durable', ulid(nextTimestamp()), true]])
     await service.close()
     await appendFile(filePath, '["not","a","datom"]\n', 'utf8')
 
     const recovered = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     try {
-      assert.equal(recovered.store.readModel()[list].title, 'Durable')
+      assert.equal(recovered.store.readModel()[list]?.title, 'Durable')
     } finally {
       await recovered.close()
     }
@@ -105,6 +108,7 @@ describe('datom journal', () => {
   it('journals the losers too, because the journal is the history', async () => {
     const service = await createDatomService({ filePath, seed: SEED, now: nextTimestamp })
     const list = Object.keys(service.store.readModel())[0]
+    assert.ok(list)
     const loser = ulid(nextTimestamp())
     const winner = ulid(nextTimestamp())
 

@@ -18,7 +18,7 @@ const corsOriginPolicy = (allowedOrigins: string[]): CorsOptions['origin'] =>
 
 export const createApp = (
   datomService: DatomService,
-  { corsOrigins = [], heartbeatMs }: { corsOrigins?: string[], heartbeatMs?: number } = {}
+  { corsOrigins = [], heartbeatMs }: { corsOrigins?: string[], heartbeatMs?: number | undefined } = {}
 ) => {
   if (!datomService) throw new Error('createApp requires the datom service')
   const app = express()

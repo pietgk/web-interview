@@ -35,7 +35,7 @@ const parseFrame = (frame: string): ServerSentEvent => {
 
 export const openDatomStream = async (
   baseUrl: string,
-  { since, lastEventId }: { since?: string, lastEventId?: string } = {}
+  { since, lastEventId }: { since?: string | undefined, lastEventId?: string | undefined } = {}
 ) => {
   const url = new URL('/api/datoms/stream', baseUrl)
   if (since) url.searchParams.set('since', since)

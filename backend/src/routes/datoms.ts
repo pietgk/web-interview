@@ -22,7 +22,7 @@ const asCursor = (value: unknown) =>
 
 export const createDatomsRouter = (
   service: DatomService,
-  { heartbeatMs = HEARTBEAT_INTERVAL_MS }: { heartbeatMs?: number } = {}
+  { heartbeatMs = HEARTBEAT_INTERVAL_MS }: { heartbeatMs?: number | undefined } = {}
 ) => {
   const router = Router()
   const subscribers = new Set<Response>()
@@ -57,7 +57,7 @@ export const createDatomsRouter = (
   router.get('/stream', (req, res) => {
     // An auto-reconnect re-requests the original URL carrying its now-stale
     // `?since=` alongside a fresh header, so the header wins.
-    const since = asCursor(req.get('Last-Event-ID')) ?? asCursor(req.query.since)
+    const since = asCursor(req.get('Last-Event-ID')) ?? asCursor(req.query['since'])
 
     res.writeHead(HTTP.HTTP_STATUS_OK, {
       'Content-Type': 'text/event-stream; charset=utf-8',

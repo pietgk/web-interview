@@ -17,8 +17,8 @@ export const createDatomService = async ({
   journal = new DatomJournal({ filePath }),
   buildSeed = seedDatoms,
 }: {
-  filePath?: string
-  seed?: SeedTodoLists
+  filePath?: string | undefined
+  seed?: SeedTodoLists | undefined
   now?: () => number
   journal?: DatomJournal
   buildSeed?: (todoLists: SeedTodoLists, seededAt: number) => Datom[]

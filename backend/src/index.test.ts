@@ -45,7 +45,7 @@ describe('backend startup', () => {
       APP_ENV: 'e2e',
       PORT: '3101',
     }
-    delete environment.DATOM_LOG_PATH
+    delete environment['DATOM_LOG_PATH']
 
     const result = spawnSync(process.execPath, ['src/index.ts'], {
       cwd: backendDirectory,

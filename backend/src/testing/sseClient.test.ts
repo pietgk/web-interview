@@ -65,10 +65,12 @@ describe('sse client', () => {
     const client = closing(await openDatomStream(baseUrl))
     const events = await client.until((seen) => seen.length === 1)
 
+    const [event] = events
+    assert.ok(event)
     assert.equal(events.length, 1)
-    assert.equal(events[0].id, '01')
-    assert.equal(events[0].type, 'message')
-    assert.equal(events[0].data, '{"half":true}')
+    assert.equal(event.id, '01')
+    assert.equal(event.type, 'message')
+    assert.equal(event.data, '{"half":true}')
   })
 
   it('reads a named event and leaves its id undefined', async () => {
@@ -78,6 +80,7 @@ describe('sse client', () => {
 
     const client = closing(await openDatomStream(baseUrl))
     const [event] = await client.until((seen) => seen.length === 1)
+    assert.ok(event)
 
     assert.equal(event.type, 'clock')
     // An id here would overwrite the browser's Last-Event-ID with a non-position.
@@ -109,10 +112,12 @@ describe('sse client', () => {
     )
     await client.until((seen) => seen.length === 1)
 
+    const [request] = requests
+    assert.ok(request)
     assert.equal(requests.length, 1)
-    assert.equal(new URL(requests[0].url ?? '', baseUrl).pathname, '/api/datoms/stream')
-    assert.equal(new URL(requests[0].url ?? '', baseUrl).searchParams.get('since'), '01J0')
-    assert.equal(requests[0].headers['last-event-id'], '01J9')
+    assert.equal(new URL(request.url ?? '', baseUrl).pathname, '/api/datoms/stream')
+    assert.equal(new URL(request.url ?? '', baseUrl).searchParams.get('since'), '01J0')
+    assert.equal(request.headers['last-event-id'], '01J9')
   })
 
   it('omits the header entirely when no Last-Event-ID is given', async () => {
@@ -121,8 +126,10 @@ describe('sse client', () => {
     const client = closing(await openDatomStream(baseUrl))
     await client.until((seen) => seen.length === 1)
 
-    assert.equal(requests[0].headers['last-event-id'], undefined)
-    assert.equal(new URL(requests[0].url ?? '', baseUrl).searchParams.has('since'), false)
+    const [request] = requests
+    assert.ok(request)
+    assert.equal(request.headers['last-event-id'], undefined)
+    assert.equal(new URL(request.url ?? '', baseUrl).searchParams.has('since'), false)
   })
 
   it('reports what it did see when the wait times out', async () => {

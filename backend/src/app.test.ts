@@ -92,8 +92,16 @@ describe('datom API', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
-  const seededList = () => Object.keys(service.store.readModel())[0]
-  const seededTodo = () => service.store.readModel()[seededList()].todos[0]
+  const seededList = () => {
+    const id = Object.keys(service.store.readModel())[0]
+    assert.ok(id)
+    return id
+  }
+  const seededTodo = () => {
+    const todo = service.store.readModel()[seededList()]?.todos[0]
+    assert.ok(todo)
+    return todo
+  }
 
   it('returns the compacted current set on a fresh connect, not the journal', async () => {
     const list = seededList()
@@ -127,8 +135,10 @@ describe('datom API', () => {
 
     const returning = await stream({ since: cursor })
     await returning.until(() => returning.datoms().length >= 1)
+    const [retraction] = returning.datoms()
+    assert.ok(retraction)
     assert.deepEqual(returning.datoms(), [
-      [todo.id, ATTRIBUTE.TEXT, todo.text, returning.datoms()[0][3], false],
+      [todo.id, ATTRIBUTE.TEXT, todo.text, retraction[3], false],
     ])
   })
 
@@ -136,10 +146,14 @@ describe('datom API', () => {
     const client = await stream()
     await client.until((events) => events.some((event) => event.type === 'clock'))
 
-    assert.equal(client.events[0].type, 'epoch')
-    assert.equal(client.events[0].id, undefined)
-    assert.equal(JSON.parse(client.events[0].data).epoch, service.epoch)
-    assert.equal(service.epoch, service.store.datomsSince()[0][3])
+    const [firstEvent] = client.events
+    assert.ok(firstEvent)
+    assert.equal(firstEvent.type, 'epoch')
+    assert.equal(firstEvent.id, undefined)
+    assert.equal(JSON.parse(firstEvent.data).epoch, service.epoch)
+    const [firstDatom] = service.store.datomsSince()
+    assert.ok(firstDatom)
+    assert.equal(service.epoch, firstDatom[3])
   })
 
   it('hands over server time only after the state that came with it', async () => {
@@ -180,7 +194,7 @@ describe('datom API', () => {
     await new Promise((resolve) => setTimeout(resolve, STREAM_SETTLE_MS))
 
     assert.equal(client.datoms().length, 1)
-    assert.equal(client.datoms()[0][2], 'Renamed')
+    assert.equal(client.datoms()[0]?.[2], 'Renamed')
   })
 
   it('still converges from a stale since parameter, re-sending datoms harmlessly', async () => {
@@ -228,7 +242,7 @@ describe('datom API', () => {
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
     assert.equal(client.datoms().length, before)
-    assert.equal(service.store.readModel()[list].title, 'Winner')
+    assert.equal(service.store.readModel()[list]?.title, 'Winner')
     assert.match(await readFile(filePath, 'utf8'), /"Stale"/)
   })
 
@@ -242,7 +256,7 @@ describe('datom API', () => {
     const response = await post([[list, ATTRIBUTE.TITLE, 'Yesterday', yesterday, true]])
 
     assert.equal(response.status, HTTP.HTTP_STATUS_OK)
-    assert.equal(service.store.readModel()[list].title, 'Winner')
+    assert.equal(service.store.readModel()[list]?.title, 'Winner')
   })
 
   it('rejects a tx more than five seconds in the future', async () => {
@@ -254,7 +268,7 @@ describe('datom API', () => {
       error: 'Transaction id is dated too far into the future',
       code: API_ERROR_CODE.INVALID_DATOM,
     })
-    assert.notEqual(service.store.readModel()[list].title, 'From the future')
+    assert.notEqual(service.store.readModel()[list]?.title, 'From the future')
   })
 
   it('makes a client\'s own datom a no-op when the server echoes it back', async () => {
@@ -348,6 +362,7 @@ describe('datom API durability', () => {
     }))
     try {
       const list = Object.keys(service.store.readModel())[0]
+      assert.ok(list)
       let answered = false
       const request = fetch(`${server.baseUrl}/api/datoms`, {
         method: 'POST',
@@ -384,12 +399,16 @@ describe('datom seed', () => {
     })
     try {
       const [first, second] = Object.values(service.store.readModel())
+      assert.ok(first)
+      assert.ok(second)
       assert.equal(first.title, 'First List')
       assert.equal(second.title, 'Second List')
       assert.deepEqual(first.todos.map((todo) => todo.text), ['Older', 'Newer'])
       assert.ok(first.todos.every((todo) => todo.id.startsWith(`${first.id}/T`)))
-      assert.deepEqual(first.todos[1], {
-        id: first.todos[1].id,
+      const newer = first.todos[1]
+      assert.ok(newer)
+      assert.deepEqual(newer, {
+        id: newer.id,
         text: 'Newer',
         completed: true,
         dueDate: SEEDED_TODO_DUE_DAY,

@@ -40,17 +40,17 @@ const parseCorsOrigins = (value: string | undefined, appEnvironment: string) => 
 }
 
 export const readBackendConfig = (environment: NodeJS.ProcessEnv = process.env) => {
-  const appEnvironment = environment.APP_ENV ?? 'development'
-  const datomLogPath = environment.DATOM_LOG_PATH || undefined
+  const appEnvironment = environment['APP_ENV'] ?? 'development'
+  const datomLogPath = environment['DATOM_LOG_PATH'] || undefined
   if (appEnvironment === 'e2e' && !datomLogPath) {
     throw new Error('E2E mode requires an explicit DATOM_LOG_PATH')
   }
 
   return Object.freeze({
     appEnvironment,
-    corsOrigins: parseCorsOrigins(environment.CORS_ORIGINS, appEnvironment),
+    corsOrigins: parseCorsOrigins(environment['CORS_ORIGINS'], appEnvironment),
     datomLogPath,
-    initialTodoLists: parseInitialTodoLists(environment.TODO_SEED_JSON),
-    port: parsePort(environment.PORT),
+    initialTodoLists: parseInitialTodoLists(environment['TODO_SEED_JSON']),
+    port: parsePort(environment['PORT']),
   })
 }
