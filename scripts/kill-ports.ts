@@ -16,7 +16,7 @@ import {
   E2E_GATE_WEB_PORT,
   E2E_UI_API_PORT,
   E2E_UI_WEB_PORT,
-} from '../e2e/environment.js'
+} from '../e2e/environment.ts'
 import {
   DEV_DATOM_LOG_PATH,
   PREVIEW_DATOM_LOG_PATH,

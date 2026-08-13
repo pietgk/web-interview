@@ -121,7 +121,7 @@ try {
       const { stdout, stderr } = await execFileAsync(VITEST_BIN, [
         'run',
         '--config',
-        'vitest.storybook.config.js',
+        'vitest.storybook.config.ts',
         '--coverage',
         `--coverage.reportsDirectory=${reportsDirectory}`,
         '--reporter=default',

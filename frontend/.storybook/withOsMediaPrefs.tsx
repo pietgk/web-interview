@@ -1,3 +1,4 @@
+import type { Decorator } from '@storybook/react-vite'
 import { useEffect } from 'react'
 import {
   applyCssMediaFeatureOverrides,
@@ -8,14 +9,9 @@ import {
   OS_MEDIA_PREF_SYSTEM,
   restoreCssMediaFeatureOverrides,
   syncMatchMediaOverrides,
-} from './osMediaPrefs.js'
+} from './osMediaPrefs.ts'
 
-/**
- * Serialize active overrides for effect deps and remount keys.
- *
- * @param {Map<string, string>} overrides
- */
-const overridesKey = (overrides) =>
+const overridesKey = (overrides: Map<string, string>) =>
   [...overrides.entries()]
     .map(([feature, value]) => `${feature}:${value}`)
     .sort()
@@ -28,10 +24,8 @@ const overridesKey = (overrides) =>
  * MUI's `useReducedMotion` sees them on first mount. CSSOM rewrites run in
  * an effect (and on `<head>` mutations) because Emotion may append sheets
  * after the theme provider commits.
- *
- * @type {import('@storybook/react-vite').Decorator}
  */
-export const withOsMediaPrefs = (Story, context) => {
+export const withOsMediaPrefs: Decorator = (Story, context) => {
   const overrides = mediaFeatureOverridesFromGlobals(context.globals)
   const key = overridesKey(overrides)
 

@@ -156,19 +156,19 @@ export const PRODUCER_CONFIG_PATHS = Object.freeze({
   node: Object.freeze([
     'package.json',
     'package-lock.json',
-    'vitest.config.js',
-    'shared/vitest.config.js',
-    'backend/vitest.config.js',
-    'frontend/vitest.logic.config.js',
+    'vitest.config.ts',
+    'shared/vitest.config.ts',
+    'backend/vitest.config.ts',
+    'frontend/vitest.logic.config.ts',
     'scripts/vitest.config.ts',
   ]),
   storybook: Object.freeze([
     'frontend/package.json',
     'frontend/package-lock.json',
-    'frontend/vitest.storybook.config.js',
-    'frontend/vite.config.js',
-    'frontend/.storybook/main.js',
-    'frontend/.storybook/preview.jsx',
+    'frontend/vitest.storybook.config.ts',
+    'frontend/vite.config.ts',
+    'frontend/.storybook/main.ts',
+    'frontend/.storybook/preview.tsx',
   ]),
 })
 

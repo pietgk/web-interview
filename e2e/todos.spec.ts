@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 import { constants as HTTP } from 'node:http2'
 import { ATTRIBUTE } from '@web-interview/todos/datom'
 import {
@@ -8,13 +8,13 @@ import {
   TODO_TEXT_MAX_LENGTH,
 } from '@web-interview/todos/protocol'
 import { EARLIEST_ULID, listId, todoId, ulid } from '@web-interview/todos/ulid'
-import { E2E_API_BASE } from './environment.js'
+import { E2E_API_BASE } from './environment.ts'
 import {
   PRIMARY_LIST_TITLE,
   PRIMARY_TODO_TEXT,
   uniqueListTitle,
   waitForApp,
-} from './fixture.js'
+} from './fixture.ts'
 
 const primaryListName = new RegExp(`^${PRIMARY_LIST_TITLE} `)
 const INVALID_NON_LEAP_DAY = '2026-02-29'
@@ -23,8 +23,7 @@ const HYDRATION_LAYOUT_SETTLE_MS = 50
 const OFFLINE_SAVE_TIMEOUT_MS = 30_000
 const CROSS_CLIENT_PROPAGATION_MS = TEXT_SETTLE_MS * 2
 
-/** @param {import('@playwright/test').Page} page @param {string} title */
-async function startTodoList(page, title) {
+async function startTodoList(page: Page, title: string) {
   await page.getByRole('button', { name: 'Add Todo List' }).click()
   const titleField = page.getByLabel('Todo List name')
   await expect(titleField).toBeFocused()
@@ -33,16 +32,14 @@ async function startTodoList(page, title) {
   await expect(page.getByLabel('Add a todo')).toBeVisible()
 }
 
-/** @param {import('@playwright/test').Page} page @param {string} text */
-async function addTodo(page, text) {
+async function addTodo(page: Page, text: string) {
   const composer = page.getByLabel('Add a todo')
   await composer.fill(text)
   await composer.press('Enter')
   await expect(page.getByLabel('What to do?').first()).toHaveValue(text)
 }
 
-/** @param {import('@playwright/test').Page} page */
-const waitForWrite = (page) =>
+const waitForWrite = (page: Page) =>
   page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
@@ -50,8 +47,7 @@ const waitForWrite = (page) =>
       response.ok()
   )
 
-/** @param {import('@playwright/test').Locator} locator */
-const elementHeight = async (locator) => {
+const elementHeight = async (locator: Locator) => {
   const box = await locator.boundingBox()
   if (!box) throw new Error('Expected the todo-list button to have a bounding box')
   return box.height
@@ -105,12 +101,14 @@ test('rejects a transaction id dated into the future', async ({ request }) => {
 test('does not shift Todo List controls while hydrating', async ({ page }) => {
   const layoutShiftLabelsKey = 'todo-list-layout-shift-labels'
   await page.addInitScript((key) => {
-    /** @type {string[]} */
-    const shiftedLabels = []
+    const shiftedLabels: string[] = []
     Reflect.set(globalThis, key, shiftedLabels)
     const observer = new PerformanceObserver((list) => {
       for (const observedEntry of list.getEntries()) {
-        const entry = /** @type {PerformanceEntry & {hadRecentInput?: boolean, sources?: Array<{node?: Node | null}>}} */ (observedEntry)
+        const entry = observedEntry as PerformanceEntry & {
+          hadRecentInput?: boolean
+          sources?: Array<{ node?: Node | null }>
+        }
         if (entry.hadRecentInput) continue
         for (const source of entry.sources ?? []) {
           if (!(source.node instanceof Element)) continue

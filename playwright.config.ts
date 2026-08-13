@@ -7,8 +7,8 @@ import {
   E2E_API_PORT,
   E2E_WEB_BASE,
   E2E_WEB_PORT,
-} from './e2e/environment.js'
-import { E2E_SEED_TODO_LISTS } from './e2e/fixture.js'
+} from './e2e/environment.ts'
+import { E2E_SEED_TODO_LISTS } from './e2e/fixture.ts'
 
 // Playwright sets FORCE_COLOR=1 for its web servers and workers. Remove the
 // conflicting inherited flag before those child processes are created.

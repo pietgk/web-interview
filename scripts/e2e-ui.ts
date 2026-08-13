@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { E2E_UI_API_PORT, E2E_UI_WEB_PORT } from '../e2e/environment.js'
+import { E2E_UI_API_PORT, E2E_UI_WEB_PORT } from '../e2e/environment.ts'
 import { freeLanes } from './kill-ports.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')

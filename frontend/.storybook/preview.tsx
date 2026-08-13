@@ -1,5 +1,6 @@
 import { withThemeFromJSXProvider } from '@storybook/addon-themes'
 import { CssBaseline, ThemeProvider } from '@mui/material'
+import type { Preview } from '@storybook/react-vite'
 import { darkTheme, lightTheme } from '../src/theme'
 import {
   FORCED_COLORS,
@@ -7,8 +8,8 @@ import {
   OS_MEDIA_PREF_SYSTEM,
   PREFERS_CONTRAST,
   PREFERS_REDUCED_MOTION,
-} from './osMediaPrefs.js'
-import { withOsMediaPrefs } from './withOsMediaPrefs.jsx'
+} from './osMediaPrefs.ts'
+import { withOsMediaPrefs } from './withOsMediaPrefs.tsx'
 
 /**
  * `withThemeFromJSXProvider` renders `GlobalStyles` with no props, so the
@@ -19,12 +20,11 @@ import { withOsMediaPrefs } from './withOsMediaPrefs.jsx'
  */
 const ColorSchemedBaseline = () => <CssBaseline enableColorScheme />
 
-/**
- * @param {string} feature
- * @param {string} title
- * @param {string} icon
- */
-const osMediaPrefToolbar = (feature, title, icon) => ({
+const osMediaPrefToolbar = (
+  feature: string,
+  title: string,
+  icon: 'lightning' | 'contrast' | 'accessibility'
+) => ({
   description: `Emulate CSS ${feature} (Storybook ergonomics; gates stay Playwright + preference stories)`,
   toolbar: {
     title,
@@ -40,8 +40,7 @@ const osMediaPrefToolbar = (feature, title, icon) => ({
   },
 })
 
-/** @type { import('@storybook/react-vite').Preview } */
-const preview = {
+const preview: Preview = {
   // Generate a Docs page for every story file (same as tags: ['autodocs'] on each meta).
   tags: ['autodocs'],
   globalTypes: {

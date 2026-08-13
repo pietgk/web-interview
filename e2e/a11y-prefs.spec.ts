@@ -4,7 +4,7 @@ import {
   PRIMARY_TODO_TEXT,
   uniqueListTitle,
   waitForApp,
-} from './fixture.js'
+} from './fixture.ts'
 
 /**
  * Double the root font size to approximate ~200% browser zoom for rem-based

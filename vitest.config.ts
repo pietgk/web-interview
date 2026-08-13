@@ -6,7 +6,7 @@ import { COVERAGE_PROVIDER } from './scripts/coverage-producers.ts'
 // node_modules - this repo installs per workspace, not through npm workspaces.
 //
 // The `storybook` project is deliberately NOT listed here. It runs in real
-// Chromium via `frontend/vitest.storybook.config.js`, launched from `frontend/`
+// Chromium via `frontend/vitest.storybook.config.ts`, launched from `frontend/`
 // by `verify browser`. Under this root process its browser provider and runner
 // resolve through different installs, and the run stalls partway through the
 // story files. See ADR 006.
@@ -24,9 +24,9 @@ const NODE_COVERAGE_COLLECTION = [
 export default defineConfig({
   test: {
     projects: [
-      './shared/vitest.config.js',
-      './backend/vitest.config.js',
-      './frontend/vitest.logic.config.js',
+      './shared/vitest.config.ts',
+      './backend/vitest.config.ts',
+      './frontend/vitest.logic.config.ts',
       './scripts/vitest.config.ts',
     ],
     coverage: {

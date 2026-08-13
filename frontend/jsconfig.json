@@ -7,5 +7,15 @@
     "moduleResolution": "Bundler",
     "types": ["node", "vite/client", "vitest/globals"]
   },
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.d.ts", "vite.config.js"]
+  "include": [
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "src/**/*.d.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.logic.config.ts",
+    "vitest.storybook.config.ts",
+    ".storybook/**/*.ts",
+    ".storybook/**/*.tsx"
+  ]
 }
