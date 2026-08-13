@@ -337,6 +337,7 @@ make it pass; fix the cause or review the contract change.
 - [ADR 005: Testing seams and Storybook](./adr/005-testing-and-storybook.md)
 - [ADR 006: How tests are run](./adr/006-test-execution-model.md)
 - [ADR 010: Producer-owned coverage evidence](./adr/010-producer-owned-coverage-evidence.md)
+- [ADR 011: TypeScript as the source language](./adr/011-typescript-source-language.md)
 
 The existing architecture visual has an incomplete final verification row. Its SVG, HTML, and
 Excalidraw source are intentionally unchanged in this slice; visual cleanup is deferred.

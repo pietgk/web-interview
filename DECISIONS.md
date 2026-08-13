@@ -21,6 +21,8 @@ Accepted architecture decision records:
   ([checklist](./docs/conventions/ui-to-model.md))
 - [ADR 008: Structured failures for datom delivery](./docs/adr/008-structured-datom-delivery-failures.md)
 - [ADR 009: Material UI 9.3 as the frontend UI platform](./docs/adr/009-material-ui-9-platform.md)
+- [ADR 010: Producer-owned coverage evidence](./docs/adr/010-producer-owned-coverage-evidence.md)
+- [ADR 011: TypeScript as the source language](./docs/adr/011-typescript-source-language.md)
 
 Superseded ADRs keep tombstones at the old paths; full text is under
 [`docs/adr/archive/`](./docs/adr/archive/):

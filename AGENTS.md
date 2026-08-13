@@ -18,7 +18,7 @@ the repo does not claim to support.
 
 ## Which command, when
 
-Full reference: `npm run verify help`. It is generated from the table `verify.js` executes, so it
+Full reference: `npm run verify help`. It is generated from the table `verify.ts` executes, so it
 cannot drift from what actually runs.
 
 | Situation | Run |
@@ -65,6 +65,7 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 | Domain language (Todo List, Todo, Next Due Date) | `CONTEXT.md` - glossary only, no implementation |
 | How the system works | `docs/architecture.md` |
 | Which ADRs are accepted (index) | `docs/adr/README.md` |
+| Source language / TypeScript strictness | `docs/adr/011-typescript-source-language.md` |
 | Entry map (architecture / ADRs / testing / domain) | `DECISIONS.md` |
 | How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
 | How to add or edit a drawing in the docs | `docs/whiteboard.md` |

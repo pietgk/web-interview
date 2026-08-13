@@ -17,7 +17,9 @@ store.apply(parsed.data)
 store.apply([todo, ATTRIBUTE.TEXT, 'Typed todo', mint.tx(), true] satisfies Datom)
 
 const projected = store.readModel()
-selectListSummary(projected[list])
+const todoList = projected[list]
+if (!todoList) throw new Error('expected projected list')
+selectListSummary(todoList)
 void store.datomsSince(mint.tx())
 
 declare const status: TodoClientStatus

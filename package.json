@@ -10,7 +10,7 @@
     "coverage:check-storybook-stability": "node scripts/run-storybook-coverage.ts --stability",
     "test": "node scripts/verify.ts",
     "lint": "node scripts/verify.ts lint",
-    "typecheck": "npm run build:types && node scripts/check-declarations.ts && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
+    "typecheck": "npm run build:types && node scripts/check-declarations.ts && tsc -p tsconfig.json && tsc -p shared/tsconfig.json && tsc -p backend/tsconfig.json && tsc -p frontend/tsconfig.json && tsc -p tsconfig.declarations.json",
     "storybook": "npm run storybook --prefix frontend",
     "e2e:ui": "node scripts/e2e-ui.ts",
     "preview": "node scripts/demo.ts",

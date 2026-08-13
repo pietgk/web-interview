@@ -5,7 +5,7 @@ decision cards, not essays.
 
 | Kind | Home |
 | --- | --- |
-| Decision | this folder (`004`–`010` accepted) |
+| Decision | this folder (`004`–`011` accepted) |
 | How the system works | [`docs/architecture.md`](../architecture.md) |
 | Protection model | [`docs/testing-and-validation.md`](../testing-and-validation.md) |
 | Verify commands / stages | [`docs/verify.md`](../verify.md) |
@@ -29,6 +29,7 @@ Do **not** add a new ADR that duplicates [`docs/architecture.md`](../architectur
 | [008](./008-structured-datom-delivery-failures.md) | Structured delivery failures for the event-driven datom client |
 | [009](./009-material-ui-9-platform.md) | Material UI 9.3 (Emotion, React 18); prefs platform before OS a11y prefs |
 | [010](./010-producer-owned-coverage-evidence.md) | Exact coverage preserves the required Node or Storybook producer |
+| [011](./011-typescript-source-language.md) | TypeScript source, maximum strictness, native Node type stripping |
 
 ## Superseded
 
