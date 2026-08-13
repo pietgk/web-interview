@@ -6,8 +6,8 @@
 import { spawn } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { E2E_UI_API_PORT, E2E_UI_WEB_PORT } from '../e2e/environment.mjs'
-import { freeLanes } from './kill-ports.mjs'
+import { E2E_UI_API_PORT, E2E_UI_WEB_PORT } from '../e2e/environment.js'
+import { freeLanes } from './kill-ports.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const playwright = resolve(ROOT, 'node_modules/.bin/playwright')

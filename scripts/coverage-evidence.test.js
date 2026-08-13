@@ -8,7 +8,7 @@ import {
   providerReviewIssues,
   renderCoverageHtml,
   renderCoverageMarkdown,
-} from './coverage-evidence.mjs'
+} from './coverage-evidence.js'
 
 const REPOSITORY_ROOT = '/repo'
 const METRICS = ['statements', 'branches', 'functions', 'lines']

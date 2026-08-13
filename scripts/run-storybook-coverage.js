@@ -6,9 +6,9 @@ import { promisify } from 'node:util'
 import {
   createCoverageStabilitySnapshot,
   stabilityAdmissionIssues,
-} from './coverage-producers.mjs'
-import { exactCoveragePathsFor } from './source-evidence-registry.mjs'
-import { ROOT } from './stages.mjs'
+} from './coverage-producers.js'
+import { exactCoveragePathsFor } from './source-evidence-registry.js'
+import { ROOT } from './stages.js'
 
 const execFileAsync = promisify(execFile)
 const STORYBOOK_STABILITY_RUNS = 10

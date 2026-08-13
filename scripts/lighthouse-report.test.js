@@ -3,7 +3,7 @@ import { test } from 'vitest'
 import {
   createLighthouseSummary,
   evaluateLighthouseQuality,
-} from './lighthouse-report.mjs'
+} from './lighthouse-report.js'
 
 /** @param {{performance: number, accessibility: number, bestPractices: number, seo: number, agenticBrowsing?: number, unusedJavaScript: number, scriptBytes?: number}} values */
 const report = ({

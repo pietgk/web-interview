@@ -125,8 +125,8 @@ configured sensitive use.
 
 Central numeric exemptions are intentionally narrow:
 
-- `scripts/generate-architecture-board.mjs` is primarily drawing coordinates and dimensions.
-- `scripts/eslint-plugin-semantic-constants.mjs` is primarily AST grammar and rule metadata.
+- `scripts/generate-architecture-board.js` is primarily drawing coordinates and dimensions.
+- `scripts/eslint-plugin-semantic-constants.js` is primarily AST grammar and rule metadata.
 
 Exact executable dates and configured contracts remain enforced in exempted files. Do not add
 inline disable comments or baseline suppressions. A new exemption must document why its numeric
@@ -134,12 +134,12 @@ syntax is already the clearest representation.
 
 ## Extending enforcement
 
-Repository knowledge lives in `scripts/semantic-constants-config.mjs`. The traversal in
-`scripts/eslint-plugin-semantic-constants.mjs` stays generic.
+Repository knowledge lives in `scripts/semantic-constants-config.js`. The traversal in
+`scripts/eslint-plugin-semantic-constants.js` stays generic.
 
 To add a semantic string category, sensitive numeric context, or canonical contract:
 
-1. Add focused passing and failing cases to `scripts/semantic-constants.test.mjs`.
+1. Add focused passing and failing cases to `scripts/semantic-constants.test.js`.
 2. Extend the declarative patterns, contexts, contract definitions, or usage mappings.
 3. For a syntax-dependent contract, map every unambiguous file and usage. Unmapped usage must fail
    as ambiguous instead of guessing.

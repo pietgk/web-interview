@@ -15,7 +15,7 @@ import {
   resolveCoverageProviderProvenance,
   stabilityAdmissionIssues,
   validateProducerManifest,
-} from './coverage-producers.mjs'
+} from './coverage-producers.js'
 
 /** @param {number} covered @param {number} total */
 const tuple = (covered, total) => ({ covered, total })
@@ -146,12 +146,12 @@ test('producer manifests expose source or config digest drift and prevent compar
     dirty: false,
     inputDigest: createEvidenceDigest({
       'shared/src/a.js': 'export const a = 1',
-      'vitest.config.mjs': 'export default {}',
+      'vitest.config.js': 'export default {}',
     }),
   }
   const currentInputDigest = createEvidenceDigest({
     'shared/src/a.js': 'export const a = 2',
-    'vitest.config.mjs': 'export default {}',
+    'vitest.config.js': 'export default {}',
   })
 
   assert.deepEqual(validateProducerManifest({

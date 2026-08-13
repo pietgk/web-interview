@@ -7,8 +7,8 @@ import { chromium } from '@playwright/test'
 import {
   createLighthouseSummary,
   evaluateLighthouseQuality,
-} from './lighthouse-report.mjs'
-import { freeLanes, LIGHTHOUSE_API_PORT, LIGHTHOUSE_WEB_PORT } from './kill-ports.mjs'
+} from './lighthouse-report.js'
+import { freeLanes, LIGHTHOUSE_API_PORT, LIGHTHOUSE_WEB_PORT } from './kill-ports.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const REPORT_DIRECTORY = resolve(ROOT, 'lighthouse-reports')

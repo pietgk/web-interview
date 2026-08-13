@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { Linter } from 'eslint'
 import { test } from 'vitest'
-import semanticConstants from './eslint-plugin-semantic-constants.mjs'
+import semanticConstants from './eslint-plugin-semantic-constants.js'
 import {
   canonicalContractOptions,
   namedLiteralOptions,
-} from './semantic-constants-config.mjs'
+} from './semantic-constants-config.js'
 
 const linter = new Linter()
 

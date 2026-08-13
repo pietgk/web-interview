@@ -18,7 +18,7 @@ the repo does not claim to support.
 
 ## Which command, when
 
-Full reference: `npm run verify help`. It is generated from the table `verify.mjs` executes, so it
+Full reference: `npm run verify help`. It is generated from the table `verify.js` executes, so it
 cannot drift from what actually runs.
 
 | Situation | Run |
@@ -77,5 +77,5 @@ suite proves today and can only be updated through `npm run coverage:update-base
 recalibrate it to make a run pass.
 
 Every production source file must have exactly one evidence owner in
-`scripts/source-evidence-registry.mjs`. JSX coverage is informational, but missing ownership, Storybook
+`scripts/source-evidence-registry.js`. JSX coverage is informational, but missing ownership, Storybook
 discovery/execution, or UI coverage is a failing gate.

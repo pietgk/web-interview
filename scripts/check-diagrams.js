@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { glob } from 'node:fs/promises'
-import { ROOT } from './stages.mjs'
+import { ROOT } from './stages.js'
 
 /**
  * Mermaid renders **only the last self-transition on a node**. Give a node two

@@ -4,7 +4,7 @@ import { defineConfig, mergeConfig } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin'
 import viteConfig from './vite.config.js'
-import { COVERAGE_PROVIDER } from '../scripts/coverage-producers.mjs'
+import { COVERAGE_PROVIDER } from '../scripts/coverage-producers.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 

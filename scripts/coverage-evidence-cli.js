@@ -9,8 +9,8 @@ import {
   providerReviewIssues,
   renderCoverageHtml,
   renderCoverageMarkdown,
-} from './coverage-evidence.mjs'
-import { removeWithheldCombinedExplorer } from './coverage-artifacts.mjs'
+} from './coverage-evidence.js'
+import { removeWithheldCombinedExplorer } from './coverage-artifacts.js'
 import {
   createCombinedAutomationReach,
   createEvidenceDigest,
@@ -19,13 +19,13 @@ import {
   PRODUCER_CONFIG_PATHS,
   resolveCoverageProviderProvenance,
   validateProducerManifest,
-} from './coverage-producers.mjs'
+} from './coverage-producers.js'
 import {
   exactCoveragePathsFor,
   SOURCE_EVIDENCE_ENTRIES,
-} from './source-evidence-registry.mjs'
-import { createSourceEvidence } from './source-evidence.mjs'
-import { ROOT } from './stages.mjs'
+} from './source-evidence-registry.js'
+import { createSourceEvidence } from './source-evidence.js'
+import { ROOT } from './stages.js'
 
 const execFileAsync = promisify(execFile)
 const BASELINE_PATH = resolve(ROOT, 'coverage-baseline.json')

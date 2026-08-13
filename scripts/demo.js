@@ -6,8 +6,8 @@ import {
   PREVIEW_API_PORT,
   PREVIEW_WEB_PORT,
   freeLanes,
-} from './kill-ports.mjs'
-import { resolveCommand } from './commandResolution.mjs'
+} from './kill-ports.js'
+import { resolveCommand } from './commandResolution.js'
 import { PREVIEW_DATOM_LOG_PATH } from '../backend/src/dataPaths.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')

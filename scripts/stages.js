@@ -69,14 +69,14 @@ export const STAGES = [
         name: 'lint-scope',
         blurb: 'every tracked source file is actually covered by an eslint config',
         invocations: [
-          { command: 'node', args: ['scripts/check-lint-scope.mjs'] },
+          { command: 'node', args: ['scripts/check-lint-scope.js'] },
         ],
       },
       {
         name: 'diagrams',
         blurb: 'every Mermaid edge in the docs survives rendering',
         invocations: [
-          { command: 'node', args: ['scripts/check-diagrams.mjs'] },
+          { command: 'node', args: ['scripts/check-diagrams.js'] },
         ],
       },
       {
@@ -106,7 +106,7 @@ export const STAGES = [
             command: bin('.', 'vitest'),
             args: ['run', '--coverage', '--reporter=default', '--reporter=blob'],
           },
-          { command: 'node', args: ['scripts/coverage-producer-cli.mjs', 'node'] },
+          { command: 'node', args: ['scripts/coverage-producer-cli.js', 'node'] },
         ],
       },
     ],
@@ -119,8 +119,8 @@ export const STAGES = [
         name: 'storybook',
         blurb: 'every story play function and axe pass',
         invocations: [
-          { command: 'node', args: ['scripts/run-storybook-coverage.mjs'] },
-          { command: 'node', args: ['scripts/coverage-producer-cli.mjs', 'storybook'] },
+          { command: 'node', args: ['scripts/run-storybook-coverage.js'] },
+          { command: 'node', args: ['scripts/coverage-producer-cli.js', 'storybook'] },
         ],
       },
       {
@@ -130,7 +130,7 @@ export const STAGES = [
           {
             command: 'node',
             args: [
-              'scripts/run-storybook-coverage.mjs',
+              'scripts/run-storybook-coverage.js',
               '--stability',
               '--allow-dirty-worktree',
             ],
@@ -141,7 +141,7 @@ export const STAGES = [
         name: 'e2e',
         blurb: 'real server, real journal, multi-tab and reconnect journeys',
         invocations: [
-          { command: 'node', args: ['scripts/kill-ports.mjs', 'e2e'] },
+          { command: 'node', args: ['scripts/kill-ports.js', 'e2e'] },
           { command: bin('.', 'playwright'), args: ['test'] },
         ],
       },
@@ -161,7 +161,7 @@ export const STAGES = [
       {
         name: 'lighthouse',
         blurb: 'three desktop runs, score 100 in every category, JS budgets',
-        invocations: [{ command: 'node', args: ['scripts/run-lighthouse.mjs'] }],
+        invocations: [{ command: 'node', args: ['scripts/run-lighthouse.js'] }],
         artifact: 'lighthouse-reports/run-1.report.html',
       },
       {
@@ -177,7 +177,7 @@ export const STAGES = [
               '--reporter=dot',
             ],
           },
-          { command: 'node', args: ['scripts/coverage-evidence-cli.mjs'] },
+          { command: 'node', args: ['scripts/coverage-evidence-cli.js'] },
         ],
         artifact: 'coverage/report.html',
       },

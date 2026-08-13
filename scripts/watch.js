@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { watch } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
-import { ROOT } from './stages.mjs'
+import { ROOT } from './stages.js'
 
 // Everything here runs in Node and finishes in about two seconds.
 // Storybook and Playwright are deliberately absent: they need a real browser,

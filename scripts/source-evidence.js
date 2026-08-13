@@ -2,13 +2,13 @@ import {
   exactCoverage,
   normalizeCoveragePath,
   sumCoverage,
-} from './coverage-producers.mjs'
+} from './coverage-producers.js'
 import {
   evidenceForSourcePath,
   SOURCE_EVIDENCE_ENTRIES,
   TREATMENTS,
   validateSourceEvidenceRegistry,
-} from './source-evidence-registry.mjs'
+} from './source-evidence-registry.js'
 
 /** @typedef {keyof typeof TREATMENTS} SourceEvidenceCategory */
 /** @typedef {{treatment: SourceEvidenceCategory, producer: string, verdict: string, rationale: string}} SourceClassification */

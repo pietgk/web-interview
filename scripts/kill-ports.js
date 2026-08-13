@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Free LISTEN sockets on named repo port lanes (or explicit ports).
- * Listeners only — same rule as the former `scripts/demo.mjs` freePorts, so
+ * Listeners only — same rule as the former `scripts/demo.js` freePorts, so
  * proxy clients on a port are not collateral damage.
  *
  * Import `{ freeLanes, LANES, … }` for own-lane preflight from starters.
@@ -16,12 +16,12 @@ import {
   E2E_GATE_WEB_PORT,
   E2E_UI_API_PORT,
   E2E_UI_WEB_PORT,
-} from '../e2e/environment.mjs'
+} from '../e2e/environment.js'
 import {
   DEV_DATOM_LOG_PATH,
   PREVIEW_DATOM_LOG_PATH,
 } from '../backend/src/dataPaths.js'
-import { resolveCommand } from './commandResolution.mjs'
+import { resolveCommand } from './commandResolution.js'
 
 export const DEV_WEB_PORT = 3000
 export const DEV_API_PORT = 3001

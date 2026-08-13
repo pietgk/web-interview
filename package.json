@@ -4,18 +4,18 @@
   "private": true,
   "description": "Sellpy web interview assignment",
   "scripts": {
-    "watch": "node scripts/watch.mjs",
-    "verify": "node scripts/verify.mjs",
-    "coverage:update-baseline": "COVERAGE_EVIDENCE_MODE=update-baseline node scripts/verify.mjs unit storybook coverage",
-    "coverage:check-storybook-stability": "node scripts/run-storybook-coverage.mjs --stability",
-    "test": "node scripts/verify.mjs",
-    "lint": "node scripts/verify.mjs lint",
-    "typecheck": "npm run build:types && node scripts/check-declarations.mjs && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
+    "watch": "node scripts/watch.js",
+    "verify": "node scripts/verify.js",
+    "coverage:update-baseline": "COVERAGE_EVIDENCE_MODE=update-baseline node scripts/verify.js unit storybook coverage",
+    "coverage:check-storybook-stability": "node scripts/run-storybook-coverage.js --stability",
+    "test": "node scripts/verify.js",
+    "lint": "node scripts/verify.js lint",
+    "typecheck": "npm run build:types && node scripts/check-declarations.js && tsc -p jsconfig.json && tsc -p shared/jsconfig.json && tsc -p backend/jsconfig.json && tsc -p frontend/jsconfig.json && tsc -p tsconfig.declarations.json",
     "storybook": "npm run storybook --prefix frontend",
-    "e2e:ui": "node scripts/e2e-ui.mjs",
-    "preview": "node scripts/demo.mjs",
-    "whiteboard": "node scripts/whiteboard.mjs",
-    "kill": "node scripts/kill-ports.mjs",
+    "e2e:ui": "node scripts/e2e-ui.js",
+    "preview": "node scripts/demo.js",
+    "whiteboard": "node scripts/whiteboard.js",
+    "kill": "node scripts/kill-ports.js",
     "build:types": "npm run build:types --prefix shared",
     "postinstall": "npm run build:types"
   },
@@ -39,5 +39,6 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.67.0",
     "vitest": "4.1.10"
-  }
+  },
+  "type": "module"
 }

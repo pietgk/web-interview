@@ -6,7 +6,7 @@
  * comes from a CDN, which is the only network dependency; when that fails the
  * page still shows the static fallback instead of an empty canvas.
  *
- * Kept separate from `whiteboard.mjs` so importing the renderer cannot trigger
+ * Kept separate from `whiteboard.js` so importing the renderer cannot trigger
  * that script's CLI side effects.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'

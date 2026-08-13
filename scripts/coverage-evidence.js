@@ -4,7 +4,7 @@ import {
   exactCoverage,
   normalizeCoveragePath,
   sumCoverage,
-} from './coverage-producers.mjs'
+} from './coverage-producers.js'
 
 /** @typedef {'statements' | 'branches' | 'functions' | 'lines'} CoverageMetric */
 /** @typedef {{covered: number, total: number}} CoverageTuple */

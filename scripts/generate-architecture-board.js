@@ -1,12 +1,12 @@
 /**
  * Generates docs/architecture.excalidraw (+ .svg and .html companions) from the grilled
  * overview.
- * Run: node scripts/generate-architecture-board.mjs
+ * Run: node scripts/generate-architecture-board.js
  */
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { writeWhiteboardPage } from './whiteboard-html.mjs'
+import { writeWhiteboardPage } from './whiteboard-html.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outDir = join(__dirname, '../docs')

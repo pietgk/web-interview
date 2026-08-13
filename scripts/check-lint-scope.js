@@ -68,7 +68,7 @@ if (unlinted.length > 0) {
   problems.push(
     `${unlinted.length} tracked source file(s) are not linted by any configuration:\n` +
       unlinted.map((path) => `  ${path}`).join('\n') +
-      '\nEither bring them into scope in eslint.config.mjs, or add a justified ' +
+      '\nEither bring them into scope in eslint.config.js, or add a justified ' +
       'entry to INTENTIONALLY_UNLINTED in this file.'
   )
 }

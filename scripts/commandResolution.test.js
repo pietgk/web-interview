@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { resolveCommand } from './commandResolution.mjs'
+import { resolveCommand } from './commandResolution.js'
 
 const COMMANDS = [
   { name: 'start', aliases: ['go'] },

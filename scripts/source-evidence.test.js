@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { classifySourcePath, createSourceEvidence } from './source-evidence.mjs'
+import { classifySourcePath, createSourceEvidence } from './source-evidence.js'
 import {
   SOURCE_EVIDENCE_ENTRIES,
   TREATMENTS,
   validateSourceEvidenceRegistry,
-} from './source-evidence-registry.mjs'
+} from './source-evidence-registry.js'
 
 /** @param {number} covered @param {number} total */
 const coverage = (covered, total) => ({ covered, total })

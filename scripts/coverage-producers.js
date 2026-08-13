@@ -50,7 +50,7 @@ export const PRODUCER_CONFIG_PATHS = Object.freeze({
   node: Object.freeze([
     'package.json',
     'package-lock.json',
-    'vitest.config.mjs',
+    'vitest.config.js',
     'shared/vitest.config.js',
     'backend/vitest.config.js',
     'frontend/vitest.logic.config.js',

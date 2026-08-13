@@ -8,7 +8,7 @@ import {
   namedLiteralOptions,
   semanticConstantsPlugin,
   semanticConstantRules,
-} from './scripts/semantic-constants-config.mjs'
+} from './scripts/semantic-constants-config.js'
 
 // Every source file in the repo is linted by this one config. It replaced
 // per-workspace configs so that a single typescript-eslint - and therefore a
@@ -156,8 +156,8 @@ export default [
     // surrounding syntax already supplies the clearest meaning; date and
     // canonical-contract enforcement remain enabled.
     files: [
-      'scripts/eslint-plugin-semantic-constants.{mjs,mts}',
-      'scripts/generate-architecture-board.{mjs,mts}',
+      'scripts/eslint-plugin-semantic-constants.{js,ts}',
+      'scripts/generate-architecture-board.{js,ts}',
     ],
     rules: semanticConstantRules(namedLiteralOptions({ numbers: false })),
   },

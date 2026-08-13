@@ -4,7 +4,7 @@ Date: 2026-08-12
 
 This audit reviewed every discovered production source through its implementation, production
 consumers, tests or stories, and natural observable interface. The executable result is the
-explicit registry in [`scripts/source-evidence-registry.mjs`](../scripts/source-evidence-registry.mjs):
+explicit registry in [`scripts/source-evidence-registry.js`](../scripts/source-evidence-registry.js):
 every entry names one treatment and carries the per-file rationale reviewed here. Filesystem rules
 only discover source; they do not assign treatment.
 

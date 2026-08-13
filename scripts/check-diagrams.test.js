@@ -4,7 +4,7 @@ import {
   findCollapsingSelfTransitions,
   parseEdge,
   selfTransitionsByNode,
-} from './check-diagrams.mjs'
+} from './check-diagrams.js'
 
 /** @param {string} source */
 const diagram = (source) => `# doc\n\n\`\`\`mermaid\n${source}\n\`\`\`\n`

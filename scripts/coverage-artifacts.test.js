@@ -3,7 +3,7 @@ import { access, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'vitest'
-import { removeWithheldCombinedExplorer } from './coverage-artifacts.mjs'
+import { removeWithheldCombinedExplorer } from './coverage-artifacts.js'
 
 test('withholding synthetic incompatibility deletes a previously published explorer', async () => {
   const coverageDirectory = await mkdtemp(join(tmpdir(), 'combined-explorer-'))

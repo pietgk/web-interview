@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { appendFile, readFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { ROOT, STAGES, findStage, findStep } from './stages.mjs'
+import { ROOT, STAGES, findStage, findStep } from './stages.js'
 
 const PASS = 'PASS'
 const FAIL = 'FAIL'
@@ -42,7 +42,7 @@ const assertNodeVersion = async () => {
 }
 
 /**
- * @param {import('./stages.mjs').Invocation} invocation
+ * @param {import('./stages.js').Invocation} invocation
  * @returns {Promise<{ ok: boolean, offline: boolean, output: string }>}
  */
 const runInvocation = ({ command, args, cwd, env, tolerateOffline }) =>
@@ -80,7 +80,7 @@ const runInvocation = ({ command, args, cwd, env, tolerateOffline }) =>
  */
 
 /**
- * @param {import('./stages.mjs').Step} step
+ * @param {import('./stages.js').Step} step
  * @returns {Promise<Row>}
  */
 const runStep = async (step) => {

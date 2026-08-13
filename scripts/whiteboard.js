@@ -13,7 +13,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { writeWhiteboardPage } from './whiteboard-html.mjs'
+import { writeWhiteboardPage } from './whiteboard-html.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_SCENE = 'docs/architecture.excalidraw'

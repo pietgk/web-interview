@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { test } from 'vitest'
-import { CATEGORIES } from './source-evidence.mjs'
-import { ROOT, STAGES } from './stages.mjs'
+import { CATEGORIES } from './source-evidence.js'
+import { ROOT, STAGES } from './stages.js'
 
 test('testing overview names the current verification structure', async () => {
   const overview = await readFile(resolve(ROOT, 'docs/testing-and-validation.md'), 'utf8')

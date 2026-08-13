@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEV_DATOM_LOG_PATH } from '../backend/src/dataPaths.js'
-import { DEV_API_PORT, freeLanes } from './kill-ports.mjs'
+import { DEV_API_PORT, freeLanes } from './kill-ports.js'
 
 const BACKEND = resolve(dirname(fileURLToPath(import.meta.url)), '../backend')
 

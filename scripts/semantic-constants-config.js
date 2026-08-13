@@ -1,4 +1,4 @@
-import semanticConstants from './eslint-plugin-semantic-constants.mjs'
+import semanticConstants from './eslint-plugin-semantic-constants.js'
 
 export const semanticConstantsPlugin = semanticConstants
 

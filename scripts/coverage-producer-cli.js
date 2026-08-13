@@ -8,8 +8,8 @@ import {
   normalizeCoveragePath,
   PRODUCER_CONFIG_PATHS,
   resolveCoverageProviderProvenance,
-} from './coverage-producers.mjs'
-import { ROOT } from './stages.mjs'
+} from './coverage-producers.js'
+import { ROOT } from './stages.js'
 
 const execFileAsync = promisify(execFile)
 /** @param {string} path */
@@ -17,7 +17,7 @@ const repoPath = (path) => normalizeCoveragePath(path, ROOT)
 
 const producerArg = process.argv[2]
 if (!Object.hasOwn(PRODUCER_CONFIG_PATHS, producerArg)) {
-  throw new Error(`Usage: node scripts/coverage-producer-cli.mjs <${Object.keys(PRODUCER_CONFIG_PATHS).join('|')}>`)
+  throw new Error(`Usage: node scripts/coverage-producer-cli.js <${Object.keys(PRODUCER_CONFIG_PATHS).join('|')}>`)
 }
 const producer = /** @type {'node' | 'storybook'} */ (producerArg)
 const providerProvenance = await resolveCoverageProviderProvenance(producer, ROOT)
