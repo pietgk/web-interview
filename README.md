@@ -86,12 +86,15 @@ Storybook source-file links open in Zed. To use VS Code instead, change `LAUNCH_
 ## Verifying
 
 The complete testing and validation model lives in [`docs/testing-and-validation.md`](./docs/testing-and-validation.md).
-For humans, there are two primary commands:
+For humans, there are two daily commands:
 
 | Command | Cost | What it does |
 | --- | --- | --- |
 | `npm run watch` | ~2s per change | Continuous Node test and typecheck feedback |
-| `npm test` | ~70s | The complete authoritative verdict, in the same order as CI |
+| `npm test` | ~2m | The complete authoritative verdict, in the same order as CI |
+
+Raising the coverage lockfile or a stricter compiler/lint rule is improve, not a third daily
+gate. See [`docs/verify.md`](./docs/verify.md).
 
 Selective verification remains available. Use `npm run verify help` for the current stage and step
 names, or select a stage or step such as `npm run verify browser` or `npm run verify lint e2e`.

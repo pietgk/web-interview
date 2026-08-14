@@ -30,7 +30,7 @@ design act.
    - Keep it literal when it is an index, a simple count, fixture data, *structural* style geometry
      such as `flexGrow: 1` or `gridColumn`, or a clear non-contract assertion outcome.
    - A **dimension** is not structural. `width: '11rem'` is a design decision nobody named; it
-     belongs in `frontend/src/theme.js` as a token. See [design tokens](#design-tokens).
+     belongs in `frontend/src/theme.ts` as a token. See [design tokens](#design-tokens).
 5. Does the meaning already have a higher-level abstraction?
    - Use that abstraction. Do not reconstruct it from lower-level constants or primitives.
 
@@ -79,7 +79,7 @@ Promote a constant to `shared` only when multiple consumers depend on one semant
 Organize shared constants with the module that owns the meaning, never in a collection grouped by
 primitive type, unit, or value.
 
-Use the highest-level available abstraction. `shared/src/ulid.js`, for example, owns
+Use the highest-level available abstraction. `shared/src/ulid.ts`, for example, owns
 `ULID_LENGTH` and `EARLIEST_ULID`. A stale cursor scenario uses `EARLIEST_ULID`; it does not repeat
 the encoded width or rebuild the value.
 
@@ -89,7 +89,7 @@ The same standard, one layer down. A duration written as `86400000` hides why it
 written as `'11rem'` hides it in exactly the same way, and for longer, because nothing executes to
 prove it wrong.
 
-Every dimension the frontend chooses lives in `frontend/src/theme.js`, bound to a named `const`
+Every dimension the frontend chooses lives in `frontend/src/theme.ts`, bound to a named `const`
 with the reason, and is reached as `theme.todos.*`. The rule of thumb: **anything under
 `theme.todos` is a decision we made; everything else is a decision MUI made for us.** Storybook's
 *Foundations / Design tokens* page renders the namespace straight from the theme object, so the
@@ -125,8 +125,8 @@ configured sensitive use.
 
 Central numeric exemptions are intentionally narrow:
 
-- `scripts/generate-architecture-board.mjs` is primarily drawing coordinates and dimensions.
-- `scripts/eslint-plugin-semantic-constants.mjs` is primarily AST grammar and rule metadata.
+- `scripts/generate-architecture-board.ts` is primarily drawing coordinates and dimensions.
+- `scripts/eslint-plugin-semantic-constants.ts` is primarily AST grammar and rule metadata.
 
 Exact executable dates and configured contracts remain enforced in exempted files. Do not add
 inline disable comments or baseline suppressions. A new exemption must document why its numeric
@@ -134,12 +134,12 @@ syntax is already the clearest representation.
 
 ## Extending enforcement
 
-Repository knowledge lives in `scripts/semantic-constants-config.mjs`. The traversal in
-`scripts/eslint-plugin-semantic-constants.mjs` stays generic.
+Repository knowledge lives in `scripts/semantic-constants-config.ts`. The traversal in
+`scripts/eslint-plugin-semantic-constants.ts` stays generic.
 
 To add a semantic string category, sensitive numeric context, or canonical contract:
 
-1. Add focused passing and failing cases to `scripts/semantic-constants.test.mjs`.
+1. Add focused passing and failing cases to `scripts/semantic-constants.test.js`.
 2. Extend the declarative patterns, contexts, contract definitions, or usage mappings.
 3. For a syntax-dependent contract, map every unambiguous file and usage. Unmapped usage must fail
    as ambiguous instead of guessing.

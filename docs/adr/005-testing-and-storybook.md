@@ -31,6 +31,7 @@ Early write-ups of near-100% thresholds and an a11y flip that had not landed are
 ## See also
 
 - [ADR 006](./006-test-execution-model.md) — how tests are run and what is gated
+- [ADR 010](./010-producer-owned-coverage-evidence.md) - which producer can satisfy an exact coverage verdict
 - [`docs/testing-and-validation.md`](../testing-and-validation.md) — protection model
 - [`docs/verify.md`](../verify.md) — command / stage reference
 - [`docs/adr/README.md`](./README.md)

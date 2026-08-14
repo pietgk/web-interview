@@ -18,17 +18,18 @@ the repo does not claim to support.
 
 ## Which command, when
 
-Full reference: `npm run verify help`. It is generated from the table `verify.mjs` executes, so it
+Full reference: `npm run verify help`. It is generated from the table `verify.ts` executes, so it
 cannot drift from what actually runs.
 
 | Situation | Run |
 | --- | --- |
 | After each step of a task | `npm run verify unit` (~2s) |
-| Touching a component | `npm run verify browser` (~24s) |
+| Touching a component | `npm run verify browser` (~1m) |
 | Changed only docs or comments | `npm run verify static` (~4s) |
-| **Before saying the work is done** | `npm run verify` (~70s) |
+| **Before saying the work is done** | `npm run verify` (~2m) |
 
-`npm run watch` is the human's terminal. Do not start it - it never exits.
+`npm run watch` is the human's terminal. Do not start it - it never exits. Raising a lockfile,
+compiler flag, or lint rule is improve, not done — see [`docs/verify.md`](docs/verify.md).
 
 ## Rules
 
@@ -65,6 +66,7 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 | Domain language (Todo List, Todo, Next Due Date) | `CONTEXT.md` - glossary only, no implementation |
 | How the system works | `docs/architecture.md` |
 | Which ADRs are accepted (index) | `docs/adr/README.md` |
+| Source language / TypeScript strictness | `docs/adr/011-typescript-source-language.md` |
 | Entry map (architecture / ADRs / testing / domain) | `DECISIONS.md` |
 | How literals and shared contracts are named and enforced | `docs/semantic-constants.md` |
 | How to add or edit a drawing in the docs | `docs/whiteboard.md` |
@@ -77,5 +79,5 @@ suite proves today and can only be updated through `npm run coverage:update-base
 recalibrate it to make a run pass.
 
 Every production source file must have exactly one evidence owner in
-`scripts/source-evidence.mjs`. JSX coverage is informational, but missing ownership, Storybook
+`scripts/source-evidence-registry.ts`. JSX coverage is informational, but missing ownership, Storybook
 discovery/execution, or UI coverage is a failing gate.

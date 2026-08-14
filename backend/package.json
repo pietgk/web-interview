@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "start": "node ../scripts/start-dev-api.mjs"
+    "start": "node ../scripts/start-dev-api.ts"
   },
   "dependencies": {
     "@web-interview/todos": "file:../shared",
@@ -10,10 +10,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
     "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.25",
-    "eslint": "^9.39.2",
-    "globals": "^17.0.0"
+    "@types/express": "^4.17.25"
   }
 }

@@ -1,0 +1,25 @@
+{
+  "name": "vitest-cross-transform-coverage-reproduction",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "coverage:node:v8": "vitest run --config node-v8.config.js --coverage",
+    "coverage:browser:v8": "vitest run --config browser-v8.config.js --coverage",
+    "coverage:node:istanbul": "vitest run --config node-istanbul.config.js --coverage",
+    "coverage:browser:istanbul": "vitest run --config browser-istanbul.config.js --coverage",
+    "reproduce": "npm run coverage:node:v8 && npm run coverage:browser:v8 && npm run coverage:node:istanbul && npm run coverage:browser:istanbul && node compare.mjs"
+  },
+  "devDependencies": {
+    "@vitest/browser-playwright": "4.1.10",
+    "@vitest/coverage-istanbul": "4.1.10",
+    "@vitest/coverage-v8": "4.1.10",
+    "playwright": "1.62.1",
+    "react": "18.3.1",
+    "vite": "6.4.3",
+    "vitest": "4.1.10"
+  }
+}

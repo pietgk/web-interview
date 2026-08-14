@@ -5,7 +5,7 @@ decision cards, not essays.
 
 | Kind | Home |
 | --- | --- |
-| Decision | this folder (`004`–`009` accepted) |
+| Decision | this folder (`004`–`011` accepted) |
 | How the system works | [`docs/architecture.md`](../architecture.md) |
 | Protection model | [`docs/testing-and-validation.md`](../testing-and-validation.md) |
 | Verify commands / stages | [`docs/verify.md`](../verify.md) |
@@ -24,10 +24,12 @@ Do **not** add a new ADR that duplicates [`docs/architecture.md`](../architectur
 | --- | --- |
 | [004](./004-single-datom-log.md) | Single-datom log with last-write-wins; no conflict/rebase/rejection path |
 | [005](./005-testing-and-storybook.md) | Seam-based coverage; Storybook owns component states/play/a11y |
-| [006](./006-test-execution-model.md) | Two tiers only (`watch` / `verify`); coverage collected then judged; Node 22 |
+| [006](./006-test-execution-model.md) | Two daily tiers (`watch` / `verify`); improve raises the contract; Node 22 |
 | [007](./007-ui-to-model-convention.md) | Three state owners; only commands mint datoms; one settle mechanism |
 | [008](./008-structured-datom-delivery-failures.md) | Structured delivery failures for the event-driven datom client |
 | [009](./009-material-ui-9-platform.md) | Material UI 9.3 (Emotion, React 18); prefs platform before OS a11y prefs |
+| [010](./010-producer-owned-coverage-evidence.md) | Exact coverage preserves the required Node or Storybook producer |
+| [011](./011-typescript-source-language.md) | TypeScript source, maximum strictness, native Node type stripping |
 
 ## Superseded
 

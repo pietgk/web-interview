@@ -5,50 +5,51 @@
   "type": "module",
   "files": [
     "dist/types",
-    "src/calendarDate.js",
-    "src/datom.js",
-    "src/datomStore.js",
-    "src/selectors.js",
-    "src/todoProtocol.js",
-    "src/types.js",
-    "src/ulid.js"
+    "src/calendarDate.ts",
+    "src/datom.ts",
+    "src/datomStore.ts",
+    "src/selectors.ts",
+    "src/todoProtocol.ts",
+    "src/types.ts",
+    "src/ulid.ts"
   ],
   "exports": {
     "./datom": {
       "types": "./dist/types/datom.d.ts",
-      "default": "./src/datom.js"
+      "default": "./src/datom.ts"
     },
     "./datom-store": {
       "types": "./dist/types/datomStore.d.ts",
-      "default": "./src/datomStore.js"
+      "default": "./src/datomStore.ts"
     },
     "./protocol": {
       "types": "./dist/types/todoProtocol.d.ts",
-      "default": "./src/todoProtocol.js"
+      "default": "./src/todoProtocol.ts"
     },
     "./selectors": {
       "types": "./dist/types/selectors.d.ts",
-      "default": "./src/selectors.js"
+      "default": "./src/selectors.ts"
     },
     "./types": {
       "types": "./dist/types/types.d.ts",
-      "default": "./src/types.js"
+      "default": "./src/types.ts"
     },
     "./ulid": {
       "types": "./dist/types/ulid.d.ts",
-      "default": "./src/ulid.js"
+      "default": "./src/ulid.ts"
     }
   },
   "scripts": {
     "build:types": "tsc -p tsconfig.types.json",
     "prepack": "npm run build:types",
-    "typecheck": "tsc -p jsconfig.json"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
-    "typescript": "7.0.2"
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }
