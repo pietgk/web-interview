@@ -8,7 +8,7 @@ Entry map. Prose lives in the linked docs.
 | Accepted architectural decisions | [`docs/adr/README.md`](./docs/adr/README.md) |
 | Protection model / verification pipeline | [`docs/testing-and-validation.md`](./docs/testing-and-validation.md) |
 | Verify commands / stages | [`docs/verify.md`](./docs/verify.md) (`npm run verify help`) |
-| Domain language | [`CONTEXT.md`](./CONTEXT.md) |
+| Domain language | [`CONTEXT-MAP.md`](./CONTEXT-MAP.md) (Todo Lists: [`CONTEXT.md`](./CONTEXT.md); Ideas and Results: [`docs/ideas-and-results/CONTEXT.md`](./docs/ideas-and-results/CONTEXT.md)) |
 
 How to verify while working: [`AGENTS.md`](./AGENTS.md).
 

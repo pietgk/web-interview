@@ -63,7 +63,7 @@ their canonical exports. Follow [the semantic constants standard](docs/semantic-
 | Why the test setup is shaped this way | `docs/adr/006-test-execution-model.md` |
 | What each layer owns, Storybook authoring rules | `docs/adr/005-testing-and-storybook.md` |
 | Verify commands / stages | `docs/verify.md` (authoritative list: `npm run verify help`) |
-| Domain language (Todo List, Todo, Next Due Date) | `CONTEXT.md` - glossary only, no implementation |
+| Domain language | `CONTEXT-MAP.md` — Todo Lists in `CONTEXT.md`; Ideas and Results in `docs/ideas-and-results/CONTEXT.md`. Glossary only, no implementation |
 | How the system works | `docs/architecture.md` |
 | Which ADRs are accepted (index) | `docs/adr/README.md` |
 | Source language / TypeScript strictness | `docs/adr/011-typescript-source-language.md` |
