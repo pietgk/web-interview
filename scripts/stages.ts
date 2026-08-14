@@ -125,7 +125,7 @@ export const STAGES: Stage[] = [
       },
       {
         name: 'storybook-stability',
-        blurb: 'ten independent controller map and tuple collections agree',
+        blurb: 'ten controller collections against one Storybook process agree',
         invocations: [
           {
             command: 'node',

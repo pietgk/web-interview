@@ -101,59 +101,67 @@ const tempRoot = stabilityMode
   : undefined
 const snapshots: Array<ReturnType<typeof createCoverageStabilitySnapshot>> = []
 
+// One Storybook process for every collection. Each `storybook dev` boot is a
+// fresh Vite emit; CI has shown Istanbul maps and ID-keyed hit counters
+// drifting across boots while coverage tuples stayed put. Reusing the server
+// keeps the compile path identical so a remaining digest mismatch is execution,
+// not instrumentation geometry.
+const storybook = startStorybook()
 try {
+  try {
+  await storybook.waitUntilReady()
+  if (stabilityMode) {
+    process.stdout.write(`Storybook stability reuses one process for ${runCount} collections.\n`)
+  }
   for (let run = 1; run <= runCount; run += 1) {
-    const storybook = startStorybook()
-    try {
-      await storybook.waitUntilReady()
-      const reportsDirectory = tempRoot
-        ? resolve(tempRoot, `run-${run}`)
-        : resolve(ROOT, '.coverage-reports/storybook')
-      const evidenceDirectory = tempRoot
-        ? resolve(tempRoot, `evidence-${run}`)
-        : resolve(ROOT, '.test-evidence')
-      const blobDirectory = tempRoot
-        ? resolve(tempRoot, `blob-${run}`)
-        : resolve(ROOT, '.vitest-reports')
-      await Promise.all([
-        mkdir(evidenceDirectory, { recursive: true }),
-        mkdir(blobDirectory, { recursive: true }),
-      ])
-      const { stdout, stderr } = await execFileAsync(VITEST_BIN, [
-        'run',
-        '--config',
-        'vitest.storybook.config.ts',
-        '--coverage',
-        `--coverage.reportsDirectory=${reportsDirectory}`,
-        '--reporter=default',
-        '--reporter=blob',
-        '--reporter=json',
-        `--outputFile.blob=${resolve(blobDirectory, 'storybook.json')}`,
-        `--outputFile.json=${resolve(evidenceDirectory, 'storybook.json')}`,
-      ], {
-        cwd: FRONTEND_ROOT,
-        env: { ...process.env, STORYBOOK_URL },
-        maxBuffer: 20 * 1024 * 1024,
-      })
-      if (!stabilityMode) process.stdout.write(`${stdout}${stderr}`)
+    const reportsDirectory = tempRoot
+      ? resolve(tempRoot, `run-${run}`)
+      : resolve(ROOT, '.coverage-reports/storybook')
+    const evidenceDirectory = tempRoot
+      ? resolve(tempRoot, `evidence-${run}`)
+      : resolve(ROOT, '.test-evidence')
+    const blobDirectory = tempRoot
+      ? resolve(tempRoot, `blob-${run}`)
+      : resolve(ROOT, '.vitest-reports')
+    await Promise.all([
+      mkdir(evidenceDirectory, { recursive: true }),
+      mkdir(blobDirectory, { recursive: true }),
+    ])
+    const { stdout, stderr } = await execFileAsync(VITEST_BIN, [
+      'run',
+      '--config',
+      'vitest.storybook.config.ts',
+      '--coverage',
+      `--coverage.reportsDirectory=${reportsDirectory}`,
+      '--reporter=default',
+      '--reporter=blob',
+      '--reporter=json',
+      `--outputFile.blob=${resolve(blobDirectory, 'storybook.json')}`,
+      `--outputFile.json=${resolve(evidenceDirectory, 'storybook.json')}`,
+    ], {
+      cwd: FRONTEND_ROOT,
+      env: { ...process.env, STORYBOOK_URL },
+      maxBuffer: 20 * 1024 * 1024,
+    })
+    if (!stabilityMode) process.stdout.write(`${stdout}${stderr}`)
 
-      if (stabilityMode) {
-        const [summary, map] = await Promise.all([
-          readFile(resolve(reportsDirectory, 'coverage-summary.json'), 'utf8').then(JSON.parse),
-          readFile(resolve(reportsDirectory, 'coverage-final.json'), 'utf8').then(JSON.parse),
-        ])
-        const snapshot = createCoverageStabilitySnapshot({
-          repositoryRoot: ROOT,
-          summary,
-          map,
-          paths: exactCoveragePathsFor('storybook'),
-        })
-        snapshots.push(snapshot)
-        process.stdout.write(`Storybook stability collection ${run}/${runCount}: ${snapshot.digest}\n`)
-      }
-    } finally {
-      await storybook.stop()
+    if (stabilityMode) {
+      const [summary, map] = await Promise.all([
+        readFile(resolve(reportsDirectory, 'coverage-summary.json'), 'utf8').then(JSON.parse),
+        readFile(resolve(reportsDirectory, 'coverage-final.json'), 'utf8').then(JSON.parse),
+      ])
+      const snapshot = createCoverageStabilitySnapshot({
+        repositoryRoot: ROOT,
+        summary,
+        map,
+        paths: exactCoveragePathsFor('storybook'),
+      })
+      snapshots.push(snapshot)
+      process.stdout.write(`Storybook stability collection ${run}/${runCount}: ${snapshot.digest}\n`)
     }
+  }
+  } finally {
+    await storybook.stop()
   }
 
   if (stabilityMode) {
@@ -179,6 +187,7 @@ try {
       runs: runCount,
       controllerPaths: firstSnapshot.paths,
       snapshotDigest: firstSnapshot.digest,
+      storybookProcess: 'reused',
     }, null, 2)}\n`)
     const collectionKind = finalSourceState.dirty ? 'working-tree' : 'clean'
     process.stdout.write(`Storybook controller coverage was identical across ${runCount} ${collectionKind} collections.\n`)
