@@ -157,7 +157,6 @@ Within a stage, every check runs so one failure does not hide its siblings.
 | `static` | Dependency risk | npm `audit` |
 | `unit` | Logic behavior and logic evidence | Vitest `unit` in Node |
 | `browser` | Component scenarios and UI evidence | Storybook `storybook` play and axe in Chromium |
-| `browser` | Controller evidence stability | Ten independent Storybook `storybook-stability` map and exact-tuple collections |
 | `browser` | End-to-end journeys | Playwright `e2e` through the assembled system |
 | `quality` | Production bundle | Vite `build` |
 | `quality` | Production quality | Lighthouse `lighthouse` |
@@ -168,12 +167,16 @@ The exact current mechanics and selective names are always available through:
 
 ## Human command model
 
-Humans need two primary commands:
+Humans need two daily commands:
 
 | Command | Use it for |
 | --- | --- |
 | `npm run watch` | Continuous development feedback from Node tests and typecheck |
 | `npm test` | The complete authoritative verdict, using the same ordered verification pipeline as CI |
+
+Raising the contract — lockfile, stricter TypeScript or ESLint, Storybook coverage admission —
+is improve, documented in [`docs/verify.md`](./verify.md). It is not a third daily gate and is not
+required to claim done.
 
 Selective verification remains available to humans and agents when a full run is not useful:
 `npm run verify static`, `npm run verify unit`, `npm run verify browser`, `npm run verify quality`,
@@ -237,8 +240,12 @@ This is the complete human flow when a change improves coverage:
 3. Review the source and tests that caused the improvement. This is the decision point; do not
    update the baseline merely to turn a failing check green.
 4. Record the reviewed contract with `mise exec node@22 -- npm run coverage:update-baseline`.
-5. Inspect `git diff -- coverage-baseline.json` and keep the baseline change with the source change.
-6. Run `mise exec node@22 -- npm test` again. The final verdict must be green against the newly
+5. If Storybook owner tuples changed, also run
+   `mise exec node@22 -- npm run coverage:check-storybook-stability` at a clean revision. That
+   command is improve, not verify: ten collections against one Storybook process, identical
+   tuples required, map drift diagnostic. See [`docs/verify.md`](./verify.md).
+6. Inspect `git diff -- coverage-baseline.json` and keep the baseline change with the source change.
+7. Run `mise exec node@22 -- npm test` again. The final verdict must be green against the newly
    recorded baseline.
 
 The update command regenerates Node and Storybook evidence together, refuses owner regressions,
@@ -338,6 +345,7 @@ make it pass; fix the cause or review the contract change.
 - [ADR 006: How tests are run](./adr/006-test-execution-model.md)
 - [ADR 010: Producer-owned coverage evidence](./adr/010-producer-owned-coverage-evidence.md)
 - [ADR 011: TypeScript as the source language](./adr/011-typescript-source-language.md)
+- [Verify reference](./verify.md) — watch / verify / improve, instrumentation jitter
 
 The existing architecture visual has an incomplete final verification row. Its SVG, HTML, and
 Excalidraw source are intentionally unchanged in this slice; visual cleanup is deferred.

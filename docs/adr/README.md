@@ -24,7 +24,7 @@ Do **not** add a new ADR that duplicates [`docs/architecture.md`](../architectur
 | --- | --- |
 | [004](./004-single-datom-log.md) | Single-datom log with last-write-wins; no conflict/rebase/rejection path |
 | [005](./005-testing-and-storybook.md) | Seam-based coverage; Storybook owns component states/play/a11y |
-| [006](./006-test-execution-model.md) | Two tiers only (`watch` / `verify`); coverage collected then judged; Node 22 |
+| [006](./006-test-execution-model.md) | Two daily tiers (`watch` / `verify`); improve raises the contract; Node 22 |
 | [007](./007-ui-to-model-convention.md) | Three state owners; only commands mint datoms; one settle mechanism |
 | [008](./008-structured-datom-delivery-failures.md) | Structured delivery failures for the event-driven datom client |
 | [009](./009-material-ui-9-platform.md) | Material UI 9.3 (Emotion, React 18); prefs platform before OS a11y prefs |

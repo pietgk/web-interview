@@ -124,20 +124,6 @@ export const STAGES: Stage[] = [
         ],
       },
       {
-        name: 'storybook-stability',
-        blurb: 'ten controller collections against one Storybook process agree',
-        invocations: [
-          {
-            command: 'node',
-            args: [
-              'scripts/run-storybook-coverage.ts',
-              '--stability',
-              '--allow-dirty-worktree',
-            ],
-          },
-        ],
-      },
-      {
         name: 'e2e',
         blurb: 'real server, real journal, multi-tab and reconnect journeys',
         invocations: [

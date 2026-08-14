@@ -24,11 +24,12 @@ cannot drift from what actually runs.
 | Situation | Run |
 | --- | --- |
 | After each step of a task | `npm run verify unit` (~2s) |
-| Touching a component | `npm run verify browser` (~3m) |
+| Touching a component | `npm run verify browser` (~1m) |
 | Changed only docs or comments | `npm run verify static` (~4s) |
-| **Before saying the work is done** | `npm run verify` (~4m) |
+| **Before saying the work is done** | `npm run verify` (~2m) |
 
-`npm run watch` is the human's terminal. Do not start it - it never exits.
+`npm run watch` is the human's terminal. Do not start it - it never exits. Raising a lockfile,
+compiler flag, or lint rule is improve, not done — see [`docs/verify.md`](docs/verify.md).
 
 ## Rules
 
