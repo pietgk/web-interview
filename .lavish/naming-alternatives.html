@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Three namings for the same picture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --bg: #fafafa; --paper: #ffffff; --paper-2: #f5f5f5;
+    --text: rgba(0,0,0,0.87); --text-2: rgba(0,0,0,0.6); --text-3: rgba(0,0,0,0.38);
+    --divider: rgba(0,0,0,0.12);
+    --primary: #1976d2; --primary-soft: rgba(25,118,210,0.08);
+    --secondary: #9c27b0; --success: #2e7d32; --warning: #ed6c02; --warning-soft: rgba(237,108,2,0.08);
+  }
+  html { color-scheme: light; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: Roboto, system-ui, sans-serif; font-size: 15px; line-height: 1.5; }
+  main { max-width: 1140px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-size: 26px; font-weight: 500; margin: 0 0 4px; }
+  h2 { font-size: 20px; font-weight: 500; margin: 44px 0 6px; }
+  h2 small { font-weight: 400; color: var(--text-2); font-size: 14px; margin-left: 10px; }
+  p.lead { color: var(--text-2); margin: 0 0 20px; max-width: 75ch; }
+  code { font-family: "Roboto Mono", monospace; font-size: 0.9em; background: var(--paper-2); padding: 1px 5px; border-radius: 4px; }
+  .paper { background: var(--paper); border: 1px solid var(--divider); border-radius: 8px; padding: 20px; }
+  .mermaid { overflow-x: auto; }
+  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 320px); gap: 16px; align-items: start; }
+  .split > * { min-width: 0; }
+  @media (max-width: 860px) { .split { grid-template-columns: minmax(0,1fr); } }
+  dl { margin: 0; }
+  dt { font-weight: 500; margin-top: 10px; }
+  dd { margin: 0; color: var(--text-2); font-size: 14px; }
+  .pro, .con { margin: 10px 0 0; padding-left: 20px; font-size: 14px; }
+  .pro li::marker { color: var(--success); } .con li::marker { color: var(--warning); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--text-2); font-size: 13px; margin: 8px 0 0; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend .f::before { background: #1976d2; } .legend .d::before { background: #9c27b0; } .legend .a::before { background: #2e7d32; } .legend .o::before { background: #ed6c02; }
+  .cmp { overflow-x: auto; margin-top: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--divider); vertical-align: top; }
+  th { color: var(--text-2); font-weight: 500; }
+  td.rec { background: var(--primary-soft); }
+  .q { background: var(--warning-soft); border: 1px solid rgba(237,108,2,.3); border-radius: 8px; padding: 14px 18px; margin-top: 12px; }
+  .q strong { color: var(--warning); }
+  .fixed { border-left: 4px solid var(--primary); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Three namings for the same picture</h1>
+  <p class="lead">Same scenario every time: one Owner, Alice, with a server, a browser, a phone, and an agent; a second Owner reachable only by a message. Only the words change. Colors are the same across all three: blue is data that is fact, purple is data that is derived, green is a thing that acts, orange is the party that is accountable.</p>
+
+  <div class="paper fixed">
+    <strong>Fixed in every alternative, because the earlier questions settled them:</strong>
+    <ul class="pro" style="margin-top:6px">
+      <li><strong>Datom is the Event.</strong> A Datom is one fact asserted or retracted, and it is the only event type there is. Commands produce Datoms. This was missing from the first drawing and the spec will state it in the first paragraph.</li>
+      <li><strong>Log is the event store</strong>: append-only, one Datom per record, has an epoch.</li>
+      <li><strong>Read Model is derived, hosted by a Read Model Engine.</strong></li>
+      <li><strong>Owner is the accountable party</strong>, not a box in the mechanism.</li>
+    </ul>
+    <p class="legend"><span class="f">fact data</span><span class="d">derived data</span><span class="a">acts</span><span class="o">accountable</span></p>
+  </div>
+
+  <h2>Alternative 1 · App and Actors <small>actor-model reading</small></h2>
+  <div class="split">
+    <div class="paper">
+      <pre class="mermaid">
+flowchart TB
+  OA(["Owner: Alice"])
+  subgraph APP["App A  ·  one Log, one epoch"]
+    direction TB
+    J["Actor: Journal<br/>holds the Log, durable before ack"]
+    LOG[("Log<br/>every Datom ever, in tx order")]
+    J --- LOG
+    subgraph C1["Actor: Browser client"]
+      F1["Facts<br/>current set + cursor"]
+      RM1["Read Model: Todo Lists<br/>engine: in-memory"]
+      CMD1["Commands"]
+      F1 --> RM1
+      CMD1 -- "mint Datom" --> F1
+    end
+    subgraph C2["Actor: Phone client"]
+      F2["Facts"]
+      RM2["Read Model: Todo Lists"]
+      F2 --> RM2
+    end
+    subgraph AG["Actor: Agent"]
+      F3["Facts"]
+      RM3["Read Model: context.md<br/>engine: in-memory"]
+      RM4["Read Model: full-text<br/>engine: SQLite"]
+      CMD3["Commands"]
+      F3 --> RM3
+      F3 --> RM4
+      CMD3 -- "mint Datom" --> F3
+    end
+    J -- "Datoms, cursor = tx" --> F1
+    J -- "Datoms" --> F2
+    J -- "Datoms" --> F3
+    F1 -. "outbox" .-> J
+    F2 -. "outbox" .-> J
+    F3 -. "outbox" .-> J
+  end
+  OB(["Owner: Bob's agent"])
+  APPB["App B"]
+  OA -. "acts through" .-> C1
+  OA -. "acts through" .-> C2
+  OA -. "delegates to" .-> AG
+  OB -. "owns" .-> APPB
+  AG == "Message" ==> APPB
+  classDef fact fill:#e3f2fd,stroke:#1976d2,color:#0d3c70;
+  classDef derived fill:#f3e5f5,stroke:#9c27b0,color:#4a148c;
+  classDef actor fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef owner fill:#fff3e0,stroke:#ed6c02,color:#7a3a00;
+  class LOG,F1,F2,F3 fact; class RM1,RM2,RM3,RM4 derived; class J,CMD1,CMD3 actor; class OA,OB owner;
+  style C1 fill:#f1f8e9,stroke:#2e7d32
+  style C2 fill:#f1f8e9,stroke:#2e7d32
+  style AG fill:#f1f8e9,stroke:#2e7d32
+  style APP fill:#fafafa,stroke:#9e9e9e
+  style APPB fill:#fafafa,stroke:#9e9e9e
+      </pre>
+    </div>
+    <div class="paper">
+      <dl>
+        <dt>App</dt><dd>The whole: one Log plus every Actor of it. One Owner, one App. The brief's own word: "the actor that owns the app".</dd>
+        <dt>Actor</dt><dd>A process that holds state and acts: the Journal, each client, each agent. Every Actor except the Journal holds Facts, some Read Models, and can run Commands.</dd>
+        <dt>Journal</dt><dd>The Actor that holds the Log. What the repo calls the server.</dd>
+        <dt>Facts</dt><dd>An Actor's local copy of the current set plus its cursor. Data, not a doer. The old "Replica", renamed to say what it is.</dd>
+        <dt>Message</dt><dd>What Actors exchange. Inside an App the sync protocol is Messages carrying Datoms. Between Apps a Message is input that the receiving Owner's Command may turn into Datoms.</dd>
+      </dl>
+      <ul class="pro"><li>Data and doers separated: Facts / Log / Read Model are data, Actor is the doer.</li><li>Server, client, agent are visible again as kinds of Actor.</li><li>"Message" unifies sync and cross-App communication.</li><li>Owner, App, Actor read as three distinct levels: who, what, which process.</li></ul>
+      <ul class="con"><li>"Actor" carries actor-model expectations (mailbox, supervision) we do not promise.</li><li>Journal is an Actor with no Facts of its own, an exception to the pattern.</li></ul>
+    </div>
+  </div>
+
+  <h2>Alternative 2 · Straight CQRS-ES <small>textbook vocabulary</small></h2>
+  <div class="split">
+    <div class="paper">
+      <pre class="mermaid">
+flowchart TB
+  OA(["Owner: Alice"])
+  subgraph SYS["System A  ·  one Event Store, one epoch"]
+    direction TB
+    ES[("Event Store<br/>the Log: Datoms in tx order")]
+    SRV["Server<br/>hosts the Event Store"]
+    SRV --- ES
+    subgraph CL1["Client: browser"]
+      H1["Command Handler"]
+      P1["Projection: Todo Lists"]
+      H1 -- "emits Event (Datom)" --> SRV
+    end
+    subgraph CL2["Client: phone"]
+      P2["Projection: Todo Lists"]
+    end
+    subgraph CL3["Client: agent"]
+      H3["Command Handler"]
+      P3["Projection: context.md"]
+      P4["Projection: full-text (SQLite)"]
+      H3 -- "emits Event (Datom)" --> SRV
+    end
+    SRV -- "Events, cursor = tx" --> P1
+    SRV -- "Events" --> P2
+    SRV -- "Events" --> P3
+    SRV -- "Events" --> P4
+  end
+  OB(["Owner: Bob's agent"])
+  SYSB["System B"]
+  OA -. "issues Commands" .-> H1
+  OA -. "delegates" .-> CL3
+  OB -. "owns" .-> SYSB
+  CL3 == "Integration Message" ==> SYSB
+  classDef fact fill:#e3f2fd,stroke:#1976d2,color:#0d3c70;
+  classDef derived fill:#f3e5f5,stroke:#9c27b0,color:#4a148c;
+  classDef actor fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  classDef owner fill:#fff3e0,stroke:#ed6c02,color:#7a3a00;
+  class ES fact; class P1,P2,P3,P4 derived; class SRV,H1,H3 actor; class OA,OB owner;
+  style CL1 fill:#f1f8e9,stroke:#2e7d32
+  style CL2 fill:#f1f8e9,stroke:#2e7d32
+  style CL3 fill:#f1f8e9,stroke:#2e7d32
+  style SYS fill:#fafafa,stroke:#9e9e9e
+  style SYSB fill:#fafafa,stroke:#9e9e9e
+      </pre>
+    </div>
+    <div class="paper">
+      <dl>
+        <dt>System</dt><dd>The whole. Generic, collides with everything.</dd>
+        <dt>Event Store</dt><dd>The Log. Event is the Datom.</dd>
+        <dt>Server / Client</dt><dd>The doers, by role. An agent is a Client.</dd>
+        <dt>Command Handler</dt><dd>Where Commands become Events.</dd>
+        <dt>Projection</dt><dd>A Read Model, by its textbook name. Engine is implied.</dd>
+      </dl>
+      <ul class="pro"><li>Zero invented words. Any CQRS-ES reader is at home in one minute.</li><li>Event is front and center.</li></ul>
+      <ul class="con"><li>The local copy of current facts has no name at all; textbook CQRS does not have one because clients normally do not hold the whole set. That is our most distinctive property and this vocabulary hides it.</li><li>"Client" and "Server" describe topology, not what a thing holds or may do. An agent that runs in the server process is neither.</li><li>"System" is the weakest possible name for the thing an Owner owns.</li></ul>
+    </div>
+  </div>
+
+  <h2>Alternative 3 · Space and Nodes <small>topology reading</small></h2>
+  <div class="split">
+    <div class="paper">
+      <pre class="mermaid">
+flowchart TB
+  OA(["Owner: Alice"])
+  subgraph SP["Space A  ·  one Log, one epoch"]
+    direction TB
+    subgraph N0["Node: origin"]
+      LOG[("Log")]
+    end
+    subgraph N1["Node: browser"]
+      F1["Facts"]
+      RM1["Read Model: Todo Lists"]
+      F1 --> RM1
+    end
+    subgraph N2["Node: phone"]
+      F2["Facts"]
+      RM2["Read Model: Todo Lists"]
+      F2 --> RM2
+    end
+    subgraph N3["Node: agent"]
+      F3["Facts"]
+      RM3["Read Model: context.md"]
+      RM4["Read Model: full-text"]
+      F3 --> RM3
+      F3 --> RM4
+    end
+    LOG -- "Datoms" --> F1
+    LOG -- "Datoms" --> F2
+    LOG -- "Datoms" --> F3
+    F1 -. "Commands mint Datoms" .-> LOG
+    F3 -. "Commands mint Datoms" .-> LOG
+  end
+  OB(["Owner: Bob's agent"])
+  SPB["Space B"]
+  OA -. "acts at" .-> N1
+  OA -. "acts at" .-> N2
+  OB -. "owns" .-> SPB
+  N3 == "Message" ==> SPB
+  classDef fact fill:#e3f2fd,stroke:#1976d2,color:#0d3c70;
+  classDef derived fill:#f3e5f5,stroke:#9c27b0,color:#4a148c;
+  classDef owner fill:#fff3e0,stroke:#ed6c02,color:#7a3a00;
+  class LOG,F1,F2,F3 fact; class RM1,RM2,RM3,RM4 derived; class OA,OB owner;
+  style N0 fill:#f1f8e9,stroke:#2e7d32
+  style N1 fill:#f1f8e9,stroke:#2e7d32
+  style N2 fill:#f1f8e9,stroke:#2e7d32
+  style N3 fill:#f1f8e9,stroke:#2e7d32
+  style SP fill:#fafafa,stroke:#9e9e9e
+  style SPB fill:#fafafa,stroke:#9e9e9e
+      </pre>
+    </div>
+    <div class="paper">
+      <dl>
+        <dt>Space</dt><dd>The whole. One Owner, one Space.</dd>
+        <dt>Node</dt><dd>A process in the Space. The origin Node holds the Log; every other Node holds Facts and Read Models.</dd>
+        <dt>Facts</dt><dd>As in Alternative 1.</dd>
+      </dl>
+      <ul class="pro"><li>Node is neutral: says "a place in the topology" and nothing about behavior, so it never over-promises.</li><li>Origin Node fits the pattern better than "Journal Actor" does.</li></ul>
+      <ul class="con"><li>Node says nothing about acting. Commands have no home; they are drawn as arrows because there is no doer to put them in.</li><li>"Space" is pleasant but arbitrary. It will need a definition every time.</li><li>Feels like a network diagram, not an architecture with intent in it.</li></ul>
+    </div>
+  </div>
+
+  <h2>Side by side</h2>
+  <div class="paper cmp">
+    <table>
+      <thead><tr><th>Concept</th><th>Alt 1 · App and Actors</th><th>Alt 2 · CQRS-ES</th><th>Alt 3 · Space and Nodes</th></tr></thead>
+      <tbody>
+        <tr><td>Accountable party</td><td class="rec">Owner</td><td>Owner</td><td>Owner</td></tr>
+        <tr><td>The whole thing an Owner owns</td><td class="rec">App</td><td>System</td><td>Space</td></tr>
+        <tr><td>A process that holds state and acts</td><td class="rec">Actor</td><td>Server / Client / Handler</td><td>Node</td></tr>
+        <tr><td>The event</td><td class="rec">Datom</td><td>Event (a Datom)</td><td>Datom</td></tr>
+        <tr><td>Where every event lives</td><td class="rec">Log, held by the Journal Actor</td><td>Event Store, hosted by Server</td><td>Log, at the origin Node</td></tr>
+        <tr><td>Local copy of current facts</td><td class="rec">Facts</td><td><em>unnamed</em></td><td>Facts</td></tr>
+        <tr><td>Derived view</td><td class="rec">Read Model, in an Engine</td><td>Projection</td><td>Read Model, in an Engine</td></tr>
+        <tr><td>Intent that mints events</td><td class="rec">Command, run by an Actor</td><td>Command, run by a Handler</td><td>Command, no home</td></tr>
+        <tr><td>Crossing between Owners</td><td class="rec">Message between Actors of different Apps</td><td>Integration Message</td><td>Message between Nodes of different Spaces</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Recommendation and what to check</h2>
+  <div class="paper">
+    <p><strong>Alternative 1.</strong> It is the only one where every word answers a different question: Owner says who is accountable, App says what they own, Actor says which process is acting, Facts and Log say what is held, Read Model says what is derived, Datom says what an event is. It uses the brief's own word for the whole, "app", and it gives the doers back their place without smuggling topology in. The actor-model baggage is manageable with one sentence in the glossary: an Actor here holds state and acts; mailboxes and supervision are not implied.</p>
+    <p>If Journal-as-an-Actor-without-Facts bothers you, the fix inside Alternative 1 is to say the Journal's Facts <em>are</em> the Log, which is literally how the server works today: it folds the journal into a store on startup.</p>
+  </div>
+  <div class="q"><strong>Q1.</strong> Does "App" work for you as the name of the whole, given the brief already uses it? Or does it feel too product-shaped for something an agent owns?</div>
+  <div class="q"><strong>Q2.</strong> Is "Actor" the right word for the doers, with the one-sentence disclaimer, or do you want a word with no actor-model history?</div>
+  <div class="q"><strong>Q3.</strong> "Facts" for the local current set: clear, or too close to "the facts in the Log"?</div>
+  <div class="q"><strong>Q4.</strong> Sync as Messages between Actors of one App: does unifying sync and cross-App communication under one word help, or should intra-App sync stay a protocol and Message stay reserved for crossing between Apps?</div>
+</main>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "strict", flowchart: { htmlLabels: true, curve: "basis" } });
+  const run = () => mermaid.run({ nodes: [...document.querySelectorAll(".mermaid")] }).catch((e) => console.error("Mermaid render failed:", e));
+  if (document.readyState === "complete") run(); else window.addEventListener("load", run, { once: true });
+</script>
+</body>
+</html>

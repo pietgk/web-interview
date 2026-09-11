@@ -5,6 +5,7 @@ Entry map. Prose lives in the linked docs.
 | Topic | Doc |
 | --- | --- |
 | How the system works | [`docs/architecture.md`](./docs/architecture.md) |
+| Reference architecture (domain-agnostic spec this app implements) | [`docs/reference-architecture.md`](./docs/reference-architecture.md) |
 | Accepted architectural decisions | [`docs/adr/README.md`](./docs/adr/README.md) |
 | Protection model / verification pipeline | [`docs/testing-and-validation.md`](./docs/testing-and-validation.md) |
 | Verify commands / stages | [`docs/verify.md`](./docs/verify.md) (`npm run verify help`) |

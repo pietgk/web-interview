@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Owner, Log, Replica, Read Model - does the picture hold?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  /* MUI default light palette, same tokens as the app and earlier review pages. */
+  :root {
+    --bg: #fafafa; --paper: #ffffff; --paper-2: #f5f5f5;
+    --text: rgba(0,0,0,0.87); --text-2: rgba(0,0,0,0.6); --text-3: rgba(0,0,0,0.38);
+    --divider: rgba(0,0,0,0.12);
+    --primary: #1976d2; --primary-soft: rgba(25,118,210,0.08);
+    --secondary: #9c27b0; --secondary-soft: rgba(156,39,176,0.08);
+    --error: #d32f2f; --error-soft: rgba(211,47,47,0.08);
+    --success: #2e7d32; --success-soft: rgba(46,125,50,0.08);
+    --warning: #ed6c02; --warning-soft: rgba(237,108,2,0.08);
+  }
+  html { color-scheme: light; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: Roboto, system-ui, sans-serif; font-size: 15px; line-height: 1.5; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-size: 26px; font-weight: 500; margin: 0 0 4px; }
+  h2 { font-size: 18px; font-weight: 500; margin: 40px 0 12px; }
+  p.lead { color: var(--text-2); margin: 0 0 24px; max-width: 70ch; }
+  code { font-family: "Roboto Mono", monospace; font-size: 0.9em; background: var(--paper-2); padding: 1px 5px; border-radius: 4px; }
+  .paper { background: var(--paper); border: 1px solid var(--divider); border-radius: 8px; padding: 20px; }
+  .mermaid { overflow-x: auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .grid > * { min-width: 0; }
+  .term { border-left: 4px solid var(--primary); }
+  .term.side-facts { border-left-color: var(--primary); }
+  .term.side-derived { border-left-color: var(--secondary); }
+  .term.side-party { border-left-color: var(--success); }
+  .term.side-crossing { border-left-color: var(--warning); }
+  .term h3 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
+  .term p { margin: 0; color: var(--text-2); font-size: 14px; }
+  .term .side { display: inline-block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-bottom: 6px; }
+  ol.rules { padding-left: 22px; }
+  ol.rules li { margin-bottom: 8px; }
+  .q { background: var(--warning-soft); border: 1px solid rgba(237,108,2,.3); border-radius: 8px; padding: 14px 18px; margin-top: 12px; }
+  .q strong { color: var(--warning); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--text-2); font-size: 13px; margin: 10px 0 0; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend .f::before { background: var(--primary); }
+  .legend .d::before { background: var(--secondary); }
+  .legend .p::before { background: var(--success); }
+  .legend .m::before { background: var(--warning); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Owner, Log, Replica, Read Model</h1>
+  <p class="lead">One question: with two Owners, each with their own Log and a couple of Replicas, where does a Message go, and where does Owner appear at all? If this reads right, the naming holds. If something feels off, click it and say so.</p>
+
+  <div class="paper">
+    <pre class="mermaid">
+flowchart TB
+  subgraph A["Log A · one epoch · owned by Alice"]
+    direction TB
+    LA[("Log A<br/>append-only journal")]
+    RA1["Replica A1<br/>Alice's browser tab<br/>compacted set + cursor"]
+    RA2["Replica A2<br/>Alice's phone<br/>compacted set + cursor"]
+    RA3["Replica A3<br/>Alice's agent, in-process<br/>compacted set + cursor"]
+    RMA1["Read Model<br/>Todo Lists (in-memory engine)"]
+    RMA3a["Read Model<br/>context.md (in-memory engine)"]
+    RMA3b["Read Model<br/>full-text (SQLite engine)"]
+    LA -- "stream winners, cursor = tx" --> RA1
+    LA -- "stream winners, cursor = tx" --> RA2
+    LA -- "stream winners, cursor = tx" --> RA3
+    RA1 -. "POST outbox" .-> LA
+    RA2 -. "POST outbox" .-> LA
+    RA3 -. "POST outbox" .-> LA
+    RA1 --> RMA1
+    RA3 --> RMA3a
+    RA3 --> RMA3b
+  end
+  subgraph B["Log B · one epoch · owned by Bob's agent"]
+    direction TB
+    LB[("Log B<br/>append-only journal")]
+    RB1["Replica B1<br/>Bob's agent, in-process<br/>compacted set + cursor"]
+    RMB1["Read Model<br/>project graph (in-memory engine)"]
+    LB -- "stream winners" --> RB1
+    RB1 -. "POST outbox" .-> LB
+    RB1 --> RMB1
+  end
+  OA(["Owner: Alice<br/>human · accountable for Log A"])
+  OB(["Owner: Bob's agent<br/>language model · accountable for Log B"])
+  OA -. "commands, on any Replica" .-> RA1
+  OA -. "commands, on any Replica" .-> RA2
+  OB -. "commands" .-> RB1
+  RA3 == "Message<br/>values may carry entity ids or content addresses<br/>never a write" ==> RB1
+  RB1 -- "Owner's command decides<br/>what becomes fact" --> LB
+
+  classDef facts fill:#e3f2fd,stroke:#1976d2,color:#0d3c70;
+  classDef derived fill:#f3e5f5,stroke:#9c27b0,color:#4a148c;
+  classDef party fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20;
+  class LA,LB,RA1,RA2,RA3,RB1 facts;
+  class RMA1,RMA3a,RMA3b,RMB1 derived;
+  class OA,OB party;
+  style A fill:#fafafa,stroke:#bdbdbd
+  style B fill:#fafafa,stroke:#bdbdbd
+    </pre>
+    <p class="legend"><span class="f">facts side: Log and Replicas</span><span class="d">derived side: Read Models in an Engine</span><span class="p">party: Owner, appears only in invariants</span><span class="m">crossing: Message between Replicas of different Logs</span></p>
+  </div>
+
+  <h2>What each word means in the picture</h2>
+  <div class="grid">
+    <div class="paper term side-party"><span class="side">party</span><h3>Owner</h3><p>A human, language model, or system accountable for one Log. Decides what becomes fact through commands. Never a box in the mechanism, only a name on the invariants.</p></div>
+    <div class="paper term side-facts"><span class="side">facts</span><h3>Log</h3><p>The append-only journal and its epoch. The identity of everything below it. One Owner, one Log. There is no word for "the whole system" because the Log is it.</p></div>
+    <div class="paper term side-facts"><span class="side">facts</span><h3>Replica</h3><p>Any process holding the Log's compacted set and a cursor: a browser tab, a phone, an agent in-process. Only mutation is <code>apply</code>. Only Replicas of a Log write to that Log.</p></div>
+    <div class="paper term side-derived"><span class="side">derived</span><h3>Read Model</h3><p>A typed view derived from a Replica. Rebuildable from the Log, never a source of facts. Includes prose for a model (context projection) and search indexes.</p></div>
+    <div class="paper term side-derived"><span class="side">derived</span><h3>Read Model Engine</h3><p>What hosts a Read Model and answers its questions: the in-memory fold, SQLite, a vector index. Its native query surface is the Read Model's interface.</p></div>
+    <div class="paper term side-crossing"><span class="side">crossing</span><h3>Message</h3><p>Sent by a Replica of one Log, received by a Replica of another. Input, not a write. May carry entity ids or content addresses as plain values. The receiving Owner's command decides what becomes fact.</p></div>
+  </div>
+
+  <h2>The invariants the picture is supposed to make obvious</h2>
+  <div class="paper">
+    <ol class="rules">
+      <li><strong>One Owner, one Log, one epoch.</strong> Every write in a Log is that Owner's intent, which is why last-write-wins is "my last intent" and needs no conflict path.</li>
+      <li><strong>Only Replicas of a Log write to that Log.</strong> Nothing from Log B can reach Log A except as a Message that A's Owner turns into a command.</li>
+      <li><strong>Facts on the left, derived on the right, one arrow between them.</strong> A Replica is facts. A Read Model is derived. There is no Replica Engine, because a Replica is its own map. The reference implementation's <code>DatomStore</code> fuses a Replica with one in-memory engine; that is the seam an Owner splits when adding a second engine.</li>
+      <li><strong>Owner is not on the wire.</strong> Messages travel between Replicas. Owners only decide.</li>
+    </ol>
+  </div>
+
+  <h2>Things to check against your own picture</h2>
+  <div class="q"><strong>Q1.</strong> Does "no word for the whole system" hold, or do you still want a name for "Log A and everything derived from it"?</div>
+  <div class="q"><strong>Q2.</strong> Replica A3 is an agent that both holds facts and sends a Message. Is it right that the agent is a Replica, not a fourth kind of thing?</div>
+  <div class="q"><strong>Q3.</strong> Bob's agent is the Owner of Log B and also runs inside Replica B1. Does Owner-as-party still read cleanly when the party is software living in its own Replica?</div>
+  <div class="q"><strong>Q4.</strong> Is the Message arrow from Replica to Replica the right picture, or should it be Log to Log (delivered through Replicas)?</div>
+</main>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "strict", flowchart: { htmlLabels: true, curve: "basis" } });
+  const run = () => mermaid.run({ nodes: [...document.querySelectorAll(".mermaid")] }).catch((e) => console.error("Mermaid render failed:", e));
+  if (document.readyState === "complete") run(); else window.addEventListener("load", run, { once: true });
+</script>
+</body>
+</html>
